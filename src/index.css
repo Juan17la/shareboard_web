@@ -1,0 +1,219 @@
+@import 'tailwindcss';
+
+/**
+ * Shareboard design tokens.
+ *
+ * Copied from the mobile app's `tailwind.config.js` / `src/constants/theme.ts`,
+ * which are the source of truth for the palette (mobile/docs/03-styles). The
+ * design is **light-only** on purpose: the glass panels take their depth from a
+ * light blur over a light ground, and a dark counterpart would flatten them
+ * into grey boxes. So there is no `prefers-color-scheme` block here.
+ */
+@theme {
+  /* --- UI surfaces (restrained: board content is the star) --- */
+  --color-background: #ffffff;
+  --color-surface: #f5f6f8;
+  --color-surface-selected: #eef0f6;
+  --color-text: #1b2030;
+  --color-text-secondary: #5a6170;
+  --color-text-tertiary: #8b909c;
+
+  /* --- Brand / intent (one accent does active tool, CTA and selection) --- */
+  --color-accent: #6d3fb5;
+  --color-accent-deep: #3c42ad;
+  --color-accent-soft: rgba(109, 63, 181, 0.11);
+  --color-accent-softer: rgba(109, 63, 181, 0.07);
+  --color-danger: #c4353a;
+  --color-danger-bright: #e5484d;
+  --color-danger-soft: rgba(196, 53, 58, 0.08);
+  --color-warn: #b4530a;
+  --color-warn-soft: rgba(247, 104, 8, 0.12);
+
+  /* --- Glass --- */
+  --color-glass: rgba(255, 255, 255, 0.46);
+  --color-glass-solid: rgba(255, 255, 255, 0.62);
+  --color-line: rgba(27, 32, 48, 0.1);
+  --color-line-strong: rgba(27, 32, 48, 0.14);
+  --color-line-dashed: rgba(27, 32, 48, 0.22);
+
+  /* --- Connection status badges (theme-independent) --- */
+  --color-online: #0f9e8e;
+  --color-connecting: #f59e0b;
+  --color-offline: #9aa0a6;
+
+  /* Generous, soft corners throughout. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 26px;
+
+  --font-sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* The board is a full-bleed surface: the page itself never scrolls. */
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Focus is drawn with the accent rather than the platform default, so keyboard
+   users get the same visual language as the rest of the app (docs/03-styles
+   asks for AA contrast and declared states on every control). */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* --- The frosted panel recipe --------------------------------------------
+   The mobile app builds this from a BlurView plus a tint, a hairline and a top
+   highlight. In a browser `backdrop-filter` does the same job in one line, so
+   the panels here are real glass on every platform rather than the near-opaque
+   fallback Android has to take. */
+.glass {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.44));
+  backdrop-filter: blur(30px) saturate(1.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  box-shadow:
+    0 12px 34px rgba(21, 26, 45, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+/* Rows and chips that hold text sit at a higher opacity so their contrast
+   matches flat surfaces. */
+.glass-row {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+
+.glass-chip {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  box-shadow:
+    0 8px 22px rgba(21, 26, 45, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Soft elevation. Only the CTA and the destructive buttons are tinted. */
+.shadow-panel {
+  box-shadow: 0 12px 34px rgba(21, 26, 45, 0.16);
+}
+.shadow-card {
+  box-shadow: 0 8px 20px rgba(21, 26, 45, 0.1);
+}
+.shadow-accent {
+  box-shadow: 0 8px 16px rgba(109, 63, 181, 0.3);
+}
+.shadow-danger {
+  box-shadow: 0 8px 16px rgba(196, 53, 58, 0.26);
+}
+
+/* Sheets and panels scroll without a visible scrollbar eating their padding. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* --- Motion --------------------------------------------------------------- */
+@keyframes sb-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.35);
+  }
+}
+@keyframes sb-up {
+  from {
+    transform: translateY(28px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes sb-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sb-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes sb-pop {
+  from {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.sb-pulse {
+  animation: sb-pulse 2.4s ease-in-out infinite;
+}
+.sb-sheet {
+  animation: sb-up 0.26s cubic-bezier(0.22, 0.9, 0.26, 1);
+}
+.sb-scrim {
+  animation: sb-fade 0.2s ease;
+}
+.sb-dialog {
+  animation: sb-pop 0.18s cubic-bezier(0.22, 0.9, 0.26, 1);
+}
+.sb-toast {
+  animation: sb-up 0.18s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-pulse,
+  .sb-sheet,
+  .sb-scrim,
+  .sb-dialog,
+  .sb-toast {
+    animation: none;
+  }
+}
