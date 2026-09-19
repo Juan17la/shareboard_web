@@ -187,8 +187,14 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const observer = new ResizeObserver(() => paint());
+    const measure = () => {
+      const { width, height } = host.getBoundingClientRect();
+      useBoardStore.getState().setViewport({ width, height });
+      paint();
+    };
+    const observer = new ResizeObserver(measure);
     observer.observe(host);
+    measure();
     window.addEventListener('resize', paint);
     return () => {
       observer.disconnect();
