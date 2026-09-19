@@ -108,8 +108,6 @@ export interface Auth {
   token: string;
 }
 
-export const health = () => request<{ ok: true }>('/health');
-
 export const createBoard = (body: CreateBoardRequest) =>
   request<BoardMeta>('/boards', { method: 'POST', body, userId: body.creatorId });
 
@@ -141,15 +139,3 @@ export const importSnapshot = (snapshot: BoardSnapshot, creatorId: UserId) =>
     body: { snapshot, creatorId },
     userId: creatorId,
   });
-
-/**
- * Delete a board outright (creator only).
- *
- * TODO(backend): the endpoint does not exist on the server yet — see the
- * matching note in `mobile/src/services/api/endpoints.ts`. Callers should treat
- * a rejection as "the board is gone from this browser" rather than as a hard
- * failure, which is what the settings sheet does: it leaves the board and drops
- * it from the recent list either way.
- */
-export const deleteBoard = (id: string, auth: Auth) =>
-  request<void>(`/boards/${id}`, { method: 'DELETE', ...auth });
