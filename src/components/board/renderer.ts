@@ -10,9 +10,9 @@
  * before calling. The one exception is the dot grid, which is spaced in screen
  * pixels so it stays crisp instead of being scaled with the drawing.
  */
-import type { BoardElement, ShapeElement, TextElement } from '../../lib/contract';
-import { strokePath } from '../../lib/geometry';
-import { GRID } from '../../lib/theme';
+import { SHAPE_TEXT_SIZE, type BoardElement, type ShapeElement, type TextElement } from '../../lib/contract';
+import { isLineLike, shapeBounds, shapeHandles, strokePath } from '../../lib/geometry';
+import { Colors, GRID } from '../../lib/theme';
 import type { Camera } from '../../features/board-store';
 
 // --- images ----------------------------------------------------------------
@@ -65,7 +65,34 @@ function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   });
 }
 
+/** A shape's label: centred in its box, or floating just above a line's midpoint. */
+function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void {
+  if (!el.text) return;
+  const { x, y, width, height } = shapeBounds(el);
+  const fontSize = el.fontSize ?? SHAPE_TEXT_SIZE;
+  const step = fontSize * TEXT_LINE_HEIGHT;
+  const lines = el.text.split('\n');
+  const cx = x + width / 2;
+  const cy = isLineLike(el)
+    ? y + height / 2 - (lines.length * step) / 2 - fontSize * 0.4
+    : y + height / 2;
+
+  ctx.font = fontFor({ fontSize, bold: false, italic: false });
+  ctx.fillStyle = el.stroke;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const top = cy - ((lines.length - 1) * step) / 2;
+  lines.forEach((line, i) => ctx.fillText(line, cx, top + i * step));
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'alphabetic';
+}
+
 function paintShape(ctx: CanvasRenderingContext2D, el: ShapeElement): void {
+  paintShapeGeometry(ctx, el);
+  paintShapeLabel(ctx, el);
+}
+
+function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): void {
   const x = Math.min(el.from.x, el.to.x);
   const y = Math.min(el.from.y, el.to.y);
   const w = Math.abs(el.to.x - el.from.x);
@@ -199,6 +226,40 @@ export function paintGrid(
   }
   ctx.fillStyle = 'rgba(27,32,48,0.13)';
   ctx.fill(path);
+}
+
+/**
+ * The selection frame: a dashed box and a handle on each corner (each endpoint
+ * for a line), drawn in screen space so the handles stay finger-sized at any
+ * zoom. `camera` maps the shape's board coordinates onto the screen.
+ */
+export const HANDLE_SIZE = 10;
+
+export function paintSelection(
+  ctx: CanvasRenderingContext2D,
+  el: ShapeElement,
+  camera: Camera,
+): void {
+  const toScreen = (x: number, y: number) => [x * camera.scale + camera.x, y * camera.scale + camera.y];
+  ctx.save();
+  ctx.strokeStyle = Colors.accent;
+  ctx.lineWidth = 1.5;
+  if (!isLineLike(el)) {
+    const b = shapeBounds(el);
+    const [sx, sy] = toScreen(b.x, b.y);
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(sx - 4, sy - 4, b.width * camera.scale + 8, b.height * camera.scale + 8);
+    ctx.setLineDash([]);
+  }
+  ctx.fillStyle = '#FFFFFF';
+  for (const h of shapeHandles(el)) {
+    const [sx, sy] = toScreen(h.x, h.y);
+    ctx.beginPath();
+    ctx.rect(sx - HANDLE_SIZE / 2, sy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 export interface PaintOptions {
