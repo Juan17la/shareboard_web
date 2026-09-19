@@ -30,6 +30,7 @@ const es = {
   loading: 'Abriendo la pizarra…',
 
   // tools
+  hand: 'Mano',
   pencil: 'Lápiz',
   eraser: 'Borrador',
   shapes: 'Figuras',
@@ -60,6 +61,7 @@ const es = {
   homeSub: 'Crea una pizarra y comparte el código. Sin registro.',
   createBoard: 'Crear pizarra',
   newBoardName: 'Pizarra sin título',
+  boardNamePlaceholder: 'Nombre de la pizarra (opcional)',
   importedBoardName: 'Pizarra importada',
   joinTitle: 'Entrar con un código',
   codeFieldLabel: 'Código de la pizarra',
@@ -80,6 +82,7 @@ const es = {
   nickSub: 'Tu nombre aparecerá junto a tu cursor en la pizarra.',
   nickPlaceholder: 'Tu nombre',
   yourColor: 'Tu color',
+  yourIcon: 'Tu icono',
   continue: 'Continuar',
 
   // pin
@@ -175,7 +178,7 @@ const es = {
   clearBoard: 'Vaciar la pizarra',
   deleteBoard: 'Eliminar la pizarra',
   shortcuts: 'Atajos de teclado',
-  shortcutsDesc: 'L lápiz · B borrador · F figuras · T texto · R relleno · Ctrl+Z deshacer',
+  shortcutsDesc: 'H mano · P lápiz · E borrador · R O Y L A figuras · T texto · F relleno · Ctrl+Z deshacer',
 
   // confirms
   clearTitle: '¿Vaciar la pizarra?',
@@ -228,6 +231,7 @@ const en: Record<keyof typeof es, string> = {
   deleteDigit: 'Delete a digit',
   loading: 'Opening the board…',
 
+  hand: 'Hand',
   pencil: 'Pencil',
   eraser: 'Eraser',
   shapes: 'Shapes',
@@ -257,6 +261,7 @@ const en: Record<keyof typeof es, string> = {
   homeSub: 'Create a board and share the code. No sign-up.',
   createBoard: 'Create board',
   newBoardName: 'Untitled board',
+  boardNamePlaceholder: 'Board name (optional)',
   importedBoardName: 'Imported board',
   joinTitle: 'Join with a code',
   codeFieldLabel: 'Board code',
@@ -276,6 +281,7 @@ const en: Record<keyof typeof es, string> = {
   nickSub: 'Your name shows next to your cursor on the board.',
   nickPlaceholder: 'Your name',
   yourColor: 'Your colour',
+  yourIcon: 'Your icon',
   continue: 'Continue',
 
   pinTitle: 'Private board',
@@ -362,7 +368,7 @@ const en: Record<keyof typeof es, string> = {
   clearBoard: 'Clear the board',
   deleteBoard: 'Delete the board',
   shortcuts: 'Keyboard shortcuts',
-  shortcutsDesc: 'P pencil · E eraser · S shapes · T text · F fill · Ctrl+Z undo',
+  shortcutsDesc: 'H hand · P pencil · E eraser · R O Y L A shapes · T text · F fill · Ctrl+Z undo',
 
   clearTitle: 'Clear the board?',
   clearBody:
