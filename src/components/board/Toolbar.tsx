@@ -6,9 +6,10 @@
  * arrow, and that is the click this layout gives back.
  *
  * What is not a tool (colour, stroke size, fill, font size, bold/italic) lives
- * in an options strip that opens above the bar from the colour swatch and only
- * shows the options belonging to the tool in hand. It closes itself the moment
- * a gesture starts on the canvas (`railOpen` in the store).
+ * in an options strip above the bar that only shows the options belonging to
+ * the tool in hand. Picking a tool opens it; clicking the tool you already hold
+ * toggles it; the colour swatch toggles it too. It closes itself the moment a
+ * gesture starts on the canvas (`railOpen` in the store).
  *
  * Every tool also has a one-key shortcut, which is the browser's own
  * contribution: on a phone the bar is the only way to switch tools, but at a
@@ -70,9 +71,18 @@ export function Toolbar({ compact }: { compact: boolean }) {
 
   const [picking, setPicking] = useState(false);
 
+  const isActive = (entry: (typeof TOOLS)[number]) =>
+    tool === entry.tool && (!entry.shape || config.shape === entry.shape);
+
   const pick = (entry: (typeof TOOLS)[number]) => {
+    if (isActive(entry)) {
+      setOpen(!open);
+      return;
+    }
     setTool(entry.tool);
     if (entry.shape) setConfig({ shape: entry.shape });
+    // The hand has nothing to configure; an empty strip would just be noise.
+    setOpen(entry.tool !== 'hand');
   };
 
   // Tool shortcuts. Bound on the window so they work wherever focus happens to
@@ -91,14 +101,12 @@ export function Toolbar({ compact }: { compact: boolean }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canEdit, setTool, setConfig]);
+  }, [canEdit, tool, config.shape, open]);
 
   // A viewer has no tools at all: the design hides them rather than greying
   // them out, so the board is all there is to look at (mobile/docs/04).
   if (!canEdit) return null;
 
-  const isActive = (entry: (typeof TOOLS)[number]) =>
-    tool === entry.tool && (!entry.shape || config.shape === entry.shape);
   const showSizes = tool === 'pen' || tool === 'eraser' || tool === 'shape';
   const showFill = tool === 'shape' && config.shape !== 'line' && config.shape !== 'arrow';
   // A selected shape borrows the text tool's size stepper for its label.
