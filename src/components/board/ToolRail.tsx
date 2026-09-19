@@ -64,8 +64,9 @@ export function ToolRail({ compact, landscape }: { compact: boolean; landscape: 
   const setTool = useBoardStore((s) => s.setTool);
   const setConfig = useBoardStore((s) => s.setConfig);
   const canEdit = useBoardStore((s) => s.canEditNow());
+  const open = useBoardStore((s) => s.railOpen);
+  const setOpen = useBoardStore((s) => s.setRailOpen);
 
-  const [open, setOpen] = useState(true);
   const [picking, setPicking] = useState(false);
 
   // Tool shortcuts. Bound on the window so they work wherever focus happens to
@@ -84,7 +85,7 @@ export function ToolRail({ compact, landscape }: { compact: boolean; landscape: 
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [canEdit, setTool]);
+  }, [canEdit, setTool, setOpen]);
 
   // A viewer has no tools at all: the design hides them rather than greying
   // them out, so the board is all there is to look at (mobile/docs/04).
@@ -133,7 +134,7 @@ export function ToolRail({ compact, landscape }: { compact: boolean; landscape: 
               aria-label={t.color}
               aria-expanded={open}
               title={`${t.color} — ${config.color}`}
-              onClick={() => setOpen((v) => !v)}
+              onClick={() => setOpen(!open)}
               style={{ width: button, height: button, borderRadius: radius }}
               className="flex items-center justify-center border border-line bg-white/60 transition hover:bg-white"
             >
