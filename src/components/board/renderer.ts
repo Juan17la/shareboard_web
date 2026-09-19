@@ -11,7 +11,7 @@
  * pixels so it stays crisp instead of being scaled with the drawing.
  */
 import { SHAPE_TEXT_SIZE, type BoardElement, type ShapeElement, type TextElement } from '../../lib/contract';
-import { isLineLike, shapeBounds, shapeHandles, strokePath } from '../../lib/geometry';
+import { anchorsOf, isLineLike, shapeBounds, shapeHandles, strokePath } from '../../lib/geometry';
 import { Colors, GRID } from '../../lib/theme';
 import type { Camera } from '../../features/board-store';
 
@@ -258,6 +258,31 @@ export function paintSelection(
     ctx.rect(sx - HANDLE_SIZE / 2, sy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
     ctx.fill();
     ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Connection points on every enclosed shape, shown while a line or an arrow is
+ * being drawn so the snap targets are visible. Screen-space dots.
+ */
+export function paintAnchors(
+  ctx: CanvasRenderingContext2D,
+  elements: BoardElement[],
+  camera: Camera,
+): void {
+  ctx.save();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeStyle = Colors.accent;
+  ctx.lineWidth = 1.5;
+  for (const el of elements) {
+    if (el.kind !== 'shape') continue;
+    for (const a of anchorsOf(el)) {
+      ctx.beginPath();
+      ctx.arc(a.x * camera.scale + camera.x, a.y * camera.scale + camera.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }
