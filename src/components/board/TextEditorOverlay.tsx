@@ -33,7 +33,12 @@ export function TextEditorOverlay({
   const committed = useRef(false);
 
   useEffect(() => {
-    ref.current?.focus();
+    // The editor mounts during the pointerdown that created its element. The
+    // browser's own focus handling for that press runs right after, and would
+    // pull focus off a textarea focused now — blurring it, committing an empty
+    // text and deleting the element. A task later, the press is over.
+    const timer = setTimeout(() => ref.current?.focus(), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const commit = () => {
