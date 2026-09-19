@@ -22,17 +22,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useSessionStore } from '../../features/session';
-import { screenToBoard, useBoardStore, type Camera } from '../../features/board-store';
-import type { Point } from '../../lib/contract';
+import { boardToScreen, screenToBoard, useBoardStore, type Camera } from '../../features/board-store';
+import type { Point, ShapeElement } from '../../lib/contract';
 import { LIMITS } from '../../lib/contract';
-import { simplify } from '../../lib/geometry';
-import { MAX_ZOOM, MIN_ZOOM, fillFor } from '../../lib/theme';
+import { resizeShape, shapeAt, shapeBounds, shapeHandles, simplify } from '../../lib/geometry';
+import { Colors, MAX_ZOOM, MIN_ZOOM, fillFor } from '../../lib/theme';
 import { visibleSorted } from '../../lib/ops';
+import { useT } from '../../features/i18n';
 
 import { PeerCursors } from './PeerCursors';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { cursorFor } from './cursors';
-import { paintBoard } from './renderer';
+import { paintBoard, paintSelection } from './renderer';
 
 const clampZoom = (scale: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale));
 
@@ -41,6 +42,16 @@ function zoomAround(camera: Camera, focal: Point, next: number): Camera {
   const bx = (focal.x - camera.x) / camera.scale;
   const by = (focal.y - camera.y) / camera.scale;
   return { scale: next, x: focal.x - bx * next, y: focal.y - by * next };
+}
+
+/** A selected shape being moved or reshaped by one drag. */
+interface ShapeEdit {
+  id: string;
+  mode: 'move' | 'resize';
+  handle: number;
+  start: Point;
+  from: Point;
+  to: Point;
 }
 
 interface Pointers {
@@ -63,11 +74,16 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   const config = useBoardStore((s) => s.config);
   const elements = useBoardStore((s) => s.elements);
   const canEdit = useBoardStore((s) => s.canEditNow());
+  const selectedId = useBoardStore((s) => s.selectedId);
+  const t = useT();
   const grid = useSessionStore((s) => s.settings.grid);
   const smooth = useSessionStore((s) => s.settings.smooth);
 
   const [livePoints, setLivePoints] = useState<number[]>([]);
   const [liveShape, setLiveShape] = useState<{ from: Point; to: Point } | null>(null);
+  // The selected shape's box while a handle or the body is being dragged; the
+  // element itself only changes (one op) when the pointer lifts.
+  const [liveEdit, setLiveEdit] = useState<{ id: string; from: Point; to: Point } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [panning, setPanning] = useState(false);
   const spaceHeld = useRef(false);
@@ -86,6 +102,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   // them to check they are pure — and send the stroke to everyone twice.
   const livePointsRef = useRef<number[]>([]);
   const liveShapeRef = useRef<{ from: Point; to: Point } | null>(null);
+  const editRef = useRef<ShapeEdit | null>(null);
 
   const setPoints = (points: number[]) => {
     livePointsRef.current = points;
@@ -96,7 +113,18 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setLiveShape(shape);
   };
 
-  const list = useMemo(() => visibleSorted(elements), [elements]);
+  const list = useMemo(() => {
+    const sorted = visibleSorted(elements);
+    if (!liveEdit) return sorted;
+    return sorted.map((el) =>
+      el.id === liveEdit.id ? { ...el, from: liveEdit.from, to: liveEdit.to } : el,
+    );
+  }, [elements, liveEdit]);
+
+  const selected = useMemo(() => {
+    const el = selectedId ? list.find((e) => e.id === selectedId) : null;
+    return el && el.kind === 'shape' ? el : null;
+  }, [list, selectedId]);
 
   // --- painting ------------------------------------------------------------
   // One `requestAnimationFrame` per change rather than a paint per event: a
@@ -172,11 +200,12 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         background: '#FFFFFF',
         onImageReady: () => repaint.current(),
       });
+      if (selected && activeTool === 'shape') paintSelection(ctx, selected, cam);
     });
     // `config` is in the list because changing the colour or width while a
     // shape is being dragged has to repaint the draft, and no pointer event
     // follows to trigger it.
-  }, [list, livePoints, liveShape, smooth, grid, config]);
+  }, [list, livePoints, liveShape, selected, smooth, grid, config]);
 
   useEffect(() => {
     repaint.current = paint;
@@ -254,8 +283,25 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   /** Abandons an in-progress stroke or shape without committing it. */
   const cancelDraft = () => {
     pointers.current.drawingId = null;
+    editRef.current = null;
+    setLiveEdit(null);
     setPoints([]);
     setShape(null);
+  };
+
+  /**
+   * With the shape tool, a pointer landing on the selected shape starts a
+   * drag of it rather than a new shape: a handle reshapes, the body moves.
+   */
+  const beginShapeEdit = (p: Point, scale: number): boolean => {
+    const el = useBoardStore.getState().selectedShape();
+    if (!el) return false;
+    const hitR = 12 / scale;
+    const handle = shapeHandles(el).findIndex((h) => Math.hypot(h.x - p.x, h.y - p.y) <= hitR);
+    const mode = handle >= 0 ? 'resize' : shapeAt([el], p, 6 / scale) ? 'move' : null;
+    if (!mode) return false;
+    editRef.current = { id: el.id, mode, handle, start: p, from: el.from, to: el.to };
+    return true;
   };
 
   // --- pointer handling ----------------------------------------------------
@@ -304,7 +350,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         setPoints([p.x, p.y]);
         break;
       case 'shape':
-        setShape({ from: p, to: p });
+        if (!beginShapeEdit(p, store.camera.scale)) setShape({ from: p, to: p });
         break;
       case 'text': {
         const id = store.addText(p);
@@ -376,6 +422,19 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         break;
       }
       case 'shape': {
+        const edit = editRef.current;
+        if (edit) {
+          const el = { ...store.elements[edit.id], from: edit.from, to: edit.to } as ShapeElement;
+          const next =
+            edit.mode === 'resize'
+              ? resizeShape(el, edit.handle, p)
+              : {
+                  from: { x: edit.from.x + p.x - edit.start.x, y: edit.from.y + p.y - edit.start.y },
+                  to: { x: edit.to.x + p.x - edit.start.x, y: edit.to.y + p.y - edit.start.y },
+                };
+          setLiveEdit({ id: edit.id, ...next });
+          break;
+        }
         const prev = liveShapeRef.current;
         if (prev) setShape({ from: prev.from, to: p });
         break;
@@ -402,13 +461,37 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       if (points.length >= 4) store.addStroke(simplify(points));
     }
     if (store.tool === 'shape') {
+      const edit = editRef.current;
+      editRef.current = null;
+      if (edit) {
+        // One op for the whole drag, so undo takes it back in one step.
+        const p = screenToBoard(localPoint(e).x, localPoint(e).y);
+        if (p.x !== edit.start.x || p.y !== edit.start.y) {
+          const el = { ...store.elements[edit.id], from: edit.from, to: edit.to } as ShapeElement;
+          store.updateShape(
+            edit.id,
+            edit.mode === 'resize'
+              ? resizeShape(el, edit.handle, p)
+              : {
+                  from: { x: edit.from.x + p.x - edit.start.x, y: edit.from.y + p.y - edit.start.y },
+                  to: { x: edit.to.x + p.x - edit.start.x, y: edit.to.y + p.y - edit.start.y },
+                },
+          );
+        }
+        setLiveEdit(null);
+        return;
+      }
       const shape = liveShapeRef.current;
       setShape(null);
       if (shape) {
-        // A click with the shape tool is a mis-hit, not a zero-size rectangle.
         const dragged = Math.hypot(shape.to.x - shape.from.x, shape.to.y - shape.from.y);
         if (dragged * store.camera.scale > 6) {
-          store.addShape(store.config.shape, shape.from, shape.to);
+          // A new shape comes up selected, handles ready, so it can be sized
+          // right away.
+          store.select(store.addShape(store.config.shape, shape.from, shape.to));
+        } else {
+          // A click with the shape tool picks the shape under it (or nothing).
+          store.select(shapeAt(store.visibleElements(), shape.from, 6 / store.camera.scale)?.id ?? null);
         }
       }
     }
@@ -450,6 +533,13 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
   const editing = editingId ? elements[editingId] : null;
 
+  // The label button floats just above the selected shape.
+  const labelAt = useMemo(() => {
+    if (!selected || tool !== 'shape') return null;
+    const b = shapeBounds(selected);
+    return boardToScreen(b.x + b.width / 2, b.y, camera);
+  }, [selected, tool, camera]);
+
   return (
     <div ref={hostRef} className="absolute inset-0 bg-background">
       <canvas
@@ -468,7 +558,25 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
       <PeerCursors camera={camera} />
 
-      {editing && editing.kind === 'text' ? (
+      {labelAt && selected && !editing ? (
+        <button
+          type="button"
+          aria-label={t.text}
+          title={t.text}
+          onClick={() => setEditingId(selected.id)}
+          className="absolute z-20 rounded-full border bg-white px-2.5 py-1 text-[12px] font-extrabold shadow-panel transition hover:bg-surface"
+          style={{
+            left: labelAt.x - 22,
+            top: labelAt.y - 42,
+            borderColor: Colors.accent,
+            color: Colors.accent,
+          }}
+        >
+          Aa
+        </button>
+      ) : null}
+
+      {editing && (editing.kind === 'text' || editing.kind === 'shape') ? (
         <TextEditorOverlay
           element={editing}
           camera={camera}
