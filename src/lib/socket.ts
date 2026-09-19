@@ -11,7 +11,6 @@ import { REALTIME, WS_URL } from './config';
 import {
   CloseCode,
   type ClientMessage,
-  type Point,
   type ServerMessage,
   type ServerMessageType,
 } from './contract';
@@ -136,10 +135,6 @@ export class RealtimeClient {
 
   send(msg: ClientMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
-  }
-
-  sendCursor(at: Point): void {
-    this.send({ type: 'cursor', boardId: this.opts.boardId, at });
   }
 
   private stopTimers(): void {
