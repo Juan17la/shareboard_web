@@ -27,7 +27,7 @@ import { Button } from '../components/ui/Button';
 import { GlassPanel } from '../components/ui/Glass';
 import { Field } from '../components/ui/Field';
 import { Icon } from '../components/ui/Icon';
-import { SectionLabel } from '../components/ui/Sheet';
+import { SectionLabel, Sheet } from '../components/ui/Sheet';
 import { ToastHost } from '../components/ui/Toast';
 import { toast } from '../lib/toast';
 
@@ -44,6 +44,8 @@ export default function HomePage() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
+  /** The naming step between "Create board" and the board itself. */
+  const [naming, setNaming] = useState(false);
 
   /**
    * `pickName` forces the identity step even for someone whose nickname is
@@ -137,23 +139,7 @@ export default function HomePage() {
                 {t.homeSub}
               </p>
             </div>
-            <Field
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t.boardNamePlaceholder}
-              maxLength={LIMITS.maxBoardNameLength}
-              aria-label={t.boardNamePlaceholder}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !busy) void handleCreate();
-              }}
-            />
-            <Button
-              label={t.createBoard}
-              icon="plus"
-              onClick={() => void handleCreate()}
-              loading={busy}
-              fullWidth
-            />
+            <Button label={t.createBoard} icon="plus" onClick={() => setNaming(true)} fullWidth />
           </section>
 
           <section className="flex min-w-0 flex-1 flex-col gap-5">
@@ -249,7 +235,30 @@ export default function HomePage() {
         </div>
       </div>
 
-      <ToastHost bottom={32} enabled={!importing} />
+      <ToastHost bottom={32} enabled={!importing && !naming} />
+
+      {/* The name is optional, but the step is not: nobody should discover
+          after the fact that their board is "Untitled". */}
+      <Sheet open={naming} title={t.nameYourBoard} onClose={() => setNaming(false)} closeLabel={t.close}>
+        <form
+          className="flex flex-col gap-3.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!busy) void handleCreate();
+          }}
+        >
+          <Field
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t.boardNamePlaceholder}
+            hint={t.nameYourBoardHint}
+            maxLength={LIMITS.maxBoardNameLength}
+            aria-label={t.boardNamePlaceholder}
+          />
+          <Button label={t.createBoard} icon="plus" type="submit" loading={busy} fullWidth />
+        </form>
+      </Sheet>
 
       <ImportSheet
         open={importing}
