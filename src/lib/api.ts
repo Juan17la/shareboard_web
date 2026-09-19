@@ -86,6 +86,8 @@ export interface JoinBoardRequest {
    * value that comes back in `you.color` is the one to trust.
    */
   color?: string;
+  /** Presence icon picked on the identity screen. */
+  avatar?: string;
 }
 
 export interface JoinBoardResponse {
@@ -125,6 +127,10 @@ export const joinBoard = (body: JoinBoardRequest) =>
 
 export const renameBoard = (id: string, name: string, auth: Auth) =>
   request<BoardMeta>(`/boards/${id}`, { method: 'PATCH', body: { name }, ...auth });
+
+/** Creator only. Everyone else on the board is disconnected by the server. */
+export const deleteBoard = (id: string, auth: Auth) =>
+  request<void>(`/boards/${id}`, { method: 'DELETE', ...auth });
 
 export const updatePermissions = (id: string, patch: UpdatePermissionsRequest, auth: Auth) =>
   request<BoardMeta>(`/boards/${id}/permissions`, { method: 'PATCH', body: patch, ...auth });
