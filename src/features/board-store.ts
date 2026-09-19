@@ -88,6 +88,11 @@ interface BoardState {
   tool: ToolType;
   config: ToolConfig;
   camera: Camera;
+  /**
+   * Whether the tool rail's options column is open. Store state rather than
+   * rail state because the canvas closes it the moment a gesture starts.
+   */
+  railOpen: boolean;
 
   // sync / history
   outbox: Op[];
@@ -112,6 +117,7 @@ interface BoardState {
   setTool(tool: ToolType): void;
   setConfig(patch: Partial<ToolConfig>): void;
   setCamera(camera: Camera): void;
+  setRailOpen(open: boolean): void;
 
   addStroke(points: number[]): void;
   addShape(shape: ShapeKind, from: Point, to: Point): void;
@@ -210,6 +216,7 @@ export const useBoardStore = create<BoardState>((set, get) => {
     tool: 'pen',
     config: DEFAULT_CONFIG,
     camera: DEFAULT_CAMERA,
+    railOpen: true,
 
     outbox: [],
     clientSeq: 0,
@@ -290,6 +297,10 @@ export const useBoardStore = create<BoardState>((set, get) => {
 
     setCamera(camera) {
       set({ camera });
+    },
+
+    setRailOpen(railOpen) {
+      set({ railOpen });
     },
 
     // --- editing -----------------------------------------------------------
