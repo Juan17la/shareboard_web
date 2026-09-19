@@ -1,9 +1,6 @@
 /**
- * The zoom readout and the undo/redo pair, floating at the bottom-left.
- *
- * They are at the opposite corner from the tool rail on purpose: these are the
- * two things a right-handed person reaches for *while* drawing, and putting
- * them under the drawing hand would mean covering the board to undo.
+ * The zoom readout and the undo/redo pair, floating at the bottom-left, just
+ * above the toolbar's row so the two never overlap on a narrow screen.
  *
  * The zoom chip doubles as its own reset — the design's "100%" button snaps the
  * camera home, which is the only way back after a long pan on an infinite
@@ -27,6 +24,8 @@ export function BottomControls({ compact }: { compact: boolean }) {
   const undoDepth = useBoardStore((s) => s.undoStack.length);
   const redoDepth = useBoardStore((s) => s.redoStack.length);
   const canEdit = useBoardStore((s) => s.canEditNow());
+  // The toolbar's options strip opens in the same row; step over it.
+  const optionsOpen = useBoardStore((s) => s.railOpen && s.canEditNow());
 
   useEffect(() => {
     if (!canEdit) return;
@@ -49,8 +48,8 @@ export function BottomControls({ compact }: { compact: boolean }) {
 
   return (
     <div
-      className="absolute bottom-5 left-3 z-30 flex flex-col items-start gap-2.5 sm:left-4"
-      style={compact ? undefined : { bottom: 24 }}
+      className="absolute left-3 z-30 flex flex-row items-end gap-2.5 sm:left-4"
+      style={{ bottom: (compact ? 74 : 82) + (optionsOpen ? 56 : 0) }}
     >
       <GlassPanel level="chip" radius={14} border="rgba(255,255,255,0.6)">
         <button
