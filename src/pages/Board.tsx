@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { BoardCanvas } from '../components/board/BoardCanvas';
+import { ConnectionBanner } from '../components/board/ConnectionBanner';
 import { BottomControls } from '../components/board/BottomControls';
 import { ToolRail } from '../components/board/ToolRail';
 import { BoardHeader } from '../components/header/BoardHeader';
@@ -200,6 +201,10 @@ export default function BoardPage() {
 
       <ToolRail compact={compact} landscape={landscape} />
       <BottomControls compact={compact} />
+      <ConnectionBanner
+        top={landscape ? (compact ? 72 : 88) : compact ? 112 : 132}
+        onRetry={sync.retry}
+      />
 
       <ToastHost bottom={compact ? 108 : 96} enabled={!anyOverlay} />
 
