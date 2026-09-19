@@ -43,7 +43,9 @@ export function BottomControls({ compact }: { compact: boolean }) {
   }, [canEdit, undo, redo]);
 
   const zoom = `${Math.round(camera.scale * 100)}%`;
-  const home = camera.x === 0 && camera.y === 0 && camera.scale === 1;
+  const homeCamera = useBoardStore((s) => s.homeCamera);
+  const at = homeCamera();
+  const home = camera.x === at.x && camera.y === at.y && camera.scale === 1;
 
   return (
     <div
@@ -56,7 +58,7 @@ export function BottomControls({ compact }: { compact: boolean }) {
           aria-label={`${t.resetZoom} (${zoom})`}
           title={t.resetZoom}
           disabled={home}
-          onClick={() => setCamera({ x: 0, y: 0, scale: 1 })}
+          onClick={() => setCamera(homeCamera())}
           className="flex items-center gap-1.5 px-[11px] py-2 transition hover:bg-white/70 disabled:cursor-default disabled:hover:bg-transparent"
         >
           <Icon name="search" size={14} />

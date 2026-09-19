@@ -93,6 +93,10 @@ interface BoardState {
    * rail state because the canvas closes it the moment a gesture starts.
    */
   railOpen: boolean;
+  /** CSS-pixel size of the canvas, reported by the canvas itself. */
+  viewport: { width: number; height: number };
+  /** False until the first layout has put the board origin at screen centre. */
+  cameraPlaced: boolean;
 
   // sync / history
   outbox: Op[];
@@ -118,6 +122,9 @@ interface BoardState {
   setConfig(patch: Partial<ToolConfig>): void;
   setCamera(camera: Camera): void;
   setRailOpen(open: boolean): void;
+  setViewport(size: { width: number; height: number }): void;
+  /** The "100%" camera: board (0,0) at the centre of the screen, unzoomed. */
+  homeCamera(): Camera;
 
   addStroke(points: number[]): void;
   addShape(shape: ShapeKind, from: Point, to: Point): void;
@@ -217,6 +224,8 @@ export const useBoardStore = create<BoardState>((set, get) => {
     config: DEFAULT_CONFIG,
     camera: DEFAULT_CAMERA,
     railOpen: true,
+    viewport: { width: 0, height: 0 },
+    cameraPlaced: false,
 
     outbox: [],
     clientSeq: 0,
@@ -261,7 +270,10 @@ export const useBoardStore = create<BoardState>((set, get) => {
         serverSeq: 0,
         undoStack: [],
         redoStack: [],
-        camera: DEFAULT_CAMERA,
+        // The canvas may stay mounted across a reset (a nickname change
+        // reconnects), so re-home on the size already known.
+        camera: get().homeCamera(),
+        cameraPlaced: get().viewport.width > 0,
       });
     },
 
@@ -301,6 +313,20 @@ export const useBoardStore = create<BoardState>((set, get) => {
 
     setRailOpen(railOpen) {
       set({ railOpen });
+    },
+
+    setViewport(viewport) {
+      set({ viewport });
+      // The first real layout is when the camera can be placed: the same
+      // board opens on the same spot — its origin, centred — on every device.
+      if (!get().cameraPlaced && viewport.width > 0 && viewport.height > 0) {
+        set({ camera: get().homeCamera(), cameraPlaced: true });
+      }
+    },
+
+    homeCamera() {
+      const { width, height } = get().viewport;
+      return { x: width / 2, y: height / 2, scale: 1 };
     },
 
     // --- editing -----------------------------------------------------------
