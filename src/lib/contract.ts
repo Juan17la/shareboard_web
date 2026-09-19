@@ -34,6 +34,9 @@ export const FILLABLE_SHAPES: ShapeKind[] = ['rectangle', 'ellipse', 'triangle']
 
 export const isFillable = (shape: ShapeKind): boolean => FILLABLE_SHAPES.includes(shape);
 
+/** Default size of a label inside a shape. Smaller than the text tool's: it has to fit. */
+export const SHAPE_TEXT_SIZE = 18;
+
 export interface Point {
   x: number;
   y: number;
@@ -64,6 +67,10 @@ export interface ShapeElement extends ElementBase {
   stroke: string;
   strokeWidth: number;
   fill?: string | null;
+  /** Optional label, centred inside the shape (on the midpoint of a line). */
+  text?: string;
+  /** Label size; `SHAPE_TEXT_SIZE` when absent. */
+  fontSize?: number;
 }
 
 export interface TextElement extends ElementBase {
