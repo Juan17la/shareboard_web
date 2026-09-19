@@ -57,7 +57,7 @@ const SHAPE_KINDS: { kind: ShapeKind; icon: IconName; labelKey: ShapeKey }[] = [
   { kind: 'arrow', icon: 'arrow', labelKey: 'shapeArrow' },
 ];
 
-export function ToolRail({ compact }: { compact: boolean }) {
+export function ToolRail({ compact, landscape }: { compact: boolean; landscape: boolean }) {
   const t = useT();
   const tool = useBoardStore((s) => s.tool);
   const config = useBoardStore((s) => s.config);
@@ -102,7 +102,9 @@ export function ToolRail({ compact }: { compact: boolean }) {
     <>
       <div
         className="absolute top-0 right-2.5 z-30 flex flex-row-reverse items-start gap-2 sm:right-4"
-        style={{ top: compact ? 112 : 132 }}
+        // Just under the header: in landscape that is a single row, so the
+        // rail moves up to meet it (BoardHeader runs flush to the rail's edge).
+        style={{ top: landscape ? (compact ? 72 : 88) : compact ? 112 : 132 }}
       >
         <GlassPanel level="panel" radius={compact ? 17 : 20} className="shadow-panel">
           <div className="flex flex-col gap-1 p-1.5" role="toolbar" aria-label={t.sheetMenu}>

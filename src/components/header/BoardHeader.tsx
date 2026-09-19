@@ -19,6 +19,7 @@ import { Icon } from '../ui/Icon';
 
 export function BoardHeader({
   compact,
+  landscape,
   codeCopied,
   onCopyCode,
   onOpenPeople,
@@ -28,6 +29,7 @@ export function BoardHeader({
   onGoHome,
 }: {
   compact: boolean;
+  landscape: boolean;
   codeCopied: boolean;
   onCopyCode: () => void;
   onOpenPeople: () => void;
@@ -63,6 +65,54 @@ export function BoardHeader({
   const overflow = participants.length - shown.length;
   const isPrivate = meta?.access === 'private';
 
+  // Everything you can *do* with the board, as one strip: the menu, the code
+  // (click to copy), who may edit, share. In portrait it is the second row; in
+  // landscape there is room for it beside the title, so the header is one row.
+  const actions = (
+    <div className="pointer-events-auto flex flex-none items-center gap-[7px]">
+      <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
+
+      <button
+        type="button"
+        aria-label={`${t.code} ${meta?.shortCode ?? ''}`}
+        title={t.code}
+        onClick={onCopyCode}
+        disabled={!meta}
+        className="flex items-center gap-1.5 rounded-md border px-[11px] py-[7px] backdrop-blur-md transition"
+        style={{
+          borderColor: codeCopied ? 'transparent' : Colors.border,
+          background: codeCopied ? 'rgba(15,158,142,0.14)' : 'rgba(255,255,255,0.7)',
+          color: codeCopied ? '#0B7F72' : Colors.text,
+        }}
+      >
+        <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
+        <span className="font-mono text-[12.5px] font-bold tracking-[0.6px]">
+          {meta?.shortCode ?? '——————'}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        aria-label={t.privacyShort}
+        onClick={onOpenPrivacy}
+        className="flex items-center gap-1.5 rounded-md border border-line bg-white/60 px-2.5 py-[7px] backdrop-blur-md transition hover:bg-white"
+      >
+        <Icon name={isPrivate ? 'lock' : 'lock-open'} size={14} />
+        <span className="text-[11.5px] font-bold">{t.privacyShort}</span>
+      </button>
+
+      <button
+        type="button"
+        aria-label={t.share}
+        onClick={onOpenShare}
+        className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-[7px] text-white shadow-accent transition hover:brightness-110"
+      >
+        <Icon name="share" size={15} />
+        <span className="text-[12px] font-extrabold">{t.share}</span>
+      </button>
+    </div>
+  );
+
   return (
     <>
       {/*
@@ -72,13 +122,14 @@ export function BoardHeader({
         an edge across the top of an infinite canvas looks like a bar. It is
         separate from the header so it can be non-interactive: it covers the top
         of the board, and a pointer-catching layer there would eat the first
-        stroke of anyone drawing near the top.
+        stroke of anyone drawing near the top. In landscape the header is a
+        single row, so the wash is shorter.
       */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 z-20"
         style={{
-          height: compact ? 150 : 168,
+          height: landscape ? (compact ? 100 : 112) : compact ? 150 : 168,
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.72) 62%, rgba(255,255,255,0) 100%)',
           backdropFilter: 'blur(10px)',
@@ -90,8 +141,13 @@ export function BoardHeader({
 
       <header
         className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-3 sm:px-4 sm:pt-4"
-        style={{ paddingRight: compact ? 68 : 88 }}
+        // In landscape the rail starts below the header, so the header runs
+        // flush to the rail's right edge (ToolRail's `right-2.5` / `sm:right-4`);
+        // otherwise it stops short so the strip never runs underneath.
+        style={{ paddingRight: landscape ? (compact ? 10 : 16) : compact ? 68 : 88 }}
       >
+        {/* Who and where: back, the board, (the actions, in landscape) and who
+            else is here. */}
         <div className="pointer-events-auto flex items-center gap-2">
           <IconButton icon="back" label={t.back} onClick={onGoHome} />
 
@@ -113,6 +169,10 @@ export function BoardHeader({
               ) : null}
             </div>
           </div>
+
+          {/* The strip keeps its natural width; a long board name is what gives
+              way (one line, ellipsised) rather than the controls. */}
+          {landscape ? actions : null}
 
           <button
             type="button"
@@ -139,52 +199,9 @@ export function BoardHeader({
             )}
             {overflow > 0 ? <AvatarOverflow count={overflow} /> : null}
           </button>
-
-          <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
         </div>
 
-        <div className="pointer-events-auto mt-2 flex items-center gap-[7px]">
-          <button
-            type="button"
-            aria-label={`${t.code} ${meta?.shortCode ?? ''}`}
-            title={t.code}
-            onClick={onCopyCode}
-            disabled={!meta}
-            className="flex items-center gap-1.5 rounded-md border px-[11px] py-[7px] backdrop-blur-md transition"
-            style={{
-              borderColor: codeCopied ? 'transparent' : Colors.border,
-              background: codeCopied ? 'rgba(15,158,142,0.14)' : 'rgba(255,255,255,0.7)',
-              color: codeCopied ? '#0B7F72' : Colors.text,
-            }}
-          >
-            <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
-            <span className="font-mono text-[12.5px] font-bold tracking-[0.6px]">
-              {meta?.shortCode ?? '——————'}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            aria-label={t.privacyShort}
-            onClick={onOpenPrivacy}
-            className="flex items-center gap-1.5 rounded-md border border-line bg-white/60 px-2.5 py-[7px] backdrop-blur-md transition hover:bg-white"
-          >
-            <Icon name={isPrivate ? 'lock' : 'lock-open'} size={14} />
-            <span className="text-[11.5px] font-bold">{t.privacyShort}</span>
-          </button>
-
-          <div className="flex-1" />
-
-          <button
-            type="button"
-            aria-label={t.share}
-            onClick={onOpenShare}
-            className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-[7px] text-white shadow-accent transition hover:brightness-110"
-          >
-            <Icon name="share" size={15} />
-            <span className="text-[12px] font-extrabold">{t.share}</span>
-          </button>
-        </div>
+        {landscape ? null : <div className="mt-2">{actions}</div>}
       </header>
     </>
   );
