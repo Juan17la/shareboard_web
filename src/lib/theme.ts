@@ -65,17 +65,6 @@ export const NicknameColors = [
   '#8E4EC6',
 ] as const;
 
-/** 4px base spacing scale. */
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
-} as const;
-
 export const Radius = { sm: 8, md: 12, lg: 16, xl: 20, xxl: 26, pill: 999 } as const;
 
 /** Layout constants shared with the mobile app (mobile/docs/03-styles). */
