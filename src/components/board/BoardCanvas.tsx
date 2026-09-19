@@ -286,6 +286,9 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
     const p = screenToBoard(at.x, at.y);
     state.drawingId = e.pointerId;
+    // Drawing is what the options were for; fold them away to give the board
+    // back its width the moment the gesture starts.
+    store.setRailOpen(false);
 
     switch (store.tool) {
       case 'eraser':
