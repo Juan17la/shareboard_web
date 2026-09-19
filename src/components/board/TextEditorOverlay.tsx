@@ -5,7 +5,9 @@
  * and drawn at the zoomed font size, so what is being typed sits where it will
  * end up rather than in a dialog somewhere else. Committing on blur (and on
  * Enter) is what makes clicking elsewhere on the board finish the text
- * naturally; an empty value deletes the element the click created.
+ * naturally; an empty value deletes the element the click created. A ✓ / ✕
+ * pair floats above the editor for anyone who would rather be told how to
+ * finish than guess that clicking away does it.
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -14,6 +16,8 @@ import { boardToScreen, useBoardStore, type Camera } from '../../features/board-
 import { SHAPE_TEXT_SIZE, type ShapeElement, type TextElement } from '../../lib/contract';
 import { shapeBounds } from '../../lib/geometry';
 import { Colors } from '../../lib/theme';
+
+import { Icon } from '../ui/Icon';
 
 export function TextEditorOverlay({
   element,
@@ -48,6 +52,14 @@ export function TextEditorOverlay({
     committed.current = true;
     if (element.kind === 'text') updateText(element.id, { text: value });
     else updateShape(element.id, { text: value.trim() });
+    onClose();
+  };
+
+  /** Throws the draft away: a brand-new text goes, an existing one is kept as it was. */
+  const cancel = () => {
+    if (committed.current) return;
+    committed.current = true;
+    if (element.kind === 'text' && !element.text) updateText(element.id, { text: '' });
     onClose();
   };
 
@@ -87,7 +99,7 @@ export function TextEditorOverlay({
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();
-            commit();
+            cancel();
           }
         }}
         placeholder={t.typeHere}
@@ -111,6 +123,35 @@ export function TextEditorOverlay({
           lineHeight: 1.25,
         }}
       />
+
+      {/* Confirm / discard, just above the editor's frame. `onPointerDown`
+          rather than click: a click would first blur the textarea, and the
+          blur is itself a commit. */}
+      <div
+        className="absolute z-20 flex gap-1 rounded-full border bg-white p-0.5 shadow-panel"
+        style={{ left: at.x, top: at.y - 42, borderColor: Colors.accent }}
+        onPointerDown={(e) => e.preventDefault()}
+      >
+        <button
+          type="button"
+          aria-label={t.save}
+          title={t.save}
+          onPointerDown={commit}
+          className="grid h-7 w-7 place-items-center rounded-full text-white"
+          style={{ background: Colors.accent }}
+        >
+          <Icon name="check" size={15} />
+        </button>
+        <button
+          type="button"
+          aria-label={t.cancel}
+          title={t.cancel}
+          onPointerDown={cancel}
+          className="grid h-7 w-7 place-items-center rounded-full text-text-secondary hover:bg-surface"
+        >
+          <Icon name="close" size={14} />
+        </button>
+      </div>
     </div>
   );
 }
