@@ -148,16 +148,6 @@ export const LIMITS = {
   colorPattern: /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/,
 } as const;
 
-/** Presence colors, handed out by the server in join order. */
-export const PRESENCE_COLORS = [
-  '#E5484D',
-  '#F76808',
-  '#30A46C',
-  '#208AEF',
-  '#8E4EC6',
-  '#0EA5E9',
-] as const;
-
 // --- WebSocket wire protocol ------------------------------------------------
 // Mirrors `server/src/model/protocol.ts`; plain JSON frames over a standard
 // WebSocket, one socket per (board, tab). See mobile/docs/07-websockets.
@@ -187,7 +177,6 @@ export type ServerMessage =
   | { type: 'error'; code: ServerErrorCode; message: string }
   | { type: 'pong'; t: number };
 
-export type ClientMessageType = ClientMessage['type'];
 export type ServerMessageType = ServerMessage['type'];
 
 export type ServerErrorCode =
