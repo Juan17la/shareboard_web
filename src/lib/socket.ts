@@ -41,6 +41,7 @@ export class RealtimeClient {
   private heartbeat: number | null = null;
   private retryTimer: number | null = null;
   private attempt = 0;
+  private lastMessageAt = 0;
   private closed = false;
   private state: ConnectionState = 'idle';
 
@@ -88,6 +89,7 @@ export class RealtimeClient {
 
     ws.onopen = () => {
       this.attempt = 0;
+      this.lastMessageAt = Date.now();
       this.send({
         type: 'join',
         boardId: this.opts.boardId,
@@ -95,13 +97,22 @@ export class RealtimeClient {
         nickname: this.opts.nickname,
         ...(this.opts.pin ? { pin: this.opts.pin } : {}),
       });
-      this.heartbeat = window.setInterval(
-        () => this.send({ type: 'ping', t: Date.now() }),
-        REALTIME.heartbeatMs,
-      );
+      this.heartbeat = window.setInterval(() => {
+        // A phone that lost wifi keeps a "open" socket for minutes before the
+        // browser notices. No pong for two beats means it is gone: drop it
+        // ourselves so the reconnect (and the offline banner) start now.
+        if (Date.now() - this.lastMessageAt > REALTIME.heartbeatMs * 2) {
+          ws.onclose = null;
+          ws.close();
+          this.onClosed(1006);
+          return;
+        }
+        this.send({ type: 'ping', t: Date.now() });
+      }, REALTIME.heartbeatMs);
     };
 
     ws.onmessage = (ev) => {
+      this.lastMessageAt = Date.now();
       let msg: ServerMessage;
       try {
         msg = JSON.parse(ev.data as string) as ServerMessage;
@@ -114,12 +125,24 @@ export class RealtimeClient {
       if (msg.type !== 'pong') this.emit(msg);
     };
 
-    ws.onclose = (ev) => {
-      this.stopTimers();
-      this.setState('offline');
-      if (this.closed || FATAL.includes(ev.code)) return;
-      this.scheduleReconnect();
-    };
+    ws.onclose = (ev) => this.onClosed(ev.code);
+  }
+
+  private onClosed(code: number): void {
+    this.stopTimers();
+    this.ws = null;
+    this.setState('offline');
+    if (this.closed || FATAL.includes(code)) return;
+    // After the last automatic attempt the socket stays offline until the user
+    // taps "retry" — a banner they can act on beats a silent loop.
+    if (this.attempt >= REALTIME.maxReconnects) return;
+    this.scheduleReconnect();
+  }
+
+  /** A user-driven reconnect: starts the backoff over. */
+  retry(): void {
+    this.attempt = 0;
+    this.connect();
   }
 
   private scheduleReconnect(): void {
