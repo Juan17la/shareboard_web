@@ -19,7 +19,7 @@ import { useEffect, useState } from 'react';
 
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
-import { LIMITS, type ShapeKind, type ToolType } from '../../lib/contract';
+import { LIMITS, SHAPE_TEXT_SIZE, type ShapeKind, type ToolType } from '../../lib/contract';
 import { Colors, DrawingPalette, StrokeSizes } from '../../lib/theme';
 
 import { Hairline, StepperButton } from '../ui/Button';
@@ -63,6 +63,8 @@ export function ToolRail({ compact, landscape }: { compact: boolean; landscape: 
   const config = useBoardStore((s) => s.config);
   const setTool = useBoardStore((s) => s.setTool);
   const setConfig = useBoardStore((s) => s.setConfig);
+  const updateShape = useBoardStore((s) => s.updateShape);
+  const selected = useBoardStore((s) => s.selectedShape());
   const canEdit = useBoardStore((s) => s.canEditNow());
   const open = useBoardStore((s) => s.railOpen);
   const setOpen = useBoardStore((s) => s.setRailOpen);
@@ -94,7 +96,11 @@ export function ToolRail({ compact, landscape }: { compact: boolean; landscape: 
   const toolLabel = t[TOOLS.find((entry) => entry.tool === tool)!.labelKey];
   const showSizes = tool === 'pen' || tool === 'eraser' || tool === 'shape';
   const showShapeKinds = tool === 'shape';
-  const showTextOptions = tool === 'text';
+  // A selected shape borrows the text tool's size stepper for its label.
+  const showTextOptions = tool === 'text' || selected !== null;
+  const fontSize = selected ? (selected.fontSize ?? SHAPE_TEXT_SIZE) : config.fontSize;
+  const setFontSize = (next: number) =>
+    selected ? updateShape(selected.id, { fontSize: next }) : setConfig({ fontSize: next });
 
   const button = compact ? 36 : 40;
   const radius = compact ? 12 : 14;
@@ -231,30 +237,23 @@ export function ToolRail({ compact, landscape }: { compact: boolean; landscape: 
                       them: side by side, the three do not fit the column's
                       width without the "+" sliding off the edge. */}
                   <div className="flex flex-col items-center gap-1.5">
-                    <span className="font-mono text-[11px] font-bold">{config.fontSize}px</span>
+                    <span className="font-mono text-[11px] font-bold">{fontSize}px</span>
                     <div className="flex gap-1.5">
                       <StepperButton
                         icon="minus"
                         label={t.smaller}
-                        disabled={config.fontSize <= LIMITS.minFontSize}
-                        onClick={() =>
-                          setConfig({
-                            fontSize: Math.max(LIMITS.minFontSize, config.fontSize - 4),
-                          })
-                        }
+                        disabled={fontSize <= LIMITS.minFontSize}
+                        onClick={() => setFontSize(Math.max(LIMITS.minFontSize, fontSize - 4))}
                       />
                       <StepperButton
                         icon="plus"
                         label={t.bigger}
-                        disabled={config.fontSize >= LIMITS.maxFontSize}
-                        onClick={() =>
-                          setConfig({
-                            fontSize: Math.min(LIMITS.maxFontSize, config.fontSize + 4),
-                          })
-                        }
+                        disabled={fontSize >= LIMITS.maxFontSize}
+                        onClick={() => setFontSize(Math.min(LIMITS.maxFontSize, fontSize + 4))}
                       />
                     </div>
                   </div>
+                  {selected ? null : (
                   <div className="flex justify-center gap-1.5">
                     <MiniButton
                       glyph="B"
@@ -271,6 +270,7 @@ export function ToolRail({ compact, landscape }: { compact: boolean; landscape: 
                       onClick={() => setConfig({ italic: !config.italic })}
                     />
                   </div>
+                  )}
                   <Hairline />
                 </>
               ) : null}
