@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { useT } from '../../features/i18n';
 import { useSessionStore } from '../../features/session';
 import { LIMITS } from '../../lib/contract';
-import { NicknameColors } from '../../lib/theme';
+import { Avatars, NicknameColors } from '../../lib/theme';
 
 import { Avatar } from '../ui/Avatar';
 import { Backdrop } from '../ui/Backdrop';
@@ -32,6 +32,8 @@ export function NicknameScreen({
   const storedNickname = useSessionStore((s) => s.nickname);
   const nickColor = useSessionStore((s) => s.nickColor);
   const setNickColor = useSessionStore((s) => s.setNickColor);
+  const avatar = useSessionStore((s) => s.avatar);
+  const setAvatar = useSessionStore((s) => s.setAvatar);
 
   const [draft, setDraft] = useState(storedNickname);
   const ready = draft.trim().length > 0;
@@ -55,7 +57,7 @@ export function NicknameScreen({
 
         <GlassPanel level="row" radius={20}>
           <div className="flex items-center gap-3 p-3.5">
-            <Avatar name={draft || '?'} color={nickColor} size={46} />
+            <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={46} />
             <div className="min-w-0 flex-1">
               <Field
                 bare
@@ -104,6 +106,30 @@ export function NicknameScreen({
                       border: active ? '3px solid #FFFFFF' : '1px solid rgba(27,32,48,0.12)',
                     }}
                   />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2.5">
+          <SectionLabel>{t.yourIcon}</SectionLabel>
+          {/* The initial is the first option: not everyone wants a mascot. */}
+          <div role="radiogroup" aria-label={t.yourIcon} className="-ml-1 flex flex-wrap gap-1">
+            {['', ...Avatars].map((icon) => {
+              const active = avatar === icon;
+              return (
+                <button
+                  key={icon || 'initial'}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={icon || t.nickPlaceholder}
+                  onClick={() => setAvatar(icon)}
+                  className="grid h-[42px] w-[42px] place-items-center rounded-full border-2 transition"
+                  style={{ borderColor: active ? nickColor : 'transparent' }}
+                >
+                  <Avatar name={draft || '?'} color={icon ? '#FFFFFF' : nickColor} avatar={icon} size={32} />
                 </button>
               );
             })}
