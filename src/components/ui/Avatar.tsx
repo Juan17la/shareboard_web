@@ -7,12 +7,15 @@ function initialsOf(name: string): string {
 export function Avatar({
   name,
   color,
+  avatar,
   size = 36,
   overlap = false,
   title,
 }: {
   name: string;
   color: string;
+  /** An emoji shown instead of the initial. */
+  avatar?: string;
   size?: number;
   /** Pulls the avatar left so a row of them reads as a stack. */
   overlap?: boolean;
@@ -26,11 +29,11 @@ export function Avatar({
         width: size,
         height: size,
         background: color,
-        fontSize: Math.round(size * 0.4),
+        fontSize: Math.round(size * (avatar ? 0.52 : 0.4)),
         marginLeft: overlap ? -Math.round(size * 0.3) : 0,
       }}
     >
-      {initialsOf(name)}
+      {avatar || initialsOf(name)}
     </span>
   );
 }

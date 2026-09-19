@@ -191,6 +191,7 @@ export function BoardHeader({
                   key={p.userId}
                   name={p.nickname}
                   color={p.color}
+                  avatar={p.avatar}
                   size={26}
                   overlap={i > 0}
                   title={`${p.nickname} · ${p.role}`}

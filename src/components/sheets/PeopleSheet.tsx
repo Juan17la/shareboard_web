@@ -51,7 +51,7 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
           return (
             <GlassPanel key={p.userId} level="row" radius={16}>
               <div className="flex items-center gap-3 px-3.5 py-3">
-                <Avatar name={p.nickname} color={p.color} size={36} />
+                <Avatar name={p.nickname} color={p.color} avatar={p.avatar} size={36} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13.5px] leading-tight font-bold">
                     {p.nickname}
