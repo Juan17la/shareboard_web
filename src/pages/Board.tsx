@@ -37,7 +37,7 @@ import { fill, useT } from '../features/i18n';
 import { useSessionStore } from '../features/session';
 import { useBoardStore } from '../features/board-store';
 import { useBoardSync } from '../hooks/use-board-sync';
-import { deleteBoard, importSnapshot } from '../lib/api';
+import { importSnapshot } from '../lib/api';
 import type { BoardSnapshot } from '../lib/contract';
 import { copyText } from '../lib/clipboard';
 import { WEB_BASE_URL } from '../lib/config';
@@ -54,15 +54,17 @@ export default function BoardPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const t = useT();
-  const { width } = useViewport();
+  const { width, height } = useViewport();
   const compact = width < Layout.compactBreakpoint;
+  // Same rule as the mobile app: in landscape the header collapses to one row
+  // and the tool rail moves up to meet it.
+  const landscape = width > height;
 
   const nickname = useSessionStore((s) => s.nickname);
   const forgetBoard = useSessionStore((s) => s.forgetBoard);
   const userId = useSessionStore((s) => s.userId);
 
   const meta = useBoardStore((s) => s.meta);
-  const boardToken = useBoardStore((s) => s.boardToken);
   const clearBoard = useBoardStore((s) => s.clearBoard);
 
   // Satisfied once the identity step has been passed for this board, either by
@@ -70,7 +72,6 @@ export default function BoardPage() {
   const [identityDone, setIdentityDone] = useState(params.get('pickName') !== '1');
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const [confirm, setConfirm] = useState<ConfirmName | null>(null);
-  const [confirmBusy, setConfirmBusy] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
 
@@ -109,7 +110,7 @@ export default function BoardPage() {
     [navigate, t, userId],
   );
 
-  async function runConfirm() {
+  function runConfirm() {
     if (confirm === 'clear') {
       clearBoard();
       setConfirm(null);
@@ -119,24 +120,13 @@ export default function BoardPage() {
     }
 
     if (confirm !== 'delete' || !meta) return;
-    setConfirmBusy(true);
-    try {
-      await deleteBoard(meta.id, { userId, token: boardToken ?? '' });
-      toast(t.toastDeleted);
-    } catch (error) {
-      // The endpoint is still a placeholder server-side (see the TODO in
-      // `lib/api.ts`). Until it lands, deleting is honoured locally — the board
-      // leaves the recent list and this browser leaves the session — rather
-      // than dead-ending on an error the user cannot act on.
-      console.warn('[shareboard] deleteBoard failed, removing locally only:', error);
-      toast(t.toastDeleted);
-    } finally {
-      setConfirmBusy(false);
-      forgetBoard(meta.id);
-      setConfirm(null);
-      setSheet(null);
-      navigate('/', { replace: true });
-    }
+    // There is no delete endpoint: "deleting" means this browser forgets the
+    // board and leaves the session. The board itself lives on for everyone else.
+    forgetBoard(meta.id);
+    setConfirm(null);
+    setSheet(null);
+    toast(t.toastDeleted);
+    navigate('/', { replace: true });
   }
 
   // --- gates -------------------------------------------------------------
@@ -198,6 +188,7 @@ export default function BoardPage() {
 
       <BoardHeader
         compact={compact}
+        landscape={landscape}
         codeCopied={codeCopied}
         onCopyCode={() => void copyCode()}
         onOpenPeople={() => setSheet('people')}
@@ -207,7 +198,7 @@ export default function BoardPage() {
         onGoHome={() => navigate('/')}
       />
 
-      <ToolRail compact={compact} />
+      <ToolRail compact={compact} landscape={landscape} />
       <BottomControls compact={compact} />
 
       <ToastHost bottom={compact ? 108 : 96} enabled={!anyOverlay} />
@@ -257,8 +248,7 @@ export default function BoardPage() {
         }
         confirmLabel={confirm === 'delete' ? t.deleteCta : t.clearCta}
         cancelLabel={t.cancel}
-        busy={confirmBusy}
-        onConfirm={() => void runConfirm()}
+        onConfirm={runConfirm}
         onCancel={() => setConfirm(null)}
       />
     </div>
