@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { useT, relativeTime, useToggleLang } from '../features/i18n';
 import { useSessionStore } from '../features/session';
 import { createBoard, importSnapshot, resolveShortCode } from '../lib/api';
-import type { BoardSnapshot } from '../lib/contract';
+import { LIMITS, type BoardSnapshot } from '../lib/contract';
 import { parseBoardRef } from '../lib/deep-link';
 
 import { ImportSheet } from '../components/sheets/ImportSheet';
@@ -25,6 +25,7 @@ import { Avatar } from '../components/ui/Avatar';
 import { Backdrop } from '../components/ui/Backdrop';
 import { Button } from '../components/ui/Button';
 import { GlassPanel } from '../components/ui/Glass';
+import { Field } from '../components/ui/Field';
 import { Icon } from '../components/ui/Icon';
 import { SectionLabel } from '../components/ui/Sheet';
 import { ToastHost } from '../components/ui/Toast';
@@ -39,6 +40,7 @@ export default function HomePage() {
   const recent = useSessionStore((s) => s.recent);
   const forgetBoard = useSessionStore((s) => s.forgetBoard);
 
+  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -56,7 +58,7 @@ export default function HomePage() {
     setBusy(true);
     try {
       const meta = await createBoard({
-        name: t.newBoardName,
+        name: name.trim() || t.newBoardName,
         access: 'public',
         editPolicy: 'everyone',
         creatorId: userId,
@@ -135,6 +137,16 @@ export default function HomePage() {
                 {t.homeSub}
               </p>
             </div>
+            <Field
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t.boardNamePlaceholder}
+              maxLength={LIMITS.maxBoardNameLength}
+              aria-label={t.boardNamePlaceholder}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !busy) void handleCreate();
+              }}
+            />
             <Button
               label={t.createBoard}
               icon="plus"
