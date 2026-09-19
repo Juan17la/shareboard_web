@@ -14,7 +14,7 @@
  */
 import { create, persisted } from '../lib/store';
 import { newUserId } from '../lib/id';
-import { NicknameColors } from '../lib/theme';
+import { Avatars, avatarColor } from '../lib/theme';
 import type { Lang } from './strings';
 
 export interface RecentBoard {
@@ -46,7 +46,7 @@ interface SessionState {
   nickname: string;
   /** Preferred presence colour; the server may still assign a different one. */
   nickColor: string;
-  /** Presence icon; '' shows the nickname's initial instead. */
+  /** Presence icon; its colour is `nickColor`. */
   avatar: string;
   lang: Lang;
   settings: AppSettings;
@@ -55,7 +55,6 @@ interface SessionState {
   pins: Record<string, string>;
 
   setNickname(nickname: string): void;
-  setNickColor(color: string): void;
   setAvatar(avatar: string): void;
   setLang(lang: Lang): void;
   toggleLang(): void;
@@ -98,8 +97,8 @@ function preferredLang(): Lang {
 export const useSessionStore = create<SessionState>((set) => ({
   userId: newUserId(),
   nickname: '',
-  nickColor: NicknameColors[0],
-  avatar: '',
+  nickColor: Avatars[0].color,
+  avatar: Avatars[0].icon,
   lang: preferredLang(),
   settings: DEFAULT_SETTINGS,
   recent: [],
@@ -109,12 +108,9 @@ export const useSessionStore = create<SessionState>((set) => ({
     set({ nickname: nickname.trim().slice(0, 24) });
   },
 
-  setNickColor(nickColor) {
-    set({ nickColor });
-  },
-
+  /** The icon brings its colour along: one choice, not two. */
   setAvatar(avatar) {
-    set({ avatar });
+    set({ avatar, nickColor: avatarColor(avatar) });
   },
 
   setLang(lang) {
@@ -170,7 +166,8 @@ const saved = persisted<SessionState, Persisted>(useSessionStore, STORAGE_KEY, (
 if (saved) {
   useSessionStore.setState({
     ...saved,
-    avatar: saved.avatar ?? '',
+    avatar: saved.avatar || Avatars[0].icon,
+    nickColor: avatarColor(saved.avatar || Avatars[0].icon),
     settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
   });
 }
