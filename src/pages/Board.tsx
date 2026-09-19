@@ -18,7 +18,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { BoardCanvas } from '../components/board/BoardCanvas';
 import { ConnectionBanner } from '../components/board/ConnectionBanner';
 import { BottomControls } from '../components/board/BottomControls';
-import { ToolRail } from '../components/board/ToolRail';
+import { Toolbar } from '../components/board/Toolbar';
 import { BoardHeader } from '../components/header/BoardHeader';
 import { NicknameScreen } from '../components/screens/NicknameScreen';
 import { PinScreen } from '../components/screens/PinScreen';
@@ -38,7 +38,7 @@ import { fill, useT } from '../features/i18n';
 import { useSessionStore } from '../features/session';
 import { useBoardStore } from '../features/board-store';
 import { useBoardSync } from '../hooks/use-board-sync';
-import { importSnapshot } from '../lib/api';
+import { deleteBoard, importSnapshot } from '../lib/api';
 import type { BoardSnapshot } from '../lib/contract';
 import { copyText } from '../lib/clipboard';
 import { WEB_BASE_URL } from '../lib/config';
@@ -73,6 +73,7 @@ export default function BoardPage() {
   const [identityDone, setIdentityDone] = useState(params.get('pickName') !== '1');
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const [confirm, setConfirm] = useState<ConfirmName | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
 
@@ -111,7 +112,7 @@ export default function BoardPage() {
     [navigate, t, userId],
   );
 
-  function runConfirm() {
+  async function runConfirm() {
     if (confirm === 'clear') {
       clearBoard();
       setConfirm(null);
@@ -121,8 +122,16 @@ export default function BoardPage() {
     }
 
     if (confirm !== 'delete' || !meta) return;
-    // There is no delete endpoint: "deleting" means this browser forgets the
-    // board and leaves the session. The board itself lives on for everyone else.
+    // The server drops the board and disconnects everyone else on it; only then
+    // does this browser forget it and leave.
+    setDeleting(true);
+    try {
+      await deleteBoard(meta.id, { userId, token: useBoardStore.getState().boardToken ?? '' });
+    } catch (error) {
+      toast(error instanceof Error ? error.message : t.errDelete);
+      setDeleting(false);
+      return;
+    }
     forgetBoard(meta.id);
     setConfirm(null);
     setSheet(null);
@@ -199,14 +208,14 @@ export default function BoardPage() {
         onGoHome={() => navigate('/')}
       />
 
-      <ToolRail compact={compact} landscape={landscape} />
+      <Toolbar compact={compact} />
       <BottomControls compact={compact} />
       <ConnectionBanner
         top={landscape ? (compact ? 72 : 88) : compact ? 112 : 132}
         onRetry={sync.retry}
       />
 
-      <ToastHost bottom={compact ? 108 : 96} enabled={!anyOverlay} />
+      <ToastHost bottom={compact ? 140 : 132} enabled={!anyOverlay} />
 
       <ShareSheet
         open={sheet === 'share'}
@@ -253,7 +262,8 @@ export default function BoardPage() {
         }
         confirmLabel={confirm === 'delete' ? t.deleteCta : t.clearCta}
         cancelLabel={t.cancel}
-        onConfirm={runConfirm}
+        busy={deleting}
+        onConfirm={() => void runConfirm()}
         onCancel={() => setConfirm(null)}
       />
     </div>
