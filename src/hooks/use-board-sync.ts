@@ -28,6 +28,8 @@ export interface BoardSync {
   submitNickname(nickname: string): void;
   /** Broadcast the local cursor (throttled). */
   sendCursor(at: Point): void;
+  /** Reconnect now, after the socket gave up on its own. */
+  retry(): void;
 }
 
 export interface BoardSyncOptions {
@@ -190,7 +192,7 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
     const onVisible = () => {
       const conn = connRef.current;
       if (!conn) return;
-      if (document.visibilityState === 'visible' && conn.getState() === 'offline') conn.connect();
+      if (document.visibilityState === 'visible' && conn.getState() === 'offline') conn.retry();
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onVisible);
@@ -235,5 +237,7 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
     [connect],
   );
 
-  return { phase, error, submitPin, submitNickname, sendCursor };
+  const retry = useCallback(() => connRef.current?.retry(), []);
+
+  return { phase, error, submitPin, submitNickname, sendCursor, retry };
 }
