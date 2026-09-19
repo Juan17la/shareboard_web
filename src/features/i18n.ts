@@ -16,10 +16,6 @@ export function useT(): Strings {
   return STRINGS[useSessionStore((s) => s.lang)];
 }
 
-export function useLang(): Lang {
-  return useSessionStore((s) => s.lang);
-}
-
 export function useToggleLang(): () => void {
   return useSessionStore((s) => s.toggleLang);
 }
