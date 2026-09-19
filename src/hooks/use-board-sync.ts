@@ -106,10 +106,9 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
         });
         setPhase('ready');
       });
-      conn.on('op', (msg) => {
-        // Our own ops were already applied locally by `commitLocal`.
-        if (msg.from !== userId) useBoardStore.getState().applyRemote(msg.ops, msg.seq);
-      });
+      conn.on('op', (msg) =>
+        useBoardStore.getState().applyRemote(msg.ops, msg.seq, msg.from === userId),
+      );
       conn.on('participants', (msg) =>
         useBoardStore.getState().setParticipants(msg.participants),
       );
