@@ -33,7 +33,7 @@ import {
   shapeBounds,
   shapeHandles,
   simplify,
-  snapToAnchor,
+  linkEndpoints,
 } from '../../lib/geometry';
 import { Colors, MAX_ZOOM, MIN_ZOOM, fillFor } from '../../lib/theme';
 import { visibleSorted } from '../../lib/ops';
@@ -112,6 +112,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   const livePointsRef = useRef<number[]>([]);
   const liveShapeRef = useRef<{ from: Point; to: Point } | null>(null);
   const editRef = useRef<ShapeEdit | null>(null);
+  /** Where a line was started, unsnapped: its anchor can change as the end moves. */
+  const lineStart = useRef<Point>({ x: 0, y: 0 });
 
   const setPoints = (points: number[]) => {
     livePointsRef.current = points;
@@ -303,11 +305,17 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setShape(null);
   };
 
-  /** A line/arrow endpoint snaps to the nearest connection point in reach. */
-  const snapLine = (shape: string, p: Point): Point => {
-    if (shape !== 'line' && shape !== 'arrow') return p;
+  /** A line's ends link to the shapes they land in; other shapes pass through. */
+  const snapLine = (shape: string, from: Point, to: Point): { from: Point; to: Point } => {
+    if (shape !== 'line' && shape !== 'arrow') return { from, to };
     const store = useBoardStore.getState();
-    return snapToAnchor(store.visibleElements(), p, 14 / store.camera.scale);
+    return linkEndpoints(store.visibleElements(), from, to, 14 / store.camera.scale);
+  };
+
+  /** `resizeShape`, with a line's ends re-linked after the handle moves. */
+  const resizeLinked = (el: ShapeElement, handle: number, p: Point) => {
+    const next = resizeShape(el, handle, p);
+    return isLineLike(el) ? snapLine(el.shape, next.from, next.to) : next;
   };
 
   /**
@@ -379,8 +387,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         break;
       case 'shape': {
         if (beginShapeEdit(p, store.camera.scale)) break;
-        const from = snapLine(store.config.shape, p);
-        setShape({ from, to: from });
+        lineStart.current = p;
+        setShape(snapLine(store.config.shape, p, p));
         break;
       }
       case 'text': {
@@ -458,7 +466,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           const el = { ...store.elements[edit.id], from: edit.from, to: edit.to } as ShapeElement;
           const next =
             edit.mode === 'resize'
-              ? resizeShape(el, edit.handle, isLineLike(el) ? snapLine(el.shape, p) : p)
+              ? resizeLinked(el, edit.handle, p)
               : {
                   from: { x: edit.from.x + p.x - edit.start.x, y: edit.from.y + p.y - edit.start.y },
                   to: { x: edit.to.x + p.x - edit.start.x, y: edit.to.y + p.y - edit.start.y },
@@ -466,8 +474,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           setLiveEdit({ id: edit.id, ...next });
           break;
         }
-        const prev = liveShapeRef.current;
-        if (prev) setShape({ from: prev.from, to: snapLine(store.config.shape, p) });
+        if (liveShapeRef.current) setShape(snapLine(store.config.shape, lineStart.current, p));
         break;
       }
     }
@@ -502,7 +509,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           store.updateShape(
             edit.id,
             edit.mode === 'resize'
-              ? resizeShape(el, edit.handle, isLineLike(el) ? snapLine(el.shape, p) : p)
+              ? resizeLinked(el, edit.handle, p)
               : {
                   from: { x: edit.from.x + p.x - edit.start.x, y: edit.from.y + p.y - edit.start.y },
                   to: { x: edit.to.x + p.x - edit.start.x, y: edit.to.y + p.y - edit.start.y },
