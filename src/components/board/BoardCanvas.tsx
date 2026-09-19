@@ -7,6 +7,7 @@
  *
  *   primary button / one finger / pen  ->  the active tool
  *   two fingers, middle button, space  ->  pan
+ *   hand tool, or no edit rights       ->  primary button pans too
  *   wheel                              ->  pan       (trackpad two-finger)
  *   ctrl / ⌘ + wheel                   ->  zoom at the pointer
  *
@@ -25,7 +26,15 @@ import { useSessionStore } from '../../features/session';
 import { boardToScreen, screenToBoard, useBoardStore, type Camera } from '../../features/board-store';
 import type { Point, ShapeElement } from '../../lib/contract';
 import { LIMITS } from '../../lib/contract';
-import { resizeShape, shapeAt, shapeBounds, shapeHandles, simplify } from '../../lib/geometry';
+import {
+  isLineLike,
+  resizeShape,
+  shapeAt,
+  shapeBounds,
+  shapeHandles,
+  simplify,
+  snapToAnchor,
+} from '../../lib/geometry';
 import { Colors, MAX_ZOOM, MIN_ZOOM, fillFor } from '../../lib/theme';
 import { visibleSorted } from '../../lib/ops';
 import { useT } from '../../features/i18n';
@@ -33,7 +42,7 @@ import { useT } from '../../features/i18n';
 import { PeerCursors } from './PeerCursors';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { cursorFor } from './cursors';
-import { paintBoard, paintSelection } from './renderer';
+import { paintAnchors, paintBoard, paintSelection } from './renderer';
 
 const clampZoom = (scale: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale));
 
@@ -153,7 +162,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const { camera: cam, tool: activeTool } = useBoardStore.getState();
+      const { camera: cam } = useBoardStore.getState();
+      const activeTool = tool;
       const cfg = config;
       const drafts = [...list];
 
@@ -201,11 +211,15 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         onImageReady: () => repaint.current(),
       });
       if (selected && activeTool === 'shape') paintSelection(ctx, selected, cam);
+      // Connection points show whenever a line or arrow could land on them.
+      if (activeTool === 'shape' && (cfg.shape === 'line' || cfg.shape === 'arrow')) {
+        paintAnchors(ctx, list, cam);
+      }
     });
     // `config` is in the list because changing the colour or width while a
     // shape is being dragged has to repaint the draft, and no pointer event
     // follows to trigger it.
-  }, [list, livePoints, liveShape, selected, smooth, grid, config]);
+  }, [list, livePoints, liveShape, selected, smooth, grid, config, tool]);
 
   useEffect(() => {
     repaint.current = paint;
@@ -289,6 +303,13 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setShape(null);
   };
 
+  /** A line/arrow endpoint snaps to the nearest connection point in reach. */
+  const snapLine = (shape: string, p: Point): Point => {
+    if (shape !== 'line' && shape !== 'arrow') return p;
+    const store = useBoardStore.getState();
+    return snapToAnchor(store.visibleElements(), p, 14 / store.camera.scale);
+  };
+
   /**
    * With the shape tool, a pointer landing on the selected shape starts a
    * drag of it rather than a new shape: a handle reshapes, the body moves.
@@ -332,9 +353,16 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     if (e.button !== 0) return;
 
     const store = useBoardStore.getState();
+    // The hand tool pans; so does a plain drag for someone who cannot edit,
+    // which is the one gesture the board still owes a viewer.
+    if (store.tool === 'hand' || !store.canEditNow()) {
+      state.panFrom = at;
+      setPanning(true);
+      return;
+    }
     // Offline, nothing starts: a stroke that could not be sent would only ever
     // exist on this screen, and the banner is what says so.
-    if (!store.canEditNow() || store.connection !== 'online') return;
+    if (store.connection !== 'online') return;
 
     const p = screenToBoard(at.x, at.y);
     state.drawingId = e.pointerId;
@@ -349,9 +377,12 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       case 'pen':
         setPoints([p.x, p.y]);
         break;
-      case 'shape':
-        if (!beginShapeEdit(p, store.camera.scale)) setShape({ from: p, to: p });
+      case 'shape': {
+        if (beginShapeEdit(p, store.camera.scale)) break;
+        const from = snapLine(store.config.shape, p);
+        setShape({ from, to: from });
         break;
+      }
       case 'text': {
         const id = store.addText(p);
         state.drawingId = null;
@@ -427,7 +458,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           const el = { ...store.elements[edit.id], from: edit.from, to: edit.to } as ShapeElement;
           const next =
             edit.mode === 'resize'
-              ? resizeShape(el, edit.handle, p)
+              ? resizeShape(el, edit.handle, isLineLike(el) ? snapLine(el.shape, p) : p)
               : {
                   from: { x: edit.from.x + p.x - edit.start.x, y: edit.from.y + p.y - edit.start.y },
                   to: { x: edit.to.x + p.x - edit.start.x, y: edit.to.y + p.y - edit.start.y },
@@ -436,7 +467,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           break;
         }
         const prev = liveShapeRef.current;
-        if (prev) setShape({ from: prev.from, to: p });
+        if (prev) setShape({ from: prev.from, to: snapLine(store.config.shape, p) });
         break;
       }
     }
@@ -471,7 +502,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           store.updateShape(
             edit.id,
             edit.mode === 'resize'
-              ? resizeShape(el, edit.handle, p)
+              ? resizeShape(el, edit.handle, isLineLike(el) ? snapLine(el.shape, p) : p)
               : {
                   from: { x: edit.from.x + p.x - edit.start.x, y: edit.from.y + p.y - edit.start.y },
                   to: { x: edit.to.x + p.x - edit.start.x, y: edit.to.y + p.y - edit.start.y },
