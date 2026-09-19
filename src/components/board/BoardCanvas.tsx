@@ -280,7 +280,9 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     if (e.button !== 0) return;
 
     const store = useBoardStore.getState();
-    if (!store.canEditNow()) return;
+    // Offline, nothing starts: a stroke that could not be sent would only ever
+    // exist on this screen, and the banner is what says so.
+    if (!store.canEditNow() || store.connection !== 'online') return;
 
     const p = screenToBoard(at.x, at.y);
     state.drawingId = e.pointerId;

@@ -26,4 +26,6 @@ export const REALTIME = {
   backoffMinMs: 500,
   backoffMaxMs: 15_000,
   backoffFactor: 2,
+  /** Automatic reconnects before giving up and asking the user. */
+  maxReconnects: 5,
 } as const;
