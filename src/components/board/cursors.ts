@@ -48,6 +48,7 @@ const FILL = cursor(
 );
 
 const BY_TOOL: Record<ToolType, string> = {
+  hand: 'grab',
   pen: PENCIL,
   eraser: ERASER,
   shape: SHAPE,
