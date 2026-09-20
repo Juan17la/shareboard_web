@@ -48,7 +48,16 @@ export type IconName =
   | 'undo'
   | 'redo'
   | 'edit'
-  | 'keyboard';
+  | 'keyboard'
+  | 'cursor'
+  | 'group'
+  | 'ungroup'
+  | 'to-back'
+  | 'backward'
+  | 'forward'
+  | 'to-front'
+  | 'moon'
+  | 'sun';
 
 /**
  * `s` is the stroke width the design uses for that glyph — a few are drawn
@@ -288,6 +297,75 @@ const PATHS: Record<IconName, { s?: number; fill?: boolean; body: ReactElement }
       <>
         <path d="M12 3.5c3.2 3.6 5.5 6.3 5.5 9a5.5 5.5 0 0 1-11 0c0-2.7 2.3-5.4 5.5-9z" />
         <path d="M9.4 13.6a2.7 2.7 0 0 0 2.6 2.6" />
+      </>
+    ),
+  },
+  cursor: { body: <path d="M5.5 4.5l13 6.5-5.6 1.6L11 18.5z" /> },
+  // Two boxes, the marked one on top: the selection and the rest of the stack.
+  group: {
+    s: 1.8,
+    body: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="2" strokeDasharray="3 2" />
+        <rect x="7.5" y="7.5" width="4" height="4" />
+        <rect x="12.5" y="12.5" width="4" height="4" />
+      </>
+    ),
+  },
+  ungroup: {
+    s: 1.8,
+    body: (
+      <>
+        <rect x="4" y="4" width="7" height="7" rx="1" />
+        <rect x="13" y="13" width="7" height="7" rx="1" />
+        <path d="M13 6.5l-2 0M6.5 13l0 2" />
+      </>
+    ),
+  },
+  'to-back': {
+    s: 1.8,
+    body: (
+      <>
+        <rect x="9" y="9" width="11" height="11" rx="1.5" />
+        <path d="M4 15V5.5A1.5 1.5 0 0 1 5.5 4H15" />
+        <path d="M4 14.5l3-3M4 14.5l-3-3" />
+      </>
+    ),
+  },
+  backward: {
+    s: 1.8,
+    body: (
+      <>
+        <rect x="9" y="9" width="11" height="11" rx="1.5" />
+        <path d="M4 15V5.5A1.5 1.5 0 0 1 5.5 4H15" />
+      </>
+    ),
+  },
+  forward: {
+    s: 1.8,
+    body: (
+      <>
+        <path d="M20 9v9.5a1.5 1.5 0 0 1-1.5 1.5H9" />
+        <rect x="4" y="4" width="11" height="11" rx="1.5" />
+      </>
+    ),
+  },
+  'to-front': {
+    s: 1.8,
+    body: (
+      <>
+        <path d="M20 9v9.5a1.5 1.5 0 0 1-1.5 1.5H9" />
+        <rect x="4" y="4" width="11" height="11" rx="1.5" />
+        <path d="M12.5 10.5l-3-3l-3 3" />
+      </>
+    ),
+  },
+  moon: { body: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /> },
+  sun: {
+    body: (
+      <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" />
       </>
     ),
   },
