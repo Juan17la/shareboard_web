@@ -116,7 +116,7 @@ export function ColorPickerSheet({
           ))}
         </div>
 
-        <label className="mt-3 flex cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed border-line-dashed py-3 text-[12px] font-bold text-text/70 transition hover:bg-white/60">
+        <label className="mt-3 flex cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed border-line-dashed py-3 text-[12px] font-bold text-text/70 transition hover:bg-surface-selected">
           <input
             type="color"
             value={value.slice(0, 7)}

@@ -14,7 +14,7 @@
  */
 import { create, persisted } from '../lib/store';
 import { newUserId } from '../lib/id';
-import { Avatars, avatarColor } from '../lib/theme';
+import { Avatars, avatarColor, type Theme } from '../lib/theme';
 import type { Lang } from './strings';
 
 export interface RecentBoard {
@@ -49,6 +49,8 @@ interface SessionState {
   /** Presence icon; its colour is `nickColor`. */
   avatar: string;
   lang: Lang;
+  /** Light board or dark board; light unless chosen otherwise. */
+  theme: Theme;
   settings: AppSettings;
   recent: RecentBoard[];
   /** PINs this browser chose, by board id. */
@@ -58,6 +60,8 @@ interface SessionState {
   setAvatar(avatar: string): void;
   setLang(lang: Lang): void;
   toggleLang(): void;
+  setTheme(theme: Theme): void;
+  toggleTheme(): void;
   setSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void;
   rememberBoard(board: Omit<RecentBoard, 'lastOpenedAt'>): void;
   forgetBoard(id: string): void;
@@ -74,6 +78,7 @@ interface Persisted {
   nickColor: string;
   avatar?: string;
   lang: Lang;
+  theme?: Theme;
   settings: AppSettings;
   recent: RecentBoard[];
   pins: Record<string, string>;
@@ -100,6 +105,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   nickColor: Avatars[0].color,
   avatar: Avatars[0].icon,
   lang: preferredLang(),
+  theme: 'light',
   settings: DEFAULT_SETTINGS,
   recent: [],
   pins: {},
@@ -119,6 +125,14 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   toggleLang() {
     set((s) => ({ lang: s.lang === 'es' ? 'en' : 'es' }));
+  },
+
+  setTheme(theme) {
+    set({ theme });
+  },
+
+  toggleTheme() {
+    set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' }));
   },
 
   setSetting(key, value) {
@@ -158,6 +172,7 @@ const saved = persisted<SessionState, Persisted>(useSessionStore, STORAGE_KEY, (
   nickColor: s.nickColor,
   avatar: s.avatar,
   lang: s.lang,
+  theme: s.theme,
   settings: s.settings,
   recent: s.recent,
   pins: s.pins,
@@ -168,6 +183,19 @@ if (saved) {
     ...saved,
     avatar: saved.avatar || Avatars[0].icon,
     nickColor: avatarColor(saved.avatar || Avatars[0].icon),
+    theme: saved.theme === 'dark' ? 'dark' : 'light',
     settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
+  });
+}
+
+// The theme is applied as `data-theme` on <html>: the stylesheet switches its
+// variables on it, and everything else reads the variables.
+if (typeof document !== 'undefined') {
+  const apply = (theme: Theme) => {
+    document.documentElement.dataset.theme = theme;
+  };
+  apply(useSessionStore.getState().theme);
+  useSessionStore.subscribe((s, prev) => {
+    if (s.theme !== prev.theme) apply(s.theme);
   });
 }

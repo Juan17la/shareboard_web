@@ -154,7 +154,7 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="grid min-h-[140px] place-items-center overflow-hidden rounded-lg border border-line bg-white p-3"
+        className="grid min-h-[140px] place-items-center overflow-hidden rounded-lg border border-line bg-surface p-3"
         style={
           paintBackground
             ? undefined

@@ -95,7 +95,7 @@ export function PrivacySheet({
                   aria-label={t.newPin}
                   disabled={busy}
                   onClick={() => void apply({ pin: generatePin() })}
-                  className="flex-none rounded-[11px] border border-line-strong bg-white px-2.5 py-[7px] text-[10.5px] font-extrabold text-text-secondary transition hover:bg-surface-selected disabled:opacity-50"
+                  className="flex-none rounded-[11px] border border-line-strong bg-surface px-2.5 py-[7px] text-[10.5px] font-extrabold text-text-secondary transition hover:bg-surface-selected disabled:opacity-50"
                 >
                   {t.newPin}
                 </button>
@@ -121,7 +121,7 @@ export function PrivacySheet({
                   className="flex items-center gap-3 rounded-[15px] border px-3.5 py-3 text-left transition disabled:cursor-default"
                   style={{
                     borderColor: active ? Colors.accent : Colors.border,
-                    background: active ? Colors.accentSofter : 'rgba(255,255,255,0.7)',
+                    background: active ? Colors.accentSofter : 'var(--color-glass-solid)',
                     opacity: isCreator ? 1 : 0.75,
                   }}
                 >
@@ -130,7 +130,7 @@ export function PrivacySheet({
                     style={{
                       border: active
                         ? `5.5px solid ${Colors.accent}`
-                        : '2px solid rgba(27,32,48,0.25)',
+                        : `2px solid ${Colors.borderDashed}`,
                     }}
                   />
                   <span className="min-w-0 flex-1">
