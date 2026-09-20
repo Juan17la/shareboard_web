@@ -66,7 +66,7 @@ export function Sheet({
         {/* The grab handle is decorative on a pointer device, but it is what
             tells a touch user the panel can be dismissed downward. */}
         <div className="flex justify-center pt-2 pb-0.5 sm:hidden">
-          <div className="h-1 w-[38px] rounded-full bg-[rgba(27,32,48,0.16)]" />
+          <div className="h-1 w-[38px] rounded-full bg-text/15" />
         </div>
 
         <div className="flex items-center justify-between gap-2.5 px-5 pt-1.5 pb-3.5 sm:pt-4">
@@ -126,7 +126,7 @@ export function SheetRow({
           type="button"
           aria-label={ariaLabel ?? title}
           onClick={onClick}
-          className="flex w-full items-center justify-between gap-2.5 p-[13px] text-left transition hover:bg-white/70"
+          className="flex w-full items-center justify-between gap-2.5 p-[13px] text-left transition hover:bg-surface-selected"
         >
           {body}
         </button>

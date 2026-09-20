@@ -29,10 +29,10 @@ export function Field({
       <input
         aria-invalid={error ? true : undefined}
         className={[
-          'w-full min-w-0 text-text outline-none placeholder:text-[rgba(27,32,48,0.32)]',
+          'w-full min-w-0 text-text outline-none placeholder:text-text/30',
           bare
             ? 'bg-transparent p-0'
-            : 'rounded-lg border bg-white px-[13px] py-3 focus:border-accent',
+            : 'rounded-lg border bg-surface px-[13px] py-3 focus:border-accent',
           bare ? '' : error ? 'border-danger-bright' : 'border-line-strong',
           mono ? 'font-mono text-[15px] font-bold tracking-[1.5px]' : 'text-[16px] font-semibold',
           className,

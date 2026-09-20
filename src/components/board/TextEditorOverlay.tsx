@@ -104,7 +104,7 @@ export function TextEditorOverlay({
         }}
         placeholder={t.typeHere}
         aria-label={t.text}
-        className={`absolute resize-none overflow-hidden rounded-md border-[1.5px] border-dashed bg-white/90 px-1 py-0.5 outline-none placeholder:text-[rgba(27,32,48,0.35)] ${
+        className={`absolute resize-none overflow-hidden rounded-md border-[1.5px] border-dashed bg-glass-solid px-1 py-0.5 outline-none placeholder:text-text/30 ${
           element.kind === 'shape' ? 'text-center' : ''
         }`}
         style={{
@@ -128,7 +128,7 @@ export function TextEditorOverlay({
           rather than click: a click would first blur the textarea, and the
           blur is itself a commit. */}
       <div
-        className="absolute z-20 flex gap-1 rounded-full border bg-white p-0.5 shadow-panel"
+        className="absolute z-20 flex gap-1 rounded-full border bg-surface p-0.5 shadow-panel"
         style={{ left: at.x, top: at.y - 42, borderColor: Colors.accent }}
         onPointerDown={(e) => e.preventDefault()}
       >

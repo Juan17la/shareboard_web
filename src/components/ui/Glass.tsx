@@ -22,6 +22,7 @@ export function GlassPanel({
   level = 'panel',
   radius = 20,
   border = 'var(--color-line)',
+  overflow = 'hidden',
   className = '',
   style,
 }: {
@@ -30,12 +31,15 @@ export function GlassPanel({
   radius?: number;
   /** Hairline border. Pass `null` for a borderless panel. */
   border?: string | null;
+  /** Clipping keeps children inside the rounded corners; a panel whose
+   *  buttons show tooltips outside it asks for `visible`. */
+  overflow?: 'hidden' | 'visible';
   className?: string;
   style?: CSSProperties;
 }) {
   return (
     <div
-      className={`${LEVEL[level]} overflow-hidden ${className}`}
+      className={`${LEVEL[level]} overflow-${overflow} ${className}`}
       style={{
         borderRadius: radius,
         ...(border ? { border: `1px solid ${border}` } : null),

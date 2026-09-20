@@ -146,7 +146,7 @@ export function ImportSheet({
           className={`flex flex-col items-center gap-2 rounded-lg border border-dashed py-8 transition ${
             dragging
               ? 'border-accent bg-accent-soft text-accent'
-              : 'border-line-dashed text-text/60 hover:bg-white/60 hover:text-text'
+              : 'border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text'
           } ${busy ? 'opacity-55' : ''}`}
         >
           <Icon name="download" size={22} />

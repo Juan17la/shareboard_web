@@ -46,6 +46,8 @@ export function SettingsSheet({
   const toggleLang = useToggleLang();
   const settings = useSessionStore((s) => s.settings);
   const setSetting = useSessionStore((s) => s.setSetting);
+  const theme = useSessionStore((s) => s.theme);
+  const setTheme = useSessionStore((s) => s.setTheme);
   const userId = useSessionStore((s) => s.userId);
 
   const meta = useBoardStore((s) => s.meta);
@@ -140,6 +142,12 @@ export function SettingsSheet({
           />
         ))}
 
+        <SheetRow
+          title={t.settingTheme}
+          description={t.settingThemeDesc}
+          right={<Toggle value={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label={t.settingTheme} />}
+        />
+
         <GlassPanel level="row" radius={15}>
           <div className="flex items-center justify-between gap-2.5 p-3.5">
             <div className="text-[13px] leading-tight font-bold">{t.language}</div>
@@ -147,7 +155,7 @@ export function SettingsSheet({
               type="button"
               aria-label={t.language}
               onClick={toggleLang}
-              className="rounded-[11px] border border-line-strong bg-white px-3 py-[7px] text-[11.5px] font-extrabold transition hover:bg-surface-selected"
+              className="rounded-[11px] border border-line-strong bg-surface px-3 py-[7px] text-[11.5px] font-extrabold transition hover:bg-surface-selected"
             >
               {t.langLabel}
             </button>

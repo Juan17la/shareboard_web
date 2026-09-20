@@ -3,11 +3,11 @@
 /**
  * Shareboard design tokens.
  *
- * Copied from the mobile app's `tailwind.config.js` / `src/constants/theme.ts`,
- * which are the source of truth for the palette (mobile/docs/03-styles). The
- * design is **light-only** on purpose: the glass panels take their depth from a
- * light blur over a light ground, and a dark counterpart would flatten them
- * into grey boxes. So there is no `prefers-color-scheme` block here.
+ * Copied from the mobile app's `src/constants/theme.ts`, which is the source
+ * of truth for the palette (mobile/docs/03-styles). Light is the default; the
+ * dark set below is switched on with `data-theme="dark"` on <html>, which the
+ * session store keeps in sync with the user's choice. Everything reads the
+ * variables, so nothing else has to know which theme is on.
  */
 @theme {
   /* --- UI surfaces (restrained: board content is the star) --- */
@@ -19,10 +19,10 @@
   --color-text-tertiary: #8b909c;
 
   /* --- Brand / intent (one accent does active tool, CTA and selection) --- */
-  --color-accent: #6d3fb5;
-  --color-accent-deep: #3c42ad;
-  --color-accent-soft: rgba(109, 63, 181, 0.11);
-  --color-accent-softer: rgba(109, 63, 181, 0.07);
+  --color-accent: #7a1f2b;
+  --color-accent-deep: #5a1420;
+  --color-accent-soft: rgba(122, 31, 43, 0.11);
+  --color-accent-softer: rgba(122, 31, 43, 0.07);
   --color-danger: #c4353a;
   --color-danger-bright: #e5484d;
   --color-danger-soft: rgba(196, 53, 58, 0.08);
@@ -32,6 +32,8 @@
   /* --- Glass --- */
   --color-glass: rgba(255, 255, 255, 0.46);
   --color-glass-solid: rgba(255, 255, 255, 0.62);
+  --color-glass-row: rgba(255, 255, 255, 0.72);
+  --color-glass-highlight: rgba(255, 255, 255, 0.92);
   --color-line: rgba(27, 32, 48, 0.1);
   --color-line-strong: rgba(27, 32, 48, 0.14);
   --color-line-dashed: rgba(27, 32, 48, 0.22);
@@ -50,6 +52,30 @@
 
   --font-sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* The dark board: the same glass recipe over a deep ink ground. Blur still
+   gives the panels their depth because the tint is dark on dark. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-background: #141824;
+  --color-surface: #1c2130;
+  --color-surface-selected: #242a3b;
+  --color-text: #f2f3f5;
+  --color-text-secondary: #a7adbb;
+  --color-text-tertiary: #6f7684;
+  --color-accent: #a82f3f;
+  --color-accent-deep: #82202e;
+  --color-accent-soft: rgba(168, 47, 63, 0.2);
+  --color-accent-softer: rgba(168, 47, 63, 0.11);
+  --color-danger-bright: #ff6b70;
+  --color-glass: rgba(20, 24, 36, 0.55);
+  --color-glass-solid: rgba(28, 33, 48, 0.72);
+  --color-glass-row: rgba(28, 33, 48, 0.8);
+  --color-glass-highlight: rgba(255, 255, 255, 0.08);
+  --color-line: rgba(242, 243, 245, 0.1);
+  --color-line-strong: rgba(242, 243, 245, 0.16);
+  --color-line-dashed: rgba(242, 243, 245, 0.26);
 }
 
 html,
@@ -99,29 +125,29 @@ textarea {
    the panels here are real glass on every platform rather than the near-opaque
    fallback Android has to take. */
 .glass {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.44));
+  background: linear-gradient(155deg, var(--color-glass-solid), var(--color-glass));
   backdrop-filter: blur(30px) saturate(1.8);
   -webkit-backdrop-filter: blur(30px) saturate(1.8);
   box-shadow:
     0 12px 34px rgba(21, 26, 45, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    inset 0 1px 0 var(--color-glass-highlight);
 }
 
 /* Rows and chips that hold text sit at a higher opacity so their contrast
    matches flat surfaces. */
 .glass-row {
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--color-glass-row);
   backdrop-filter: blur(18px) saturate(1.5);
   -webkit-backdrop-filter: blur(18px) saturate(1.5);
 }
 
 .glass-chip {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.4));
+  background: linear-gradient(155deg, var(--color-glass-solid), var(--color-glass));
   backdrop-filter: blur(24px) saturate(1.8);
   -webkit-backdrop-filter: blur(24px) saturate(1.8);
   box-shadow:
     0 8px 22px rgba(21, 26, 45, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    inset 0 1px 0 var(--color-glass-highlight);
 }
 
 /* Soft elevation. Only the CTA and the destructive buttons are tinted. */
@@ -132,10 +158,69 @@ textarea {
   box-shadow: 0 8px 20px rgba(21, 26, 45, 0.1);
 }
 .shadow-accent {
-  box-shadow: 0 8px 16px rgba(109, 63, 181, 0.3);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 .shadow-danger {
   box-shadow: 0 8px 16px rgba(196, 53, 58, 0.26);
+}
+
+/* --- Tooltips --------------------------------------------------------------
+   `data-tip` on any control shows its name on hover or keyboard focus, after a
+   short pause so a pointer crossing the toolbar does not flash every label.
+   Above by default; `data-tip-side` picks "bottom" or "left" for controls that
+   sit against an edge. Pure CSS: no positioning code, no portal. */
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 4px);
+  padding: 4px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--color-line);
+  background: var(--color-glass-row);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  color: var(--color-text);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(21, 26, 45, 0.1);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 60;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: 0.35s;
+}
+[data-tip-side='bottom']::after {
+  bottom: auto;
+  top: calc(100% + 8px);
+  transform: translate(-50%, -4px);
+}
+[data-tip-side='left']::after {
+  left: auto;
+  right: calc(100% + 8px);
+  bottom: auto;
+  top: 50%;
+  transform: translate(4px, -50%);
+}
+[data-tip-side='left']:hover::after,
+[data-tip-side='left']:focus-visible::after {
+  transform: translate(0, -50%);
+}
+@media (hover: none) {
+  [data-tip]::after {
+    display: none;
+  }
 }
 
 /* Sheets and panels scroll without a visible scrollbar eating their padding. */
@@ -215,5 +300,8 @@ textarea {
   .sb-dialog,
   .sb-toast {
     animation: none;
+  }
+  [data-tip]::after {
+    transition: none;
   }
 }

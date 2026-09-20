@@ -55,7 +55,7 @@ export function ShareSheet({
                 type="button"
                 aria-label={`${t.code} ${code}`}
                 onClick={() => copy(code, t.toastCopied)}
-                className="flex items-center gap-2 self-start rounded-[13px] border border-line-strong bg-white px-[11px] py-2.5 transition hover:bg-surface-selected"
+                className="flex items-center gap-2 self-start rounded-[13px] border border-line-strong bg-surface px-[11px] py-2.5 transition hover:bg-surface-selected"
               >
                 <span className="font-mono text-[16px] font-bold tracking-[1.4px]">{code}</span>
                 <Icon name="copy" size={15} />
@@ -70,7 +70,7 @@ export function ShareSheet({
             type="button"
             aria-label={t.copyLink}
             onClick={() => copy(link, t.toastLink)}
-            className="flex w-full items-center gap-2.5 p-3.5 text-left transition hover:bg-white/70"
+            className="flex w-full items-center gap-2.5 p-3.5 text-left transition hover:bg-surface-selected"
           >
             <Icon name="link" size={18} />
             <div className="min-w-0 flex-1">
@@ -104,7 +104,7 @@ function ShortcutTile({
         type="button"
         aria-label={label}
         onClick={onClick}
-        className="flex w-full flex-col items-center gap-1.5 px-2 py-3.5 transition hover:bg-white/70"
+        className="flex w-full flex-col items-center gap-1.5 px-2 py-3.5 transition hover:bg-surface-selected"
       >
         <Icon name={icon} size={20} />
         <span className="text-[11.5px] font-bold">{label}</span>

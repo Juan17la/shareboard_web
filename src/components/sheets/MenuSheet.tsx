@@ -49,7 +49,7 @@ export function MenuSheet({
               type="button"
               aria-label={row.label}
               onClick={row.onClick}
-              className="flex w-full items-center gap-3 p-3.5 text-left transition hover:bg-white/70"
+              className="flex w-full items-center gap-3 p-3.5 text-left transition hover:bg-surface-selected"
             >
               <span
                 className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[11px] text-accent"

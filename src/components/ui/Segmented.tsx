@@ -21,7 +21,7 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className={`flex gap-[7px] rounded-lg bg-[rgba(27,32,48,0.05)] p-[5px] ${
+      className={`flex gap-[7px] rounded-lg bg-text/5 p-[5px] ${
         disabled ? 'opacity-50' : ''
       }`}
     >
@@ -36,7 +36,7 @@ export function Segmented<T extends string>({
             disabled={disabled}
             onClick={() => onChange(opt.value)}
             className={`flex-1 rounded-[11px] py-[9px] text-[12.5px] font-extrabold transition ${
-              active ? 'bg-white text-accent shadow-card' : 'text-text-secondary hover:bg-white/50'
+              active ? 'bg-background text-accent shadow-card' : 'text-text-secondary hover:bg-surface-selected'
             }`}
           >
             {opt.label}

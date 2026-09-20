@@ -24,7 +24,7 @@ export function ConnectionBanner({ top, onRetry }: { top: number; onRetry: () =>
       style={{
         top,
         borderColor: offline ? 'rgba(196,53,58,0.25)' : Colors.border,
-        background: offline ? 'rgba(255,241,241,0.92)' : 'rgba(255,255,255,0.85)',
+        background: 'var(--color-glass-row)',
         color: offline ? Colors.danger : Colors.textSecondary,
       }}
     >

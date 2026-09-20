@@ -82,7 +82,7 @@ export function PinScreen({
     <main className="relative h-full overflow-y-auto">
       <Backdrop variant="pin" />
       <div className="relative mx-auto flex min-h-full w-full max-w-[360px] flex-col items-center gap-4 px-6 py-12">
-        <div className="grid h-[46px] w-[46px] place-items-center rounded-[15px] border border-line bg-white/80">
+        <div className="grid h-[46px] w-[46px] place-items-center rounded-[15px] border border-line bg-glass-solid">
           <Icon name="lock" size={22} />
         </div>
 
@@ -108,7 +108,7 @@ export function PinScreen({
                 className="h-3.5 w-3.5 rounded-full transition"
                 style={{
                   background: filled ? Colors.accent : 'transparent',
-                  border: filled ? 'none' : '2px solid rgba(27,32,48,0.2)',
+                  border: filled ? 'none' : `2px solid ${Colors.borderDashed}`,
                 }}
               />
             );
@@ -128,7 +128,7 @@ export function PinScreen({
               onClick={() => press(key)}
               className={
                 key
-                  ? 'flex h-[60px] w-[74px] items-center justify-center rounded-[18px] border border-line bg-white/[0.78] text-[21px] font-bold shadow-card transition hover:bg-white active:bg-surface-selected'
+                  ? 'flex h-[60px] w-[74px] items-center justify-center rounded-[18px] border border-line bg-glass-solid text-[21px] font-bold shadow-card transition hover:bg-surface-selected active:bg-surface-selected'
                   : 'h-[60px] w-[74px]'
               }
             >

@@ -10,6 +10,8 @@
  * Positions are fractions of the viewport, so the composition survives a phone
  * screen and a widescreen monitor alike.
  */
+import { GRID } from '../../lib/theme';
+
 export type BackdropVariant = 'home' | 'nickname' | 'pin';
 
 interface Bloom {
@@ -25,14 +27,14 @@ const BLOOMS: Record<BackdropVariant, Bloom[]> = {
   home: [
     { cx: 1.06, cy: -0.04, r: 0.34, color: '#8E4EC6', opacity: 0.3 },
     { cx: -0.16, cy: 0.3, r: 0.3, color: '#30A46C', opacity: 0.26 },
-    { cx: 1.08, cy: 1.03, r: 0.3, color: '#6D3FB5', opacity: 0.22 },
+    { cx: 1.08, cy: 1.03, r: 0.3, color: '#7A1F2B', opacity: 0.22 },
   ],
   nickname: [
     { cx: -0.12, cy: -0.03, r: 0.32, color: '#8E4EC6', opacity: 0.26 },
     { cx: 1.1, cy: 1.05, r: 0.34, color: '#30A46C', opacity: 0.24 },
   ],
   pin: [
-    { cx: 0.5, cy: -0.1, r: 0.32, color: '#6D3FB5', opacity: 0.22 },
+    { cx: 0.5, cy: -0.1, r: 0.32, color: '#7A1F2B', opacity: 0.22 },
     { cx: -0.14, cy: 0.34, r: 0.28, color: '#30A46C', opacity: 0.22 },
   ],
 };
@@ -56,16 +58,16 @@ const ORNAMENTS: Record<BackdropVariant, Ornament[]> = {
   home: [
     { right: 0.02, top: 0.14, size: 92, kind: 'square', color: 'rgba(142,78,198,0.22)', rotate: 17 },
     { right: -0.04, top: 0.56, size: 120, kind: 'circle', color: 'rgba(48,164,108,0.2)' },
-    { left: 0.01, bottom: 0.2, size: 58, kind: 'glass', color: 'rgba(255,255,255,0.7)', rotate: -12 },
+    { left: 0.01, bottom: 0.2, size: 58, kind: 'glass', color: 'var(--color-glass-solid)', rotate: -12 },
     { left: -0.02, top: 0.1, size: 64, kind: 'triangle', color: 'rgba(48,164,108,0.18)', rotate: 14 },
-    { left: 0.06, top: 0.56, size: 90, kind: 'pill', color: 'rgba(109,63,181,0.16)', rotate: -8 },
+    { left: 0.06, top: 0.56, size: 90, kind: 'pill', color: 'rgba(122,31,43,0.16)', rotate: -8 },
     { right: 0.08, bottom: 0.08, size: 44, kind: 'dot', color: 'rgba(142,78,198,0.2)' },
   ],
   nickname: [
-    { left: -0.05, top: 0.42, size: 110, kind: 'square', color: 'rgba(109,63,181,0.18)', rotate: 24 },
+    { left: -0.05, top: 0.42, size: 110, kind: 'square', color: 'rgba(122,31,43,0.18)', rotate: 24 },
     { right: 0.02, bottom: 0.26, size: 74, kind: 'circle', color: 'rgba(142,78,198,0.2)' },
     { right: -0.02, top: 0.16, size: 70, kind: 'triangle', color: 'rgba(48,164,108,0.18)', rotate: -18 },
-    { left: 0.02, bottom: 0.08, size: 52, kind: 'glass', color: 'rgba(255,255,255,0.7)', rotate: 11 },
+    { left: 0.02, bottom: 0.08, size: 52, kind: 'glass', color: 'var(--color-glass-solid)', rotate: 11 },
   ],
   pin: [
     { right: -0.06, top: 0.32, size: 150, kind: 'square', color: 'rgba(142,78,198,0.18)', rotate: -16 },
@@ -140,7 +142,7 @@ function OrnamentView({ o }: { o: Ornament }) {
             width: o.size,
             height: o.size,
             borderRadius: o.size * 0.24,
-            background: 'linear-gradient(150deg,rgba(255,255,255,0.6),rgba(255,255,255,0.25))',
+            background: 'linear-gradient(150deg,var(--color-glass-solid),var(--color-glass))',
             border: `1px solid ${o.color}`,
             backdropFilter: 'blur(8px)',
           }}
@@ -164,10 +166,14 @@ function OrnamentView({ o }: { o: Ornament }) {
 export function Backdrop({ variant }: { variant: BackdropVariant }) {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* The ground is the whiteboard itself — its colour and its dot grid — so
+          the home modal sits over a board rather than over a wash. */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 bg-background"
         style={{
-          background: 'radial-gradient(110% 60% at 15% 0%,#EEF1FB 0%,#F7F8FC 45%,#FFFFFF 100%)',
+          backgroundImage: `radial-gradient(var(--color-line-dashed) 1.2px, transparent 1.4px)`,
+          backgroundSize: `${GRID.step}px ${GRID.step}px`,
+          backgroundPosition: '13px 13px',
         }}
       />
       {BLOOMS[variant].map((b, i) => (

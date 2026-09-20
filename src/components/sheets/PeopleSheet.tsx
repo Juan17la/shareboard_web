@@ -71,7 +71,7 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
                   className="flex-none rounded-full border px-2.5 py-[7px] text-[10.5px] font-extrabold transition disabled:cursor-default"
                   style={{
                     borderColor: canEdit ? 'transparent' : Colors.borderStrong,
-                    background: canEdit ? Colors.accentSoft : '#FFFFFF',
+                    background: canEdit ? Colors.accentSoft : Colors.surface,
                     color: canEdit ? Colors.accent : Colors.textSecondary,
                     opacity: isCreator || isOwner ? 1 : 0.7,
                   }}

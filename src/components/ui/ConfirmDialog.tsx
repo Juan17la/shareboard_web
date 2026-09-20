@@ -70,7 +70,7 @@ export function ConfirmDialog({
       <GlassPanel
         level="panel"
         radius={24}
-        border="rgba(255,255,255,0.75)"
+        border="var(--color-glass-highlight)"
         className="sb-dialog relative w-full max-w-[320px]"
         style={{ boxShadow: '0 22px 60px rgba(21,26,45,0.28)' }}
       >
@@ -93,7 +93,7 @@ export function ConfirmDialog({
               type="button"
               disabled={busy}
               onClick={onCancel}
-              className="flex-1 rounded-[14px] border border-line-strong bg-white/70 py-[13px] text-[13px] font-extrabold transition hover:bg-white disabled:opacity-60"
+              className="flex-1 rounded-[14px] border border-line-strong bg-glass-solid py-[13px] text-[13px] font-extrabold transition hover:bg-surface-selected disabled:opacity-60"
             >
               {cancelLabel}
             </button>
