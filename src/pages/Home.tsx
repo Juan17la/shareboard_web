@@ -1,51 +1,61 @@
 /**
- * Home: create a board, join one with a code, or reopen a recent one.
+ * Home: the whiteboard itself, with a glass card floating over it.
  *
- * The design gives creation a single button and no form. Everything a board
- * used to be configured with up front — name, visibility, PIN, who can edit —
- * is now changed from inside the board, where the creator can see what they are
- * changing. "Crear una pizarra sin necesidad de registrarse"
- * (mobile/docs/01) is meant to be two clicks, and asking four questions before
- * the canvas appears was the thing standing in the way.
+ * There is no landing page to get past — the board is already there behind
+ * the card, and the card is three tabs: *Start* (name a new board and create
+ * it, type a join code, drop a file to import), *Recent* (the boards this
+ * browser has opened) and *Settings* (who you are on a board, the theme, the
+ * language). Creating a board is one field and one button; everything else a
+ * board used to be configured with up front — visibility, PIN, who can edit —
+ * is changed from inside it, where the creator can see what they are changing.
  *
- * Above the tablet breakpoint the same content reflows into two columns rather
- * than stretching one narrow strip across a monitor.
+ * The join code is six boxes over one invisible input, so the keyboard, paste
+ * and autofill all work as they do on any input while the boxes show the code
+ * character by character. A pasted link goes straight through `parseBoardRef`.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useT, relativeTime, useToggleLang } from '../features/i18n';
+import { useT, relativeTime } from '../features/i18n';
 import { useSessionStore } from '../features/session';
+import { readBoardFile } from '../features/import';
+import type { Lang } from '../features/strings';
 import { createBoard, importSnapshot, resolveShortCode } from '../lib/api';
 import { LIMITS, type BoardSnapshot } from '../lib/contract';
 import { parseBoardRef } from '../lib/deep-link';
+import { SHORT_CODE_LENGTH, normalizeShortCode } from '../lib/short-code';
+import type { Theme } from '../lib/theme';
+import { toast } from '../lib/toast';
 
+import { AvatarPicker } from '../components/screens/NicknameScreen';
 import { ImportSheet } from '../components/sheets/ImportSheet';
 import { Avatar } from '../components/ui/Avatar';
 import { Backdrop } from '../components/ui/Backdrop';
 import { Button } from '../components/ui/Button';
-import { GlassPanel } from '../components/ui/Glass';
 import { Field } from '../components/ui/Field';
+import { GlassPanel } from '../components/ui/Glass';
 import { Icon } from '../components/ui/Icon';
-import { SectionLabel, Sheet } from '../components/ui/Sheet';
+import { Segmented } from '../components/ui/Segmented';
+import { SectionLabel } from '../components/ui/Sheet';
 import { ToastHost } from '../components/ui/Toast';
-import { toast } from '../lib/toast';
+
+type Tab = 'start' | 'recent' | 'settings';
 
 export default function HomePage() {
   const navigate = useNavigate();
   const t = useT();
-  const toggleLang = useToggleLang();
   const userId = useSessionStore((s) => s.userId);
   const nickColor = useSessionStore((s) => s.nickColor);
   const recent = useSessionStore((s) => s.recent);
   const forgetBoard = useSessionStore((s) => s.forgetBoard);
 
+  const [tab, setTab] = useState<Tab>('start');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
-  /** The naming step between "Create board" and the board itself. */
-  const [naming, setNaming] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const codeInput = useRef<HTMLInputElement>(null);
 
   /**
    * `pickName` forces the identity step even for someone whose nickname is
@@ -73,8 +83,8 @@ export default function HomePage() {
     }
   }
 
-  async function handleJoin() {
-    const ref = parseBoardRef(code);
+  async function handleJoin(raw: string) {
+    const ref = parseBoardRef(raw);
     if (!ref) {
       toast(t.errCodeInvalid);
       return;
@@ -85,10 +95,23 @@ export default function HomePage() {
       setCode('');
       openBoard(boardId);
     } catch (error) {
+      setCode('');
       toast(error instanceof Error ? error.message : t.errJoin);
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Characters fill the boxes; a link or an id skips them and joins at once. */
+  function onCodeChange(raw: string) {
+    if (busy) return;
+    if (raw.includes('/') || raw.includes(':')) {
+      void handleJoin(raw);
+      return;
+    }
+    const next = normalizeShortCode(raw).slice(0, SHORT_CODE_LENGTH);
+    setCode(next);
+    if (next.length === SHORT_CODE_LENGTH) void handleJoin(next);
   }
 
   async function handleImport(snapshot: BoardSnapshot) {
@@ -101,164 +124,191 @@ export default function HomePage() {
     openBoard(meta.id, true);
   }
 
-  const canJoin = code.trim().length >= 3 && !busy;
+  async function handleDrop(file: File) {
+    setBusy(true);
+    try {
+      const result = await readBoardFile(file, true);
+      if (result.kind !== 'snapshot') throw new Error(t.errImport);
+      await handleImport(result.snapshot);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : t.errImport);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <main className="relative h-full overflow-y-auto">
+    <main className="relative h-full overflow-hidden">
       <Backdrop variant="home" />
+      {/* The board is out of focus while the card is up: it is there, not in use. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 backdrop-blur-[3px]" />
 
-      <div className="relative mx-auto flex w-full max-w-[980px] flex-col gap-6 px-6 py-8 sm:px-10 sm:py-12">
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-[34px] w-[34px] place-items-center rounded-[11px] bg-accent text-white shadow-accent">
-              <Icon name="board" size={19} />
-            </span>
-            <span className="text-[20px] font-extrabold tracking-[-0.4px]">{t.appName}</span>
-            <span className="hidden h-3.5 w-px bg-line-strong sm:block" />
-            <span className="hidden text-[12px] font-semibold text-text-secondary sm:block">
-              {t.tagline}
-            </span>
-          </div>
-          <button
-            type="button"
-            aria-label={t.language}
-            onClick={toggleLang}
-            className="rounded-[11px] border border-line-strong bg-white/80 px-2.5 py-1.5 text-[11px] font-bold backdrop-blur-md transition hover:bg-white"
+      <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-4 py-6">
+        <GlassPanel
+          level="panel"
+          radius={26}
+          className="sb-dialog w-full max-w-[460px] shadow-panel"
+          style={{ maxHeight: 'calc(100% - 16px)' }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.appName}
+            className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col gap-5 overflow-y-auto px-5 pb-5 pt-4 sm:px-6"
           >
-            {t.langLabel}
-          </button>
-        </header>
-
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
-          <section className="flex min-w-0 flex-1 flex-col gap-3.5">
-            <div className="flex flex-col gap-1.5">
-              <h1 className="text-[26px] leading-[1.15] font-extrabold tracking-[-0.6px] sm:text-[34px]">
-                {t.homeTitle}
-              </h1>
-              <p className="text-[14px] leading-relaxed text-[#565D6C] sm:text-[15px]">
-                {t.homeSub}
-              </p>
-            </div>
-            <Button label={t.createBoard} icon="plus" onClick={() => setNaming(true)} fullWidth />
-          </section>
-
-          <section className="flex min-w-0 flex-1 flex-col gap-5">
-            <GlassPanel level="row" radius={20}>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (canJoin) void handleJoin();
-                }}
-                className="flex flex-col gap-3 p-4"
-              >
-                <h2 className="text-[13px] font-extrabold">{t.joinTitle}</h2>
-                <div className="flex gap-2">
-                  <input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="ABC-123"
-                    autoCapitalize="characters"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    maxLength={40}
-                    aria-label={t.codeFieldLabel}
-                    className="min-w-0 flex-1 rounded-[14px] border border-line-strong bg-white px-3.5 py-3 font-mono text-[15px] font-bold tracking-[1.5px] text-text outline-none focus:border-accent placeholder:text-[rgba(27,32,48,0.3)]"
-                  />
-                  <button
-                    type="submit"
-                    aria-label={t.enter}
-                    disabled={!canJoin}
-                    className="rounded-[14px] px-4 text-[13.5px] font-extrabold text-white transition"
-                    style={{
-                      background: canJoin ? 'var(--color-accent)' : 'rgba(27,32,48,0.14)',
-                    }}
-                  >
-                    {t.enter}
-                  </button>
-                </div>
-                <p className="text-[11.5px] leading-snug text-text-secondary">{t.joinHint}</p>
-              </form>
-            </GlassPanel>
-
-            <div className="flex flex-col gap-2">
-              <SectionLabel>{t.recent}</SectionLabel>
-              {recent.length === 0 ? (
-                <p className="text-[11.5px] leading-snug text-text-secondary">{t.noRecent}</p>
-              ) : (
-                recent.map((board) => (
-                  <GlassPanel key={board.id} level="row" radius={16}>
-                    <div className="flex items-center">
-                      <button
-                        type="button"
-                        aria-label={`${board.name}, ${board.shortCode}`}
-                        onClick={() => openBoard(board.id)}
-                        className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 text-left transition hover:bg-white/70"
-                      >
-                        <Avatar name={board.name} color={nickColor} size={38} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13.5px] leading-tight font-bold">
-                            {board.name}
-                          </span>
-                          <span className="mt-0.5 block truncate font-mono text-[11px] text-text-secondary">
-                            {board.shortCode} · {relativeTime(t, board.lastOpenedAt)}
-                          </span>
-                        </span>
-                      </button>
-                      {/* Mobile's long-press has no pointer equivalent, so
-                          "forget" gets its own small button here. */}
-                      <button
-                        type="button"
-                        aria-label={t.forget}
-                        title={t.forget}
-                        onClick={() => {
-                          forgetBoard(board.id);
-                          toast(t.forget);
-                        }}
-                        className="mr-2 grid h-9 w-9 flex-none place-items-center rounded-[11px] text-text-tertiary transition hover:bg-white hover:text-danger"
-                      >
-                        <Icon name="close" size={14} />
-                      </button>
-                    </div>
-                  </GlassPanel>
-                ))
-              )}
-            </div>
-
-            <Button
-              label={t.importBoard}
-              icon="upload"
-              variant="dashed"
-              onClick={() => setImporting(true)}
-              fullWidth
+            <Segmented<Tab>
+              label={t.appName}
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: 'start', label: t.tabStart },
+                { value: 'recent', label: t.recent },
+                { value: 'settings', label: t.tabSettings },
+              ]}
             />
-          </section>
-        </div>
+
+            {tab === 'start' ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 flex-none place-items-center rounded-[14px] bg-accent text-white shadow-accent">
+                    <Icon name="board" size={22} />
+                  </span>
+                  <div className="min-w-0">
+                    <h1 className="text-[26px] leading-none font-extrabold tracking-[-0.6px]">{t.appName}</h1>
+                    <p className="mt-1 text-[12.5px] font-semibold text-text-secondary">{t.tagline}</p>
+                  </div>
+                </div>
+
+                <form
+                  className="flex flex-col gap-2.5"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!busy) void handleCreate();
+                  }}
+                >
+                  <Field
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t.boardNamePlaceholder}
+                    maxLength={LIMITS.maxBoardNameLength}
+                    aria-label={t.boardNamePlaceholder}
+                  />
+                  <Button label={t.createBoard} icon="plus" type="submit" loading={busy} fullWidth />
+                </form>
+
+                <div className="flex flex-col gap-2">
+                  <SectionLabel>{t.joinCode}</SectionLabel>
+                  {/* The boxes are a picture of the input; the input itself is
+                      the thing with focus, so paste and autofill just work. */}
+                  <div
+                    className="relative flex justify-between gap-1.5"
+                    onClick={() => codeInput.current?.focus()}
+                  >
+                    {Array.from({ length: SHORT_CODE_LENGTH }, (_, i) => (
+                      <span
+                        key={i}
+                        aria-hidden="true"
+                        className={`grid h-[52px] flex-1 place-items-center rounded-[14px] border-[1.5px] font-mono text-[20px] font-bold transition ${
+                          code.length === i ? 'border-accent bg-background' : 'border-line-strong bg-glass-solid'
+                        }`}
+                      >
+                        {code[i] ?? ''}
+                      </span>
+                    ))}
+                    <input
+                      ref={codeInput}
+                      value={code}
+                      onChange={(e) => onCodeChange(e.target.value)}
+                      aria-label={t.joinCode}
+                      autoCapitalize="characters"
+                      autoComplete="one-time-code"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      inputMode="text"
+                      disabled={busy}
+                      className="absolute inset-0 h-full w-full cursor-text opacity-0"
+                    />
+                  </div>
+                  <p className="text-[11.5px] leading-snug text-text-secondary">{t.joinCodeHint}</p>
+                </div>
+
+                <button
+                  type="button"
+                  aria-label={t.importBoard}
+                  disabled={busy}
+                  onClick={() => setImporting(true)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) void handleDrop(file);
+                  }}
+                  className={`flex flex-col items-center gap-1.5 rounded-lg border border-dashed px-3 py-5 transition ${
+                    dragging
+                      ? 'border-accent bg-accent-soft text-accent'
+                      : 'border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text'
+                  } ${busy ? 'opacity-55' : ''}`}
+                >
+                  <Icon name="upload" size={20} />
+                  <span className="text-[13px] font-extrabold">{t.importBoard}</span>
+                  <span className="text-[11px] font-semibold">{t.homeDropHint}</span>
+                </button>
+              </>
+            ) : null}
+
+            {tab === 'recent' ? (
+              <div className="flex flex-col gap-2">
+                {recent.length === 0 ? (
+                  <p className="py-6 text-center text-[12.5px] leading-snug text-text-secondary">{t.noRecent}</p>
+                ) : (
+                  recent.map((board) => (
+                    <GlassPanel key={board.id} level="row" radius={16}>
+                      <div className="flex items-center">
+                        <button
+                          type="button"
+                          aria-label={`${board.name}, ${board.shortCode}`}
+                          onClick={() => openBoard(board.id)}
+                          className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 text-left transition hover:bg-surface-selected"
+                        >
+                          <Avatar name={board.name} color={nickColor} size={38} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13.5px] leading-tight font-bold">{board.name}</span>
+                            <span className="mt-0.5 block truncate font-mono text-[11px] text-text-secondary">
+                              {board.shortCode} · {relativeTime(t, board.lastOpenedAt)}
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={t.forget}
+                          data-tip={t.forget}
+                          data-tip-side="left"
+                          onClick={() => {
+                            forgetBoard(board.id);
+                            toast(t.forget);
+                          }}
+                          className="mr-2 grid h-9 w-9 flex-none place-items-center rounded-[11px] text-text-tertiary transition hover:bg-surface-selected hover:text-danger"
+                        >
+                          <Icon name="close" size={14} />
+                        </button>
+                      </div>
+                    </GlassPanel>
+                  ))
+                )}
+              </div>
+            ) : null}
+
+            {tab === 'settings' ? <SettingsTab /> : null}
+          </div>
+        </GlassPanel>
       </div>
 
-      <ToastHost bottom={32} enabled={!importing && !naming} />
-
-      {/* The name is optional, but the step is not: nobody should discover
-          after the fact that their board is "Untitled". */}
-      <Sheet open={naming} title={t.nameYourBoard} onClose={() => setNaming(false)} closeLabel={t.close}>
-        <form
-          className="flex flex-col gap-3.5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!busy) void handleCreate();
-          }}
-        >
-          <Field
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t.boardNamePlaceholder}
-            hint={t.nameYourBoardHint}
-            maxLength={LIMITS.maxBoardNameLength}
-            aria-label={t.boardNamePlaceholder}
-          />
-          <Button label={t.createBoard} icon="plus" type="submit" loading={busy} fullWidth />
-        </form>
-      </Sheet>
+      <ToastHost bottom={32} enabled={!importing} />
 
       <ImportSheet
         open={importing}
@@ -267,5 +317,76 @@ export default function HomePage() {
         allowImagePlacement={false}
       />
     </main>
+  );
+}
+
+/** Who you are on a board, and how the app looks: all local, all remembered. */
+function SettingsTab() {
+  const t = useT();
+  const nickname = useSessionStore((s) => s.nickname);
+  const nickColor = useSessionStore((s) => s.nickColor);
+  const avatar = useSessionStore((s) => s.avatar);
+  const setNickname = useSessionStore((s) => s.setNickname);
+  const theme = useSessionStore((s) => s.theme);
+  const setTheme = useSessionStore((s) => s.setTheme);
+  const lang = useSessionStore((s) => s.lang);
+  const setLang = useSessionStore((s) => s.setLang);
+  const [draft, setDraft] = useState(nickname);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <SectionLabel>{t.nickPlaceholder}</SectionLabel>
+        <GlassPanel level="row" radius={18}>
+          <div className="flex items-center gap-3 p-3">
+            <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={42} />
+            <div className="min-w-0 flex-1">
+              <Field
+                bare
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => setNickname(draft)}
+                placeholder={t.nickPlaceholder}
+                maxLength={LIMITS.maxNicknameLength}
+                autoComplete="nickname"
+                aria-label={t.nickPlaceholder}
+                className="!text-[16px]"
+              />
+            </div>
+          </div>
+        </GlassPanel>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <SectionLabel>{t.yourIcon}</SectionLabel>
+        <AvatarPicker name={draft} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <SectionLabel>{t.theme}</SectionLabel>
+        <Segmented<Theme>
+          label={t.theme}
+          value={theme}
+          onChange={setTheme}
+          options={[
+            { value: 'light', label: t.themeLight },
+            { value: 'dark', label: t.themeDark },
+          ]}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <SectionLabel>{t.language}</SectionLabel>
+        <Segmented<Lang>
+          label={t.language}
+          value={lang}
+          onChange={setLang}
+          options={[
+            { value: 'es', label: 'Español' },
+            { value: 'en', label: 'English' },
+          ]}
+        />
+      </div>
+    </div>
   );
 }

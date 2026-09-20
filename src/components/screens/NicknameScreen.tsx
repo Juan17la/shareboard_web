@@ -32,7 +32,6 @@ export function NicknameScreen({
   const storedNickname = useSessionStore((s) => s.nickname);
   const nickColor = useSessionStore((s) => s.nickColor);
   const avatar = useSessionStore((s) => s.avatar);
-  const setAvatar = useSessionStore((s) => s.setAvatar);
 
   const [draft, setDraft] = useState(storedNickname);
   const ready = draft.trim().length > 0;
@@ -51,7 +50,7 @@ export function NicknameScreen({
           <h1 className="text-[24px] leading-[1.15] font-extrabold tracking-[-0.5px]">
             {t.nickTitle}
           </h1>
-          <p className="text-[13.5px] leading-relaxed text-[#565D6C]">{t.nickSub}</p>
+          <p className="text-[13.5px] leading-relaxed text-text-secondary">{t.nickSub}</p>
         </div>
 
         <GlassPanel level="row" radius={20}>
@@ -78,25 +77,7 @@ export function NicknameScreen({
         <div className="flex flex-col gap-2.5">
           {/* One choice, not two: every icon brings its own colour. */}
           <SectionLabel>{t.yourIcon}</SectionLabel>
-          <div role="radiogroup" aria-label={t.yourIcon} className="-ml-1 flex flex-wrap gap-1">
-            {Avatars.map(({ icon, color }) => {
-              const active = avatar === icon;
-              return (
-                <button
-                  key={icon}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  aria-label={icon}
-                  onClick={() => setAvatar(icon)}
-                  className="grid h-[46px] w-[46px] place-items-center rounded-full border-2 transition"
-                  style={{ borderColor: active ? color : 'transparent' }}
-                >
-                  <Avatar name={draft || '?'} color={color} avatar={icon} size={36} />
-                </button>
-              );
-            })}
-          </div>
+          <AvatarPicker name={draft} />
         </div>
 
         <div className="min-h-4 flex-1" />
@@ -110,5 +91,33 @@ export function NicknameScreen({
         />
       </form>
     </main>
+  );
+}
+
+/** The icon grid: one choice, not two, since every icon brings its own colour. */
+export function AvatarPicker({ name }: { name: string }) {
+  const t = useT();
+  const avatar = useSessionStore((s) => s.avatar);
+  const setAvatar = useSessionStore((s) => s.setAvatar);
+  return (
+    <div role="radiogroup" aria-label={t.yourIcon} className="-ml-1 flex flex-wrap gap-1">
+      {Avatars.map(({ icon, color }) => {
+        const active = avatar === icon;
+        return (
+          <button
+            key={icon}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={icon}
+            onClick={() => setAvatar(icon)}
+            className="grid h-[46px] w-[46px] place-items-center rounded-full border-2 transition"
+            style={{ borderColor: active ? color : 'transparent' }}
+          >
+            <Avatar name={name || '?'} color={color} avatar={icon} size={36} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
