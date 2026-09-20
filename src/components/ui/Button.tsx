@@ -14,10 +14,10 @@ const VARIANT: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-white shadow-accent hover:brightness-110 active:brightness-95',
   danger: 'bg-danger text-white shadow-danger hover:brightness-110 active:brightness-95',
   secondary:
-    'bg-white/75 text-text border border-line-strong backdrop-blur-md hover:bg-white active:bg-surface-selected',
+    'bg-glass-solid text-text border border-line-strong backdrop-blur-md hover:bg-surface-selected active:bg-surface-selected',
   ghost: 'text-text-secondary hover:bg-black/[0.04] active:bg-black/[0.07]',
   dashed:
-    'border border-dashed border-line-dashed text-text/60 hover:bg-white/60 hover:text-text active:bg-white',
+    'border border-dashed border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text active:bg-surface-selected',
 };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
@@ -91,6 +91,7 @@ export function IconButton({
   disabled,
   active,
   title,
+  tipSide = 'bottom',
   className = '',
 }: {
   icon: IconName;
@@ -101,7 +102,10 @@ export function IconButton({
   radius?: number;
   disabled?: boolean;
   active?: boolean;
+  /** Tooltip text when it should say more than the label. */
   title?: string;
+  /** Where the tooltip opens; icon buttons mostly sit in the header, so below. */
+  tipSide?: 'top' | 'bottom' | 'left';
   className?: string;
 }) {
   return (
@@ -109,13 +113,14 @@ export function IconButton({
       type="button"
       aria-label={label}
       aria-pressed={active}
-      title={title ?? label}
+      data-tip={title ?? label}
+      data-tip-side={tipSide}
       disabled={disabled}
       onClick={onClick}
       style={{ width: size, height: size, borderRadius: radius }}
       className={[
         'flex flex-none items-center justify-center border border-line backdrop-blur-md transition',
-        active ? 'bg-accent text-white shadow-accent' : 'bg-white/60 text-text hover:bg-white',
+        active ? 'bg-accent text-white shadow-accent' : 'bg-glass-solid text-text hover:bg-surface-selected',
         disabled ? 'pointer-events-none opacity-40' : '',
         className,
       ]
@@ -143,10 +148,10 @@ export function StepperButton({
     <button
       type="button"
       aria-label={label}
-      title={label}
+      data-tip={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-[26px] w-[26px] items-center justify-center rounded-[9px] border border-line-strong bg-white text-text transition hover:bg-surface-selected disabled:opacity-40"
+      className="flex h-[26px] w-[26px] items-center justify-center rounded-[9px] border border-line-strong bg-surface text-text transition hover:bg-surface-selected disabled:opacity-40"
     >
       <Icon name={icon} size={14} />
     </button>
