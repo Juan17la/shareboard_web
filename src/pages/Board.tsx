@@ -46,6 +46,7 @@ import { boardShareLink } from '../lib/deep-link';
 import { Layout } from '../lib/theme';
 
 import { useViewport } from '../hooks/use-viewport';
+import { useShortcuts } from '../hooks/use-shortcuts';
 
 type SheetName = 'share' | 'people' | 'privacy' | 'export' | 'import' | 'menu' | 'settings';
 type ConfirmName = 'clear' | 'delete';
@@ -78,6 +79,8 @@ export default function BoardPage() {
   const copyTimer = useRef<number | null>(null);
 
   const sync = useBoardSync(id, { paused: !identityDone });
+  // Keys belong to the board only while it is the thing on screen.
+  useShortcuts(sync.phase === 'ready' && sheet === null && confirm === null);
 
   useEffect(
     () => () => {
@@ -191,6 +194,8 @@ export default function BoardPage() {
 
   const link = meta ? boardShareLink(WEB_BASE_URL, meta.shortCode) : '';
   const anyOverlay = sheet !== null || confirm !== null;
+  // Just under the header, whichever shape it takes.
+  const controlsTop = landscape ? (compact ? 62 : 76) : compact ? 108 : 128;
 
   return (
     <div className="relative h-full overflow-hidden bg-background">
@@ -209,11 +214,8 @@ export default function BoardPage() {
       />
 
       <Toolbar compact={compact} />
-      <BottomControls compact={compact} />
-      <ConnectionBanner
-        top={landscape ? (compact ? 72 : 88) : compact ? 112 : 132}
-        onRetry={sync.retry}
-      />
+      <BottomControls top={controlsTop} />
+      <ConnectionBanner top={controlsTop + 44} onRetry={sync.retry} />
 
       <ToastHost bottom={compact ? 140 : 132} enabled={!anyOverlay} />
 
