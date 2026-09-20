@@ -11,8 +11,21 @@
  * pixels so it stays crisp instead of being scaled with the drawing.
  */
 import { SHAPE_TEXT_SIZE, type BoardElement, type ShapeElement, type TextElement } from '../../lib/contract';
-import { anchorsOf, isLineLike, shapeBounds, shapeHandles, strokePath } from '../../lib/geometry';
-import { Colors, GRID } from '../../lib/theme';
+import {
+  anchorsOf,
+  dashIntervals,
+  elementBounds,
+  endAngles,
+  handlesOf,
+  headsOf,
+  isLineLike,
+  markerPaths,
+  routePath,
+  shapeBounds,
+  strokePath,
+  type Bounds,
+} from '../../lib/geometry';
+import { Colors, GRID, inkFor } from '../../lib/theme';
 import type { Camera } from '../../features/board-store';
 
 // --- images ----------------------------------------------------------------
@@ -144,27 +157,50 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
     return;
   }
 
-  // line / arrow
-  const line = new Path2D();
-  line.moveTo(el.from.x, el.from.y);
-  line.lineTo(el.to.x, el.to.y);
-  ctx.stroke(line);
+  // line / arrow: the route, dashed if asked, then a marker at each end. A
+  // marker is painted after the line so a hollow one hides it.
+  const dash = dashIntervals(el.dash, el.strokeWidth);
+  if (dash) ctx.setLineDash(dash);
+  ctx.stroke(new Path2D(routePath(el.from, el.to, el.route)));
+  ctx.setLineDash([]);
 
-  if (el.shape === 'arrow') {
-    const angle = Math.atan2(el.to.y - el.from.y, el.to.x - el.from.x);
-    const size = Math.max(10, el.strokeWidth * 3);
-    const head = new Path2D();
-    head.moveTo(el.to.x, el.to.y);
-    head.lineTo(
-      el.to.x - size * Math.cos(angle - Math.PI / 6),
-      el.to.y - size * Math.sin(angle - Math.PI / 6),
-    );
-    head.moveTo(el.to.x, el.to.y);
-    head.lineTo(
-      el.to.x - size * Math.cos(angle + Math.PI / 6),
-      el.to.y - size * Math.sin(angle + Math.PI / 6),
-    );
-    ctx.stroke(head);
+  const [headStart, headEnd] = headsOf(el);
+  const angles = endAngles(el.from, el.to, el.route);
+  const size = markerSize(el.strokeWidth);
+  for (const [kind, tip, angle] of [
+    [headStart, el.from, angles.start],
+    [headEnd, el.to, angles.end],
+  ] as const) {
+    for (const part of markerPaths(kind, tip, angle, size)) {
+      const path = new Path2D(part.d);
+      if (part.fill !== 'none') {
+        ctx.fillStyle = part.fill === 'solid' ? el.stroke : ground;
+        ctx.fill(path);
+      }
+      ctx.stroke(path);
+    }
+  }
+}
+
+/** A marker's size grows with the stroke, and never below a fingertip's worth. */
+export const markerSize = (width: number) => Math.max(10, width * 3);
+
+/** What a hollow marker is filled with: the surface the frame is painted on. */
+let ground = '#FFFFFF';
+
+/**
+ * The element as it is painted on the dark board: the default ink swapped for
+ * the dark theme's text colour (`inkFor`). The element itself is untouched.
+ */
+function inked(el: BoardElement): BoardElement {
+  switch (el.kind) {
+    case 'stroke':
+    case 'text':
+      return { ...el, color: inkFor(el.color, true) };
+    case 'shape':
+      return { ...el, stroke: inkFor(el.stroke, true), fill: el.fill && inkFor(el.fill, true) };
+    default:
+      return el;
   }
 }
 
@@ -174,7 +210,9 @@ export function paintElement(
   el: BoardElement,
   smooth: boolean,
   onImageReady: () => void,
+  dark = false,
 ): void {
+  if (dark) el = inked(el);
   switch (el.kind) {
     case 'stroke': {
       ctx.strokeStyle = el.color;
@@ -224,38 +262,78 @@ export function paintGrid(
       path.arc(x, y, radius, 0, Math.PI * 2);
     }
   }
-  ctx.fillStyle = 'rgba(27,32,48,0.13)';
+  ctx.fillStyle = Colors.borderStrong;
   ctx.fill(path);
 }
 
 /**
- * The selection frame: a dashed box and a handle on each corner (each endpoint
- * for a line), drawn in screen space so the handles stay finger-sized at any
- * zoom. `camera` maps the shape's board coordinates onto the screen.
+ * The selection frame: a dashed box round the selection and, for a single
+ * element, a handle on each corner (each endpoint for a line), drawn in screen
+ * space so the handles stay finger-sized at any zoom. `camera` maps board
+ * coordinates onto the screen.
  */
 export const HANDLE_SIZE = 10;
 
-export function paintSelection(
-  ctx: CanvasRenderingContext2D,
-  el: ShapeElement,
-  camera: Camera,
-): void {
-  const toScreen = (x: number, y: number) => [x * camera.scale + camera.x, y * camera.scale + camera.y];
+/** A dashed screen-space box round board-space bounds: the frame, and the marquee. */
+export function paintDashedBox(ctx: CanvasRenderingContext2D, b: Bounds, camera: Camera): void {
   ctx.save();
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
-  if (!isLineLike(el)) {
-    const b = shapeBounds(el);
-    const [sx, sy] = toScreen(b.x, b.y);
-    ctx.setLineDash([5, 4]);
-    ctx.strokeRect(sx - 4, sy - 4, b.width * camera.scale + 8, b.height * camera.scale + 8);
-    ctx.setLineDash([]);
+  ctx.setLineDash([5, 4]);
+  ctx.strokeRect(
+    b.x * camera.scale + camera.x - 4,
+    b.y * camera.scale + camera.y - 4,
+    b.width * camera.scale + 8,
+    b.height * camera.scale + 8,
+  );
+  ctx.restore();
+}
+
+function unionBounds(elements: BoardElement[]): Bounds {
+  const boxes = elements.map(elementBounds);
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  return {
+    x,
+    y,
+    width: Math.max(...boxes.map((b) => b.x + b.width)) - x,
+    height: Math.max(...boxes.map((b) => b.y + b.height)) - y,
+  };
+}
+
+export function paintSelection(
+  ctx: CanvasRenderingContext2D,
+  elements: BoardElement[],
+  camera: Camera,
+): void {
+  const one = elements.length === 1 ? elements[0] : null;
+  const line = one?.kind === 'shape' && isLineLike(one) ? one : null;
+  if (!line) paintDashedBox(ctx, one ? elementBounds(one) : unionBounds(elements), camera);
+  if (!one) return;
+  ctx.save();
+  if (line) {
+    // A line has no box to frame, so the line itself lights up: a soft accent
+    // halo along its route, and round handles at the two ends it can be
+    // dragged by — unmistakably not the square corners of a box.
+    ctx.save();
+    ctx.translate(camera.x, camera.y);
+    ctx.scale(camera.scale, camera.scale);
+    ctx.strokeStyle = Colors.accent;
+    ctx.globalAlpha = 0.28;
+    ctx.lineWidth = line.strokeWidth + 8 / camera.scale;
+    ctx.lineCap = 'round';
+    ctx.stroke(new Path2D(routePath(line.from, line.to, line.route)));
+    ctx.restore();
   }
-  ctx.fillStyle = '#FFFFFF';
-  for (const h of shapeHandles(el)) {
-    const [sx, sy] = toScreen(h.x, h.y);
+  ctx.strokeStyle = Colors.accent;
+  ctx.lineWidth = 1.5;
+  ctx.fillStyle = line ? Colors.accent : Colors.background;
+  for (const h of handlesOf(one)) {
+    const sx = h.x * camera.scale + camera.x;
+    const sy = h.y * camera.scale + camera.y;
     ctx.beginPath();
-    ctx.rect(sx - HANDLE_SIZE / 2, sy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+    if (line) ctx.arc(sx, sy, HANDLE_SIZE / 2 + 1, 0, Math.PI * 2);
+    else ctx.rect(sx - HANDLE_SIZE / 2, sy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
     ctx.fill();
     ctx.stroke();
   }
@@ -272,7 +350,7 @@ export function paintAnchors(
   camera: Camera,
 ): void {
   ctx.save();
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = Colors.background;
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
   for (const el of elements) {
@@ -297,6 +375,8 @@ export interface PaintOptions {
   grid: boolean;
   /** Painted before anything else; `null` leaves the surface transparent. */
   background: string | null;
+  /** The dark board: the default ink is painted light so it stays visible. */
+  dark?: boolean;
   onImageReady: () => void;
 }
 
@@ -311,11 +391,12 @@ export function paintBoard(ctx: CanvasRenderingContext2D, opts: PaintOptions): v
     ctx.fillRect(0, 0, width, height);
   }
   if (opts.grid) paintGrid(ctx, width, height, camera);
+  ground = opts.background ?? '#FFFFFF';
 
   ctx.translate(camera.x, camera.y);
   ctx.scale(camera.scale, camera.scale);
   for (const el of opts.elements) {
-    paintElement(ctx, el, opts.smooth, opts.onImageReady);
+    paintElement(ctx, el, opts.smooth, opts.onImageReady, opts.dark);
   }
   ctx.restore();
 }
