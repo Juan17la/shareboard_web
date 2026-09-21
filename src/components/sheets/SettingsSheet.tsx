@@ -17,6 +17,13 @@
  */
 import { useState } from 'react';
 
+/** Touch devices get gestures, not key names — a keyboard shortcut list is
+ *  dead weight on a phone or tablet. */
+function useCoarsePointer() {
+  const [coarse] = useState(() => window.matchMedia('(pointer: coarse)').matches);
+  return coarse;
+}
+
 import { useT, useToggleLang } from '../../features/i18n';
 import { useSessionStore, type AppSettings } from '../../features/session';
 import { useBoardStore } from '../../features/board-store';
@@ -43,6 +50,7 @@ export function SettingsSheet({
   onAskDelete: () => void;
 }) {
   const t = useT();
+  const coarsePointer = useCoarsePointer();
   const toggleLang = useToggleLang();
   const settings = useSessionStore((s) => s.settings);
   const setSetting = useSessionStore((s) => s.setSetting);
@@ -162,19 +170,44 @@ export function SettingsSheet({
           </div>
         </GlassPanel>
 
-        <GlassPanel level="row" radius={15}>
-          <div className="flex items-start gap-2.5 p-3.5">
-            <span className="mt-0.5 text-text-secondary">
-              <Icon name="keyboard" size={18} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] leading-tight font-bold">{t.shortcuts}</div>
-              <div className="mt-1 text-[11px] leading-relaxed text-text-secondary">
-                {t.shortcutsDesc}
+        {coarsePointer ? (
+          <GlassPanel level="row" radius={15}>
+            <div className="flex items-start gap-2.5 p-3.5">
+              <span className="mt-0.5 text-text-secondary">
+                <Icon name="hand" size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] leading-tight font-bold">{t.gestures}</div>
+                <div className="mt-1 text-[11px] leading-relaxed text-text-secondary">
+                  {t.gesturesDesc}
+                </div>
               </div>
             </div>
-          </div>
-        </GlassPanel>
+          </GlassPanel>
+        ) : (
+          <GlassPanel level="row" radius={15}>
+            <div className="flex items-start gap-2.5 p-3.5">
+              <span className="mt-0.5 text-text-secondary">
+                <Icon name="keyboard" size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] leading-tight font-bold">{t.shortcuts}</div>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {[
+                    [t.shortcutsTools, t.shortcutsToolsKeys],
+                    [t.shortcutsEdit, t.shortcutsEditKeys],
+                    [t.shortcutsView, t.shortcutsViewKeys],
+                  ].map(([label, keys]) => (
+                    <div key={label}>
+                      <div className="text-[10.5px] font-bold text-text-tertiary uppercase">{label}</div>
+                      <div className="text-[11px] leading-relaxed text-text-secondary">{keys}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </GlassPanel>
+        )}
 
         <div className="h-1" />
 

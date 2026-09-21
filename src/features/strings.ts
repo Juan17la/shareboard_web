@@ -207,8 +207,16 @@ const es = {
   clearBoard: 'Vaciar la pizarra',
   deleteBoard: 'Eliminar la pizarra',
   shortcuts: 'Atajos de teclado',
-  shortcutsDesc:
-    'V cursor · H mano · P lápiz · E borrador · S/R/O/Y/L/A figuras · T texto · F relleno · Ctrl+Z / Ctrl+Y deshacer y rehacer · Supr borrar · Esc soltar · Ctrl+A todo · Ctrl+D duplicar · Flechas mover · Ctrl + / − / 0 zoom · Mayús+1 ajustar · Mayús, Espacio, botón derecho o Alt + arrastrar para mover la pizarra',
+  shortcutsTools: 'Herramientas',
+  shortcutsToolsKeys: 'V cursor · H mano · P lápiz · E borrador · S/R/O/Y/L/A figuras · T texto · F relleno',
+  shortcutsEdit: 'Edición',
+  shortcutsEditKeys:
+    'Ctrl+Z deshacer · Ctrl+Y rehacer · Ctrl+A todo · Ctrl+D duplicar · Supr borrar · Esc soltar · Flechas mover',
+  shortcutsView: 'Vista',
+  shortcutsViewKeys: 'Ctrl+/− zoom · Ctrl+0 centrar · Mayús+1 ajustar · Espacio o clic derecho + arrastrar mueve la pizarra',
+  gestures: 'Gestos',
+  gesturesDesc:
+    'Un dedo sobre el vacío mueve la pizarra · mantén pulsado y arrastra para seleccionar varios · dos dedos mueven y hacen zoom · doble toque en el vacío acerca o vuelve al 100 %',
   theme: 'Tema',
   themeLight: 'Claro',
   themeDark: 'Oscuro',
@@ -435,8 +443,16 @@ const en: Record<keyof typeof es, string> = {
   clearBoard: 'Clear the board',
   deleteBoard: 'Delete the board',
   shortcuts: 'Keyboard shortcuts',
-  shortcutsDesc:
-    'V cursor · H hand · P pencil · E eraser · S/R/O/Y/L/A shapes · T text · F fill · Ctrl+Z / Ctrl+Y undo and redo · Del delete · Esc deselect · Ctrl+A all · Ctrl+D duplicate · Arrows nudge · Ctrl + / − / 0 zoom · Shift+1 fit · Shift, Space, right button or Alt + drag to pan',
+  shortcutsTools: 'Tools',
+  shortcutsToolsKeys: 'V cursor · H hand · P pencil · E eraser · S/R/O/Y/L/A shapes · T text · F fill',
+  shortcutsEdit: 'Edit',
+  shortcutsEditKeys:
+    'Ctrl+Z undo · Ctrl+Y redo · Ctrl+A select all · Ctrl+D duplicate · Del delete · Esc deselect · Arrows nudge',
+  shortcutsView: 'View',
+  shortcutsViewKeys: 'Ctrl+/− zoom · Ctrl+0 center · Shift+1 fit · Space or right-click + drag to pan',
+  gestures: 'Gestures',
+  gesturesDesc:
+    'One finger on empty board pans · press and hold, then drag to select several · two fingers pan and zoom · double-tap empty board to zoom in or back to 100%',
   theme: 'Theme',
   themeLight: 'Light',
   themeDark: 'Dark',
