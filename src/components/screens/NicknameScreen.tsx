@@ -37,59 +37,66 @@ export function NicknameScreen({
   const ready = draft.trim().length > 0;
 
   return (
-    <main className="relative h-full overflow-y-auto">
+    <main className="relative h-full overflow-hidden">
       <Backdrop variant="nickname" />
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (ready) onContinue(draft.trim());
-        }}
-        className="relative mx-auto flex min-h-full w-full max-w-[460px] flex-col gap-6 px-6 py-12"
-      >
-        <div className="flex flex-col gap-2">
-          <h1 className="text-[24px] leading-[1.15] font-extrabold tracking-[-0.5px]">
-            {t.nickTitle}
-          </h1>
-          <p className="text-[13.5px] leading-relaxed text-text-secondary">{t.nickSub}</p>
-        </div>
-
-        <GlassPanel level="row" radius={20}>
-          <div className="flex items-center gap-3 p-3.5">
-            <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={46} />
-            <div className="min-w-0 flex-1">
-              <Field
-                bare
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder={t.nickPlaceholder}
-                maxLength={LIMITS.maxNicknameLength}
-                autoFocus={!storedNickname}
-                autoComplete="nickname"
-                aria-label={t.nickPlaceholder}
-                className="!text-[17px]"
-              />
+      <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-4 py-6">
+        <GlassPanel
+          level="panel"
+          radius={26}
+          className="sb-dialog w-full max-w-[460px] shadow-panel"
+          style={{ maxHeight: 'calc(100% - 16px)' }}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (ready) onContinue(draft.trim());
+            }}
+            className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col gap-6 overflow-y-auto px-5 pb-5 pt-6 sm:px-6"
+          >
+            <div className="flex flex-col gap-2">
+              <h1 className="text-[24px] leading-[1.15] font-extrabold tracking-[-0.5px]">
+                {t.nickTitle}
+              </h1>
+              <p className="text-[13.5px] leading-relaxed text-text-secondary">{t.nickSub}</p>
             </div>
-          </div>
+
+            <GlassPanel level="row" radius={20}>
+              <div className="flex items-center gap-3 p-3.5">
+                <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={46} />
+                <div className="min-w-0 flex-1">
+                  <Field
+                    bare
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder={t.nickPlaceholder}
+                    maxLength={LIMITS.maxNicknameLength}
+                    autoFocus={!storedNickname}
+                    autoComplete="nickname"
+                    aria-label={t.nickPlaceholder}
+                    className="!text-[17px]"
+                  />
+                </div>
+              </div>
+            </GlassPanel>
+
+            {error ? <p className="text-[12.5px] font-semibold text-danger">{error}</p> : null}
+
+            <div className="flex flex-col gap-2.5">
+              {/* One choice, not two: every icon brings its own colour. */}
+              <SectionLabel>{t.yourIcon}</SectionLabel>
+              <AvatarPicker name={draft} />
+            </div>
+
+            <Button
+              label={t.continue}
+              type="submit"
+              disabled={!ready}
+              fullWidth
+              onClick={() => ready && onContinue(draft.trim())}
+            />
+          </form>
         </GlassPanel>
-
-        {error ? <p className="text-[12.5px] font-semibold text-danger">{error}</p> : null}
-
-        <div className="flex flex-col gap-2.5">
-          {/* One choice, not two: every icon brings its own colour. */}
-          <SectionLabel>{t.yourIcon}</SectionLabel>
-          <AvatarPicker name={draft} />
-        </div>
-
-        <div className="min-h-4 flex-1" />
-
-        <Button
-          label={t.continue}
-          type="submit"
-          disabled={!ready}
-          fullWidth
-          onClick={() => ready && onContinue(draft.trim())}
-        />
-      </form>
+      </div>
     </main>
   );
 }

@@ -17,6 +17,7 @@ import { useT } from '../../features/i18n';
 import { Colors } from '../../lib/theme';
 
 import { Backdrop } from '../ui/Backdrop';
+import { GlassPanel } from '../ui/Glass';
 import { Icon } from '../ui/Icon';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'] as const;
@@ -79,63 +80,70 @@ export function PinScreen({
   }, []);
 
   return (
-    <main className="relative h-full overflow-y-auto">
+    <main className="relative h-full overflow-hidden">
       <Backdrop variant="pin" />
-      <div className="relative mx-auto flex min-h-full w-full max-w-[360px] flex-col items-center gap-4 px-6 py-12">
-        <div className="grid h-[46px] w-[46px] place-items-center rounded-[15px] border border-line bg-glass-solid">
-          <Icon name="lock" size={22} />
-        </div>
-
-        <div className="flex flex-col items-center gap-1.5 text-center">
-          <h1 className="text-[20px] leading-tight font-extrabold tracking-[-0.4px]">
-            {t.pinTitle}
-          </h1>
-          <p className="text-[13px] leading-snug text-[#565D6C]">
-            {error ? t.pinWrong : t.pinSub}
-          </p>
-        </div>
-
-        <div
-          className="mt-1.5 mb-0.5 flex gap-3"
-          role="status"
-          aria-label={`${pin.length} / 4`}
+      <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-4 py-6">
+        <GlassPanel
+          level="panel"
+          radius={26}
+          className="sb-dialog w-full max-w-[360px] shadow-panel"
+          style={{ maxHeight: 'calc(100% - 16px)' }}
         >
-          {[0, 1, 2, 3].map((i) => {
-            const filled = i < pin.length;
-            return (
-              <span
-                key={i}
-                className="h-3.5 w-3.5 rounded-full transition"
-                style={{
-                  background: filled ? Colors.accent : 'transparent',
-                  border: filled ? 'none' : `2px solid ${Colors.borderDashed}`,
-                }}
-              />
-            );
-          })}
-        </div>
+          <div className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col items-center gap-4 overflow-y-auto px-6 py-8">
+            <div className="grid h-[46px] w-[46px] place-items-center rounded-[15px] border border-line bg-glass-solid">
+              <Icon name="lock" size={22} />
+            </div>
 
-        <div className="min-h-2 flex-1" />
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <h1 className="text-[20px] leading-tight font-extrabold tracking-[-0.4px]">
+                {t.pinTitle}
+              </h1>
+              <p className="text-[13px] leading-snug text-[#565D6C]">
+                {error ? t.pinWrong : t.pinSub}
+              </p>
+            </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          {KEYS.map((key, index) => (
-            <button
-              key={`${key}-${index}`}
-              type="button"
-              aria-label={key === 'back' ? t.deleteDigit : key || undefined}
-              aria-hidden={key ? undefined : true}
-              disabled={!key}
-              onClick={() => press(key)}
-              className={
-                key
-                  ? 'flex h-[60px] w-[74px] items-center justify-center rounded-[18px] border border-line bg-glass-solid text-[21px] font-bold shadow-card transition hover:bg-surface-selected active:bg-surface-selected'
-                  : 'h-[60px] w-[74px]'
-              }
+            <div
+              className="mt-1.5 mb-0.5 flex gap-3"
+              role="status"
+              aria-label={`${pin.length} / 4`}
             >
-              {key === 'back' ? <Icon name="close" size={20} /> : key}
-            </button>
-          ))}
-        </div>
+              {[0, 1, 2, 3].map((i) => {
+                const filled = i < pin.length;
+                return (
+                  <span
+                    key={i}
+                    className="h-3.5 w-3.5 rounded-full transition"
+                    style={{
+                      background: filled ? Colors.accent : 'transparent',
+                      border: filled ? 'none' : `2px solid ${Colors.borderDashed}`,
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {KEYS.map((key, index) => (
+                <button
+                  key={`${key}-${index}`}
+                  type="button"
+                  aria-label={key === 'back' ? t.deleteDigit : key || undefined}
+                  aria-hidden={key ? undefined : true}
+                  disabled={!key}
+                  onClick={() => press(key)}
+                  className={
+                    key
+                      ? 'flex h-[60px] w-[74px] items-center justify-center rounded-[18px] border border-line bg-glass-solid text-[21px] font-bold shadow-card transition hover:bg-surface-selected active:bg-surface-selected'
+                      : 'h-[60px] w-[74px]'
+                  }
+                >
+                  {key === 'back' ? <Icon name="close" size={20} /> : key}
+                </button>
+              ))}
+            </div>
+          </div>
+        </GlassPanel>
       </div>
     </main>
   );
