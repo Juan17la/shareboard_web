@@ -167,6 +167,9 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const showStyle = tool === 'text' || selText;
   const showColor = tool !== 'hand' && tool !== 'eraser' && (tool !== 'select' || selected.length > 0);
   const showOrder = tool === 'select' && selected.length > 0;
+  // The cursor with nothing selected, and the hand, have nothing to offer: an
+  // empty strip is noise, whatever asked for it.
+  const hasOptions = showSizes || showFill || showLine || showTextOptions || showOrder || showColor;
   // A selected shape can change kind within its family: box to box, line to
   // arrow. With the folded shapes button in hand, the strip is where the kind
   // is chosen at all.
@@ -205,6 +208,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
     dash: first((el) => line(el)?.dash ?? (line(el) ? 'solid' : undefined)) ?? config.dash,
   };
   const fontSize = cur.fontSize;
+  // The board ink flips on the dark theme (`inkFor`); the swatches follow it.
+  const ink = inkFor(cur.color, dark);
   const setFontSize = (next: number) => setConfig({ fontSize: next });
   const fillLevels: { level: FillLevel; labelKey: 'fillNone' | 'fillLow' | 'fillMedium' | 'fillFull' }[] = [
     { level: 'none', labelKey: 'fillNone' },
@@ -235,7 +240,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex flex-col items-center gap-2 px-2">
-        {open ? (
+        {open && hasOptions ? (
           <GlassPanel level="panel" radius={16} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
             {pickingHead ? (
               <div className="flex flex-col gap-1.5 px-2.5 py-2">
@@ -326,8 +331,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
                       <span
                         className="block h-4 w-4 rounded border-[1.5px]"
                         style={{
-                          borderColor: cur.fill === level ? '#FFFFFF' : cur.color,
-                          background: fillFor(cur.fill === level ? '#FFFFFF' : cur.color, level) ?? 'transparent',
+                          borderColor: cur.fill === level ? '#FFFFFF' : ink,
+                          background: fillFor(cur.fill === level ? '#FFFFFF' : ink, level) ?? 'transparent',
                         }}
                       />
                     </MiniButton>
@@ -458,7 +463,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                     onClick={() => setPicking(true)}
                     className="flex h-[26px] flex-none items-center gap-1.5 rounded-lg border border-dashed border-line-dashed px-2 text-[10px] font-bold text-text/60 transition hover:bg-surface-selected"
                   >
-                    <span className="h-3.5 w-3.5 rounded border border-line" style={{ background: cur.color }} />
+                    <span className="h-3.5 w-3.5 rounded border border-line" style={{ background: ink }} />
                     {t.custom}
                   </button>
                 </Group>
