@@ -6,7 +6,7 @@
  * browser has more pointers to spend, so the same rule becomes:
  *
  *   primary button / one finger / pen  ->  the active tool
- *   two fingers, middle button, space  ->  pan
+ *   two fingers, middle button, shift  ->  pan   (space and alt as well)
  *   hand tool, or no edit rights       ->  primary button pans too
  *   wheel                              ->  pan       (trackpad two-finger)
  *   ctrl / ⌘ + wheel                   ->  zoom at the pointer
@@ -67,7 +67,7 @@ interface Pointers {
   pinch: { center: Point; distance: number } | null;
   /** Where a middle-button or space drag started. */
   panFrom: Point | null;
-  /** Where a pan started with the cursor on empty board: a click there deselects. */
+  /** Where a pan started: a pan that never moved was a click, and a click deselects. */
   panClick: Point | null;
 }
 
@@ -134,15 +134,17 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setMarquee(box);
   };
 
+  // Sorted once per change to the elements, not once per pointer move: the
+  // drag preview below only patches the sorted list.
+  const sorted = useMemo(() => visibleSorted(elements), [elements]);
   const list = useMemo(() => {
-    const sorted = visibleSorted(elements);
     if (!liveEdit) return sorted;
     // The same patches the lift will commit, so the preview is the result.
     const patches = new Map(editPatches(sorted, liveEdit).map((p) => [p.id, p.patch]));
     return sorted.map((el) =>
       patches.has(el.id) ? ({ ...el, ...patches.get(el.id) } as BoardElement) : el,
     );
-  }, [elements, liveEdit]);
+  }, [sorted, liveEdit]);
 
   const selecting = tool === 'select' || tool === 'shape';
   const selected = useMemo(
@@ -340,16 +342,6 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     return true;
   };
 
-  /** Whether `p` lands on the selection — its body or one of its handles. */
-  const onSelection = (p: Point, scale: number): boolean => {
-    const store = useBoardStore.getState();
-    const sel = store.selectedElements();
-    if (!sel.length) return false;
-    const one = sel.length === 1 ? sel[0] : null;
-    if (one && handlesOf(one).some((h) => Math.hypot(h.x - p.x, h.y - p.y) <= 12 / scale)) return true;
-    return !!store.elementAt(p, 6 / scale, sel);
-  };
-
   // --- pointer handling ----------------------------------------------------
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -370,26 +362,20 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     }
 
     const store = useBoardStore.getState();
-    // Middle button, the space modifier, the right button or Alt: pan, whatever
-    // the tool. The hand tool pans too; so does a plain drag for someone who
-    // cannot edit, which is the one gesture the board still owes a viewer. And
-    // with the cursor, a drag that starts on empty board pans as well — the
-    // rubber band waits for Shift, so nobody has to switch to the hand to look
-    // around.
+    // Middle button, Shift, Space, Alt or the right button: pan, whatever the
+    // tool — Shift is the keyboard's two fingers. The hand tool pans too; so
+    // does a plain drag for someone who cannot edit, which is the one gesture
+    // the board still owes a viewer. The cursor itself never pans: a drag with
+    // it selects or moves.
     const p = screenToBoard(at.x, at.y);
-    const emptyUnderCursor =
-      store.tool === 'select' &&
-      !e.shiftKey &&
-      !store.elementAt(p, 6 / store.camera.scale) &&
-      !onSelection(p, store.camera.scale);
     if (
       e.button === 1 ||
       e.button === 2 ||
+      e.shiftKey ||
       e.altKey ||
       keys.spaceHeld ||
       store.tool === 'hand' ||
-      !store.canEditNow() ||
-      (e.button === 0 && emptyUnderCursor)
+      !store.canEditNow()
     ) {
       state.panFrom = at;
       state.panClick = at;
@@ -421,9 +407,15 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       }
       case 'select': {
         if (beginEdit(p, store.camera.scale)) break;
-        // Off the selection: rubber-band a new one. A click (no drag) picks
-        // what is under it on pointer up.
-        setBand({ from: p, to: p });
+        // On something not yet selected: pick it up and carry it at once. Off
+        // everything: rubber-band a new selection (a click picks nothing).
+        const hit = store.elementAt(p, 6 / store.camera.scale);
+        if (hit) {
+          store.select(hit.id);
+          beginEdit(p, store.camera.scale);
+        } else {
+          setBand({ from: p, to: p });
+        }
         break;
       }
       case 'text': {

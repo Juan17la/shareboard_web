@@ -8,7 +8,7 @@
  * History:   Ctrl/⌘ Z undo · Ctrl/⌘ Shift Z or Ctrl/⌘ Y redo
  * Selection: Delete/Backspace · Escape · Ctrl/⌘ A · Ctrl/⌘ D duplicate ·
  *            arrows nudge (Shift ×10)
- * Camera:    Ctrl/⌘ + / − · Ctrl/⌘ 0 home · Shift 1 fit · Space held: drag pans
+ * Camera:    Ctrl/⌘ + / − · Ctrl/⌘ 0 home · Shift 1 fit · Shift or Space held: drag pans
  *
  * An undo halfway through a move would be committed over by the pointer-up,
  * so history keys wait for the pointer to lift (`keys.dragging`).
