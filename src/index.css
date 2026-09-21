@@ -99,16 +99,13 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-button {
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-input,
-textarea {
-  font: inherit;
-  color: inherit;
+/* In the base layer, under the utilities: an unlayered `button {}` rule beats
+   every utility class, which is how `text-white` on the red buttons was
+   losing to `color: inherit`. Preflight already inherits font and colour. */
+@layer base {
+  button {
+    cursor: pointer;
+  }
 }
 
 /* Focus is drawn with the accent rather than the platform default, so keyboard
