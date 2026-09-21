@@ -108,17 +108,7 @@ export function BoardHeader({
         <span className="text-[11.5px] font-bold">{t.privacyShort}</span>
       </button>
 
-      <button
-        type="button"
-        aria-label={t.share}
-        data-tip={t.share}
-        data-tip-side="bottom"
-        onClick={onOpenShare}
-        className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-[7px] text-white shadow-accent transition hover:brightness-110"
-      >
-        <Icon name="share" size={15} />
-        <span className="text-[12px] font-extrabold">{t.share}</span>
-      </button>
+      <IconButton icon="share" label={t.share} onClick={onOpenShare} active />
     </div>
   );
 
