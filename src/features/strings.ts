@@ -208,7 +208,7 @@ const es = {
   deleteBoard: 'Eliminar la pizarra',
   shortcuts: 'Atajos de teclado',
   shortcutsDesc:
-    'V cursor · H mano · P lápiz · E borrador · S/R/O/Y/L/A figuras · T texto · F relleno · Ctrl+Z / Ctrl+Y deshacer y rehacer · Supr borrar · Esc soltar · Ctrl+A todo · Ctrl+D duplicar · Flechas mover · Ctrl + / − / 0 zoom · Mayús+1 ajustar · Espacio, botón derecho o Alt + arrastrar para mover la pizarra',
+    'V cursor · H mano · P lápiz · E borrador · S/R/O/Y/L/A figuras · T texto · F relleno · Ctrl+Z / Ctrl+Y deshacer y rehacer · Supr borrar · Esc soltar · Ctrl+A todo · Ctrl+D duplicar · Flechas mover · Ctrl + / − / 0 zoom · Mayús+1 ajustar · Mayús, Espacio, botón derecho o Alt + arrastrar para mover la pizarra',
   theme: 'Tema',
   themeLight: 'Claro',
   themeDark: 'Oscuro',
@@ -436,7 +436,7 @@ const en: Record<keyof typeof es, string> = {
   deleteBoard: 'Delete the board',
   shortcuts: 'Keyboard shortcuts',
   shortcutsDesc:
-    'V cursor · H hand · P pencil · E eraser · S/R/O/Y/L/A shapes · T text · F fill · Ctrl+Z / Ctrl+Y undo and redo · Del delete · Esc deselect · Ctrl+A all · Ctrl+D duplicate · Arrows nudge · Ctrl + / − / 0 zoom · Shift+1 fit · Space, right button or Alt + drag to pan',
+    'V cursor · H hand · P pencil · E eraser · S/R/O/Y/L/A shapes · T text · F fill · Ctrl+Z / Ctrl+Y undo and redo · Del delete · Esc deselect · Ctrl+A all · Ctrl+D duplicate · Arrows nudge · Ctrl + / − / 0 zoom · Shift+1 fit · Shift, Space, right button or Alt + drag to pan',
   theme: 'Theme',
   themeLight: 'Light',
   themeDark: 'Dark',
