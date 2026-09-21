@@ -344,8 +344,10 @@ function SettingsTab() {
               <Field
                 bare
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={() => setNickname(draft)}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  setNickname(e.target.value);
+                }}
                 placeholder={t.nickPlaceholder}
                 maxLength={LIMITS.maxNicknameLength}
                 autoComplete="nickname"
