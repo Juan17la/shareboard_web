@@ -26,7 +26,7 @@ export function Toggle({
       disabled={disabled}
       onClick={() => onChange(!value)}
       className={`relative h-[26px] w-11 flex-none rounded-full transition-colors duration-200 ${
-        value ? 'bg-accent' : 'bg-[rgba(27,32,48,0.16)]'
+        value ? 'bg-accent' : 'bg-[rgba(120,120,128,0.16)]'
       } ${disabled ? 'pointer-events-none opacity-45' : ''}`}
     >
       <span
