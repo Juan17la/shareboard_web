@@ -15,7 +15,7 @@ const VARIANT: Record<ButtonVariant, string> = {
   danger: 'bg-danger text-white shadow-danger hover:brightness-110 active:brightness-95',
   secondary:
     'bg-glass-solid text-text border border-line-strong backdrop-blur-md hover:bg-surface-selected active:bg-surface-selected',
-  ghost: 'text-text-secondary hover:bg-black/[0.04] active:bg-black/[0.07]',
+  ghost: 'text-text-secondary hover:bg-text/[0.04] active:bg-text/[0.07]',
   dashed:
     'border border-dashed border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text active:bg-surface-selected',
 };

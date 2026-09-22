@@ -72,13 +72,13 @@ export const isDark = (): boolean =>
   typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
 
 /**
- * The default ink is dark and vanishes on the dark
+ * The default ink (and picked black) is dark and vanishes on the dark
  * board, so the renderer paints it as the dark text colour instead. Only the
  * painting changes: the element keeps its colour, and a collaborator on the
  * light theme sees ink. Any fill alpha suffix is kept.
  */
 export function inkFor(color: string, dark: boolean): string {
-  return dark && color.slice(0, 7).toUpperCase() === '#1B2030' ? '#FFFFFF' + color.slice(7) : color;
+  return dark && /^#(1B2030|000000)/i.test(color) ? '#FFFFFF' + color.slice(7) : color;
 }
 
 /** Connection status badge colors (theme-independent). */

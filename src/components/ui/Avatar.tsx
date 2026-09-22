@@ -42,7 +42,7 @@ export function Avatar({
 export function AvatarOverflow({ count, size = 26 }: { count: number; size?: number }) {
   return (
     <span
-      className="grid flex-none place-items-center rounded-full bg-white font-extrabold text-text-secondary ring-2 ring-white/85"
+      className="grid flex-none place-items-center rounded-full bg-surface font-extrabold text-text-secondary ring-2 ring-white/85"
       style={{
         width: size,
         height: size,

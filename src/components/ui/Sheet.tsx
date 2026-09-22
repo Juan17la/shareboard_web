@@ -60,7 +60,7 @@ export function Sheet({
         level="panel"
         radius={26}
         border={null}
-        className="sb-sheet relative flex max-h-[82vh] w-full flex-col rounded-b-none border-t border-t-white/90 sm:max-w-[520px] sm:rounded-b-[26px] sm:border sm:border-white/70"
+        className="sb-sheet relative flex max-h-[82vh] w-full flex-col rounded-b-none border-t border-t-glass-highlight sm:max-w-[520px] sm:rounded-b-[26px] sm:border sm:border-glass-highlight"
         style={{ boxShadow: '0 -12px 40px rgba(21,26,45,0.18)' }}
       >
         {/* The grab handle is decorative on a pointer device, but it is what
