@@ -13,9 +13,10 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useT } from '../../features/i18n';
 import { boardToScreen, useBoardStore, type Camera } from '../../features/board-store';
+import { useSessionStore } from '../../features/session';
 import { SHAPE_TEXT_SIZE, type ShapeElement, type TextElement } from '../../lib/contract';
 import { shapeBounds } from '../../lib/geometry';
-import { Colors } from '../../lib/theme';
+import { Colors, inkFor } from '../../lib/theme';
 
 import { Icon } from '../ui/Icon';
 
@@ -30,6 +31,7 @@ export function TextEditorOverlay({
   onClose: () => void;
 }) {
   const t = useT();
+  const dark = useSessionStore((s) => s.theme === 'dark');
   const updateText = useBoardStore((s) => s.updateText);
   const updateShape = useBoardStore((s) => s.updateShape);
   const [value, setValue] = useState(element.text ?? '');
@@ -74,7 +76,10 @@ export function TextEditorOverlay({
     const c = boardToScreen(b.x + b.width / 2, b.y + b.height / 2, camera);
     at = { x: c.x - width / 2, y: c.y - fontSize * 0.75 };
   }
-  const color = element.kind === 'text' ? element.color : element.stroke;
+  // The stored colour is the light-theme ink by default; flip it to the dark
+  // board's ink the same way the committed element already paints (`inked` in
+  // renderer.ts) — otherwise typing on the dark board shows black on black.
+  const color = inkFor(element.kind === 'text' ? element.color : element.stroke, dark);
   const bold = element.kind === 'text' && element.bold;
   const italic = element.kind === 'text' && element.italic;
 
