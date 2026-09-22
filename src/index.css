@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
 /**
- * Shareboard design tokens.
+ * Shareboard design tokens. Neutrals, labels, separators and the red/orange
+ * intents are Apple's iOS/macOS system colours; the accent is the brand's.
  *
  * Copied from the mobile app's `src/constants/theme.ts`, which is the source
  * of truth for the palette (mobile/docs/03-styles). Light is the default; the
@@ -12,31 +13,31 @@
 @theme {
   /* --- UI surfaces (restrained: board content is the star) --- */
   --color-background: #ffffff;
-  --color-surface: #f5f6f8;
-  --color-surface-selected: #eef0f6;
-  --color-text: #1b2030;
-  --color-text-secondary: #5a6170;
-  --color-text-tertiary: #8b909c;
+  --color-surface: #f2f2f7;
+  --color-surface-selected: #e5e5ea;
+  --color-text: #000000;
+  --color-text-secondary: #6c6c70;
+  --color-text-tertiary: #8e8e93;
 
   /* --- Brand / intent (one accent does active tool, CTA and selection) --- */
   --color-accent: #7a1f2b;
   --color-accent-deep: #5a1420;
   --color-accent-soft: rgba(122, 31, 43, 0.11);
   --color-accent-softer: rgba(122, 31, 43, 0.07);
-  --color-danger: #c4353a;
-  --color-danger-bright: #e5484d;
-  --color-danger-soft: rgba(196, 53, 58, 0.08);
-  --color-warn: #b4530a;
-  --color-warn-soft: rgba(247, 104, 8, 0.12);
+  --color-danger: #d70015;
+  --color-danger-bright: #ff3b30;
+  --color-danger-soft: rgba(255, 59, 48, 0.08);
+  --color-warn: #c93400;
+  --color-warn-soft: rgba(255, 149, 0, 0.12);
 
   /* --- Glass --- */
   --color-glass: rgba(255, 255, 255, 0.46);
   --color-glass-solid: rgba(255, 255, 255, 0.62);
   --color-glass-row: rgba(255, 255, 255, 0.72);
   --color-glass-highlight: rgba(255, 255, 255, 0.92);
-  --color-line: rgba(27, 32, 48, 0.1);
-  --color-line-strong: rgba(27, 32, 48, 0.14);
-  --color-line-dashed: rgba(27, 32, 48, 0.22);
+  --color-line: rgba(60, 60, 67, 0.1);
+  --color-line-strong: rgba(60, 60, 67, 0.14);
+  --color-line-dashed: rgba(60, 60, 67, 0.22);
 
   /* --- Connection status badges (theme-independent) --- */
   --color-online: #0f9e8e;
@@ -54,28 +55,29 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
-/* The dark board: the same glass recipe over a deep ink ground. Blur still
+/* The dark board: Apple's dark system colours (iOS elevated / macOS) under
+   the same glass recipe. Blur still
    gives the panels their depth because the tint is dark on dark. */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --color-background: #141824;
-  --color-surface: #1c2130;
-  --color-surface-selected: #242a3b;
-  --color-text: #f2f3f5;
-  --color-text-secondary: #a7adbb;
-  --color-text-tertiary: #6f7684;
+  --color-background: #1c1c1e;
+  --color-surface: #2c2c2e;
+  --color-surface-selected: #3a3a3c;
+  --color-text: #ffffff;
+  --color-text-secondary: #aeaeb2;
+  --color-text-tertiary: #8e8e93;
   --color-accent: #a82f3f;
   --color-accent-deep: #82202e;
   --color-accent-soft: rgba(168, 47, 63, 0.2);
   --color-accent-softer: rgba(168, 47, 63, 0.11);
-  --color-danger-bright: #ff6b70;
-  --color-glass: rgba(20, 24, 36, 0.55);
-  --color-glass-solid: rgba(28, 33, 48, 0.72);
-  --color-glass-row: rgba(28, 33, 48, 0.8);
+  --color-danger-bright: #ff453a;
+  --color-glass: rgba(28, 28, 30, 0.55);
+  --color-glass-solid: rgba(44, 44, 46, 0.72);
+  --color-glass-row: rgba(44, 44, 46, 0.8);
   --color-glass-highlight: rgba(255, 255, 255, 0.08);
-  --color-line: rgba(242, 243, 245, 0.1);
-  --color-line-strong: rgba(242, 243, 245, 0.16);
-  --color-line-dashed: rgba(242, 243, 245, 0.26);
+  --color-line: rgba(235, 235, 245, 0.1);
+  --color-line-strong: rgba(235, 235, 245, 0.16);
+  --color-line-dashed: rgba(235, 235, 245, 0.26);
 }
 
 html,

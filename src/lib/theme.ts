@@ -9,11 +9,11 @@ export type Theme = 'light' | 'dark';
 /** The light palette, as literals: the fallback when there is no DOM (node checks). */
 const Light = {
   background: '#FFFFFF',
-  surface: '#F5F6F8',
-  surfaceSelected: '#EEF0F6',
-  text: '#1B2030',
-  textSecondary: '#5A6170',
-  textTertiary: '#8B909C',
+  surface: '#F2F2F7',
+  surfaceSelected: '#E5E5EA',
+  text: '#000000',
+  textSecondary: '#6C6C70',
+  textTertiary: '#8E8E93',
 
   /** The single brand accent: active tool, primary CTA, selected state. */
   accent: '#7A1F2B',
@@ -21,17 +21,17 @@ const Light = {
   accentSoft: 'rgba(122,31,43,0.11)',
   accentSofter: 'rgba(122,31,43,0.07)',
 
-  danger: '#C4353A',
-  dangerBright: '#E5484D',
-  dangerSoft: 'rgba(196,53,58,0.08)',
-  warn: '#B4530A',
-  warnSoft: 'rgba(247,104,8,0.12)',
+  danger: '#D70015',
+  dangerBright: '#FF3B30',
+  dangerSoft: 'rgba(255,59,48,0.08)',
+  warn: '#C93400',
+  warnSoft: 'rgba(255,149,0,0.12)',
 
   glass: 'rgba(255,255,255,0.46)',
   glassSolid: 'rgba(255,255,255,0.62)',
-  border: 'rgba(27,32,48,0.10)',
-  borderStrong: 'rgba(27,32,48,0.14)',
-  borderDashed: 'rgba(27,32,48,0.22)',
+  border: 'rgba(60,60,67,0.10)',
+  borderStrong: 'rgba(60,60,67,0.14)',
+  borderDashed: 'rgba(60,60,67,0.22)',
 };
 
 /** The CSS variable behind each token; the key itself, kebab-cased, unless named here. */
@@ -72,13 +72,13 @@ export const isDark = (): boolean =>
   typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
 
 /**
- * The default ink is the light theme's text colour and vanishes on the dark
+ * The default ink is dark and vanishes on the dark
  * board, so the renderer paints it as the dark text colour instead. Only the
  * painting changes: the element keeps its colour, and a collaborator on the
  * light theme sees ink. Any fill alpha suffix is kept.
  */
 export function inkFor(color: string, dark: boolean): string {
-  return dark && color.slice(0, 7).toUpperCase() === '#1B2030' ? '#F2F3F5' + color.slice(7) : color;
+  return dark && color.slice(0, 7).toUpperCase() === '#1B2030' ? '#FFFFFF' + color.slice(7) : color;
 }
 
 /** Connection status badge colors (theme-independent). */
