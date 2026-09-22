@@ -34,6 +34,8 @@ import {
 import type { BoardElement, Link, Point, ShapeElement } from '../../lib/contract';
 import { LIMITS } from '../../lib/contract';
 import {
+  bendFromDrag,
+  bendHandleOf,
   clampZoom,
   elementsIn,
   handlesOf,
@@ -313,8 +315,17 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     return linkEndpoints(others, from, to, 14 / store.camera.scale);
   };
 
+  /**
+   * The handle index for a curved or elbow line's fold — past the two
+   * endpoints (0, 1) `handlesOf` gives a line, so it never collides with them.
+   */
+  const BEND_HANDLE = 2;
+
   /** The patch of an edit dragged to `p`. A line's ends are re-bound after. */
   const dragPatch = (edit: LiveEdit, el: BoardElement, p: Point): Partial<BoardElement> => {
+    if (edit.handle === BEND_HANDLE && el.kind === 'shape' && isLineLike(el)) {
+      return { bend: bendFromDrag(el, p) };
+    }
     const next = resizeElement(el, edit.handle, p) as Partial<ShapeElement>;
     if (el.kind === 'shape' && isLineLike(el) && next.from && next.to) {
       return snapLine(el.shape, next.from, next.to);
@@ -332,9 +343,13 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     if (!sel.length) return false;
     const hitR = 12 / scale;
     const one = sel.length === 1 ? sel[0] : null;
-    const handle = one
-      ? handlesOf(one).findIndex((h) => Math.hypot(h.x - p.x, h.y - p.y) <= hitR)
-      : -1;
+    const fold = one?.kind === 'shape' ? bendHandleOf(one) : null;
+    const onFold = fold ? Math.hypot(fold.x - p.x, fold.y - p.y) <= hitR : false;
+    const handle = onFold
+      ? BEND_HANDLE
+      : one
+        ? handlesOf(one).findIndex((h) => Math.hypot(h.x - p.x, h.y - p.y) <= hitR)
+        : -1;
     const onBody = !!store.elementAt(p, 6 / scale, sel);
     const mode = handle >= 0 ? 'resize' : onBody ? 'move' : null;
     if (!mode) return false;
