@@ -553,6 +553,9 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       // One undo step for the whole drag.
       if (edit.dx || edit.dy || edit.patch) store.commitEdit(edit);
       setEdit(null);
+      // A click on an element lands here too (a move of zero): either way the
+      // gesture is over and something is selected, so its options come back.
+      store.setRailOpen(true);
       return;
     }
     const band = marqueeRef.current;
