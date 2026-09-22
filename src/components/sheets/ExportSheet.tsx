@@ -159,6 +159,7 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
           paintBackground
             ? undefined
             : {
+                backgroundColor: '#FFFFFF',
                 // A checkerboard under a transparent export, so "transparent"
                 // is visible rather than indistinguishable from white.
                 backgroundImage:

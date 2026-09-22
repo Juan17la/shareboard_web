@@ -8,12 +8,12 @@
 import { useMemo } from 'react';
 
 import { encodeQr } from '../../lib/qr';
-import { Colors } from '../../lib/theme';
 
 export function QRCode({
   value,
   size = 96,
-  color = Colors.text,
+  /** Always dark: the card is white in both themes and scanners need dark-on-light. */
+  color = '#000000',
   /** Quiet zone in modules. The spec asks for 4; the card border stands in for
    *  most of it, so 2 keeps the code dense without hurting scans. */
   quietZone = 2,
