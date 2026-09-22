@@ -11,7 +11,8 @@
  * in an options strip above the bar that only shows the options belonging to
  * the tool in hand. Picking a tool opens it; clicking the tool you already hold
  * toggles it; the colour swatch toggles it too. It closes itself the moment a
- * gesture starts on the canvas (`railOpen` in the store).
+ * gesture starts on the canvas and comes back when one ends on a selection
+ * (`railOpen` in the store).
  *
  * Every tool also has a one-key shortcut, which is the browser's own
  * contribution: on a phone the bar is the only way to switch tools, but at a

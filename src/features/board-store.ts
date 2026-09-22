@@ -464,6 +464,7 @@ export const useBoardStore = create<BoardState>((set, get) => {
     selectAll() {
       if (get().tool !== 'select') get().setTool('select');
       get().select(get().visibleElements().map((el) => el.id));
+      set({ railOpen: true });
     },
 
     deleteSelection() {
