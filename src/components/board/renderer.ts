@@ -13,6 +13,7 @@
 import { SHAPE_TEXT_SIZE, type BoardElement, type ShapeElement, type TextElement } from '../../lib/contract';
 import {
   anchorsOf,
+  bendHandleOf,
   dashIntervals,
   elementBounds,
   endAngles,
@@ -161,12 +162,15 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   // marker is painted after the line so a hollow one hides it.
   const dash = dashIntervals(el.dash, el.strokeWidth);
   if (dash) ctx.setLineDash(dash);
-  ctx.stroke(new Path2D(routePath(el.from, el.to, el.route)));
+  ctx.stroke(new Path2D(routePath(el.from, el.to, el.route, el.bend)));
   ctx.setLineDash([]);
 
   const [headStart, headEnd] = headsOf(el);
-  const angles = endAngles(el.from, el.to, el.route);
+  const angles = endAngles(el.from, el.to, el.route, el.bend);
   const size = markerSize(el.strokeWidth);
+  // Sharp tips, not the line's soft join: a crow's foot or a chevron rounded
+  // off at the point reads as a blob rather than an arrowhead.
+  ctx.lineJoin = 'miter';
   for (const [kind, tip, angle] of [
     [headStart, el.from, angles.start],
     [headEnd, el.to, angles.end],
@@ -322,7 +326,7 @@ export function paintSelection(
     ctx.globalAlpha = 0.28;
     ctx.lineWidth = line.strokeWidth + 8 / camera.scale;
     ctx.lineCap = 'round';
-    ctx.stroke(new Path2D(routePath(line.from, line.to, line.route)));
+    ctx.stroke(new Path2D(routePath(line.from, line.to, line.route, line.bend)));
     ctx.restore();
   }
   ctx.strokeStyle = Colors.accent;
@@ -336,6 +340,22 @@ export function paintSelection(
     else ctx.rect(sx - HANDLE_SIZE / 2, sy - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
     ctx.fill();
     ctx.stroke();
+  }
+  // A curved or elbow line's fold: a diamond handle, dragged to reshape how
+  // far it bows or where it turns.
+  const fold = line ? bendHandleOf(line) : null;
+  if (fold) {
+    const sx = fold.x * camera.scale + camera.x;
+    const sy = fold.y * camera.scale + camera.y;
+    ctx.fillStyle = Colors.background;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.PI / 4);
+    ctx.beginPath();
+    ctx.rect(-HANDLE_SIZE / 2, -HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
   }
   ctx.restore();
 }
