@@ -7,9 +7,7 @@
  * not find them.
  */
 import { useT } from '../../features/i18n';
-import { Colors } from '../../lib/theme';
 
-import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
 import { Sheet } from '../ui/Sheet';
 
@@ -42,27 +40,17 @@ export function MenuSheet({
 
   return (
     <Sheet open={open} title={t.sheetMenu} onClose={onClose} closeLabel={t.close}>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col">
         {rows.map((row) => (
-          <GlassPanel key={row.label} level="row" radius={15}>
-            <button
-              type="button"
-              aria-label={row.label}
-              onClick={row.onClick}
-              className="flex w-full items-center gap-3 p-3.5 text-left transition hover:bg-surface-selected"
-            >
-              <span
-                className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[11px] text-accent"
-                style={{ background: Colors.accentSoft }}
-              >
-                <Icon name={row.icon} size={19} />
-              </span>
-              <span className="flex-1 text-[13.5px] leading-tight font-bold">{row.label}</span>
-              <span className="text-text-tertiary">
-                <Icon name="chevron" size={15} />
-              </span>
-            </button>
-          </GlassPanel>
+          <button
+            key={row.label}
+            type="button"
+            onClick={row.onClick}
+            className="flex w-full items-center gap-3 rounded-[12px] px-2 py-3 text-left hover:bg-surface-selected"
+          >
+            <Icon name={row.icon} size={19} />
+            <span className="flex-1 text-[14px] leading-tight font-semibold">{row.label}</span>
+          </button>
         ))}
       </div>
     </Sheet>
