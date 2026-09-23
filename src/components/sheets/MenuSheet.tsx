@@ -40,13 +40,13 @@ export function MenuSheet({
 
   return (
     <Sheet open={open} title={t.sheetMenu} onClose={onClose} closeLabel={t.close}>
-      <div className="flex flex-col">
+      <div className="flex flex-col divide-y divide-line-strong">
         {rows.map((row) => (
           <button
             key={row.label}
             type="button"
             onClick={row.onClick}
-            className="flex w-full items-center gap-3 rounded-[12px] px-2 py-3 text-left hover:bg-surface-selected"
+            className="flex w-full items-center gap-3 px-2 py-3 text-left hover:bg-text/[0.12] active:bg-text/[0.16]"
           >
             <Icon name={row.icon} size={19} />
             <span className="flex-1 text-[14px] leading-tight font-semibold">{row.label}</span>
