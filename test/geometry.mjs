@@ -201,7 +201,7 @@ s().updateText('T', { text: '   ' });
 assert.equal(s().visibleElements().some((e) => e.id === 'T'), false);
 
 // --- the home screen's demo board: every arrow lands on a shape that is there -
-const { demoElements } = await import('../src/features/demo-board.ts');
+const { demoCursor, demoElements } = await import('../src/features/demo-board.ts');
 for (const lang of ['es', 'en']) {
   const demo = demoElements(lang);
   const ids = new Set(demo.map((e) => e.id));
@@ -209,6 +209,14 @@ for (const lang of ['es', 'en']) {
   for (const e of demo) {
     if (e.kind === 'shape' && e.fromLink) assert.ok(ids.has(e.fromLink.id), e.id);
     if (e.kind === 'shape' && e.toLink) assert.ok(ids.has(e.toLink.id), e.id);
+  }
+}
+// Cursors glide: never more than a short hop between two 50 ms ticks, loop seam included.
+for (const i of [0, 1]) {
+  for (let t = 0; t < 120; t += 0.05) {
+    const a = demoCursor(i, t);
+    const b = demoCursor(i, t + 0.05);
+    assert.ok(Math.hypot(b.x - a.x, b.y - a.y) < 25, `peer ${i} jumps at t=${t.toFixed(2)}`);
   }
 }
 
