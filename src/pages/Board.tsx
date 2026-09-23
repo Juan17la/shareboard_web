@@ -185,7 +185,8 @@ export default function BoardPage() {
   if (sync.phase === 'loading' || !nickname) {
     return (
       <main className="grid h-full place-items-center bg-background">
-        <p className="text-[13px] font-semibold text-text-secondary">{t.loading}</p>
+        <div className="sb-loading" role="status" aria-label={t.loading} />
+        <p className="sb-late text-[13px] font-semibold text-text-tertiary">{t.loading}</p>
       </main>
     );
   }

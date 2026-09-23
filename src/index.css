@@ -292,7 +292,46 @@ body {
   animation: sb-up 0.18s ease;
 }
 
+/* The quiet loader: a thin line along the top edge with a soft glint running
+   through it, like a browser's. It waits a beat before showing, so a fast load
+   never flashes it at all. */
+@keyframes sb-glint {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+.sb-loading {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 70;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  animation: sb-fade 0.4s ease 0.25s both;
+}
+.sb-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  opacity: 0.6;
+  animation: sb-glint 1.5s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+}
+/* A line of text that only turns up if the wait drags on. */
+.sb-late {
+  animation: sb-fade 0.5s ease 1.2s both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .sb-loading::before {
+    width: 100%;
+    opacity: 0.3;
+    animation: none;
+  }
   .sb-pulse,
   .sb-sheet,
   .sb-scrim,
