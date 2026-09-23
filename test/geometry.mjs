@@ -200,4 +200,16 @@ useBoardStore.getState().hydrate({ meta, elements: [A, T], participants: [you], 
 s().updateText('T', { text: '   ' });
 assert.equal(s().visibleElements().some((e) => e.id === 'T'), false);
 
+// --- the home screen's demo board: every arrow lands on a shape that is there -
+const { demoElements } = await import('../src/features/demo-board.ts');
+for (const lang of ['es', 'en']) {
+  const demo = demoElements(lang);
+  const ids = new Set(demo.map((e) => e.id));
+  assert.equal(ids.size, demo.length, 'demo ids are unique');
+  for (const e of demo) {
+    if (e.kind === 'shape' && e.fromLink) assert.ok(ids.has(e.fromLink.id), e.id);
+    if (e.kind === 'shape' && e.toLink) assert.ok(ids.has(e.toLink.id), e.id);
+  }
+}
+
 console.log('geometry: ok');
