@@ -54,7 +54,10 @@ export default function ShortCodePage() {
             />
           </>
         ) : (
-          <p className="text-[13px] font-semibold text-text-secondary">{t.loading}</p>
+          <>
+            <div className="sb-loading" role="status" aria-label={t.loading} />
+            <p className="sb-late text-[13px] font-semibold text-text-tertiary">{t.loading}</p>
+          </>
         )}
       </div>
     </main>
