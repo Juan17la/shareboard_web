@@ -1,8 +1,10 @@
 /**
  * Home: the whiteboard itself, with a glass card floating over it.
  *
- * There is no landing page to get past — the board is already there behind
- * the card, and the card is three tabs: *Start* (name a new board and create
+ * There is no landing page to get past — a board is already there behind the
+ * card: the real canvas, header and tool rail over a made-up board
+ * (`features/demo-board.ts`) with collaborators drifting about, blurred just
+ * enough to read as one step away. The card is three tabs: *Start* (name a new board and create
  * it, type a join code, drop a file to import), *Recent* (the boards this
  * browser has opened) and *Settings* (who you are on a board, the theme, the
  * language). Creating a board is one field and one button; everything else a
@@ -18,19 +20,23 @@ import { useNavigate } from 'react-router-dom';
 
 import { useT, relativeTime } from '../features/i18n';
 import { useSessionStore } from '../features/session';
+import { useDemoBoard } from '../features/demo-board';
 import { readBoardFile } from '../features/import';
 import type { Lang } from '../features/strings';
 import { createBoard, importSnapshot, resolveShortCode } from '../lib/api';
 import { LIMITS, type BoardSnapshot } from '../lib/contract';
 import { parseBoardRef } from '../lib/deep-link';
 import { SHORT_CODE_LENGTH, normalizeShortCode } from '../lib/short-code';
-import type { Theme } from '../lib/theme';
+import { Layout, type Theme } from '../lib/theme';
 import { toast } from '../lib/toast';
 
+import { BoardCanvas } from '../components/board/BoardCanvas';
+import { BottomControls } from '../components/board/BottomControls';
+import { Toolbar } from '../components/board/Toolbar';
+import { BoardHeader } from '../components/header/BoardHeader';
 import { AvatarPicker } from '../components/screens/NicknameScreen';
 import { ImportSheet } from '../components/sheets/ImportSheet';
 import { Avatar } from '../components/ui/Avatar';
-import { Backdrop } from '../components/ui/Backdrop';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { GlassPanel } from '../components/ui/Glass';
@@ -38,6 +44,7 @@ import { Icon } from '../components/ui/Icon';
 import { Segmented } from '../components/ui/Segmented';
 import { SectionLabel } from '../components/ui/Sheet';
 import { ToastHost } from '../components/ui/Toast';
+import { useViewport } from '../hooks/use-viewport';
 
 type Tab = 'start' | 'recent' | 'settings';
 
@@ -139,9 +146,8 @@ export default function HomePage() {
 
   return (
     <main className="relative h-full overflow-hidden">
-      <Backdrop variant="home" />
-      {/* The board is out of focus while the card is up: it is there, not in use. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 backdrop-blur-[3px]" />
+      <DemoBoard />
+      {busy ? <div className="sb-loading" role="status" aria-label={t.loading} /> : null}
 
       <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-4 py-6">
         <GlassPanel
@@ -201,7 +207,7 @@ export default function HomePage() {
                   {/* The boxes are a picture of the input; the input itself is
                       the thing with focus, so paste and autofill just work. */}
                   <div
-                    className="relative flex justify-between gap-1.5"
+                    className={`relative flex justify-between gap-1.5 transition-opacity ${busy ? 'opacity-60' : ''}`}
                     onClick={() => codeInput.current?.focus()}
                   >
                     {Array.from({ length: SHORT_CODE_LENGTH }, (_, i) => (
@@ -317,6 +323,47 @@ export default function HomePage() {
         allowImagePlacement={false}
       />
     </main>
+  );
+}
+
+const noop = () => {};
+
+/**
+ * The board the card floats over: the same components as the board screen,
+ * fed the demo content, out of focus and out of reach — `inert` keeps every
+ * control in it away from the pointer, the keyboard and screen readers.
+ */
+function DemoBoard() {
+  useDemoBoard();
+  const { width, height } = useViewport();
+  const compact = width < Layout.compactBreakpoint;
+  const landscape = width > height;
+  return (
+    <div
+      aria-hidden="true"
+      inert
+      className="pointer-events-none absolute inset-0 overflow-hidden bg-background select-none"
+    >
+      {/* Scaled a touch so the blur's soft edge falls outside the screen. */}
+      <div className="absolute inset-0 scale-[1.03] blur-[3px]">
+        <BoardCanvas />
+        <BoardHeader
+          compact={compact}
+          landscape={landscape}
+          codeCopied={false}
+          onCopyCode={noop}
+          onOpenPeople={noop}
+          onOpenMenu={noop}
+          onOpenPrivacy={noop}
+          onOpenShare={noop}
+          onGoHome={noop}
+        />
+        <Toolbar compact={compact} />
+        <BottomControls top={landscape ? (compact ? 62 : 76) : compact ? 108 : 128} />
+      </div>
+      {/* A faint veil: the board is there, but not yet yours. */}
+      <div className="absolute inset-0 bg-background/25" />
+    </div>
   );
 }
 
