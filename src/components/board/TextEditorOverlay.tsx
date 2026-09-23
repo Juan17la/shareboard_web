@@ -5,9 +5,8 @@
  * and drawn at the zoomed font size, so what is being typed sits where it will
  * end up rather than in a dialog somewhere else. Committing on blur (and on
  * Enter) is what makes clicking elsewhere on the board finish the text
- * naturally; an empty value deletes the element the click created. A ✓ / ✕
- * pair floats above the editor for anyone who would rather be told how to
- * finish than guess that clicking away does it.
+ * naturally; an empty value deletes the element the click created, so nothing
+ * is left behind. No confirm button: Enter or a click outside is the finish.
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -17,8 +16,6 @@ import { useSessionStore } from '../../features/session';
 import { SHAPE_TEXT_SIZE, type ShapeElement, type TextElement } from '../../lib/contract';
 import { shapeBounds } from '../../lib/geometry';
 import { Colors, inkFor } from '../../lib/theme';
-
-import { Icon } from '../ui/Icon';
 
 export function TextEditorOverlay({
   element,
@@ -128,35 +125,6 @@ export function TextEditorOverlay({
           lineHeight: 1.25,
         }}
       />
-
-      {/* Confirm / discard, just above the editor's frame. `onPointerDown`
-          rather than click: a click would first blur the textarea, and the
-          blur is itself a commit. */}
-      <div
-        className="absolute z-20 flex gap-1 rounded-full border bg-surface p-0.5 shadow-panel"
-        style={{ left: at.x, top: at.y - 42, borderColor: Colors.accent }}
-        onPointerDown={(e) => e.preventDefault()}
-      >
-        <button
-          type="button"
-          aria-label={t.save}
-          title={t.save}
-          onPointerDown={commit}
-          className="grid h-7 w-7 place-items-center rounded-full text-white"
-          style={{ background: Colors.accent }}
-        >
-          <Icon name="check" size={15} />
-        </button>
-        <button
-          type="button"
-          aria-label={t.cancel}
-          title={t.cancel}
-          onPointerDown={cancel}
-          className="grid h-7 w-7 place-items-center rounded-full text-text-secondary hover:bg-surface"
-        >
-          <Icon name="close" size={14} />
-        </button>
-      </div>
     </div>
   );
 }
