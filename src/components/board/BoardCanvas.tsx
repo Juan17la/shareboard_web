@@ -27,6 +27,7 @@ import {
   boardToScreen,
   editPatches,
   screenToBoard,
+  sketchElement,
   useBoardStore,
   type Camera,
   type LiveEdit,
@@ -37,15 +38,18 @@ import {
   bendFromDrag,
   bendHandleOf,
   clampZoom,
+  coveringFigure,
   elementsIn,
   handlesOf,
   isLineLike,
   linkEndpoints,
+  recognizeSketch,
   resizeElement,
   shapeAt,
   shapeBounds,
   simplify,
   zoomAround,
+  type Sketch,
 } from '../../lib/geometry';
 import { Colors, fillFor } from '../../lib/theme';
 import { visibleSorted } from '../../lib/ops';
@@ -56,6 +60,11 @@ import { PeerCursors } from './PeerCursors';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { cursorFor } from './cursors';
 import { paintAnchors, paintBoard, paintDashedBox, paintSelection } from './renderer';
+
+/** How long a pen stroke's end is held before it is read as a figure (`recognizeSketch`). */
+const SKETCH_MS = 800;
+/** Screen pixels the pointer may wander and still count as held still. */
+const STILL_PX = 8;
 
 type Ends = { from: Point; to: Point; fromLink?: Link | null; toLink?: Link | null };
 type Box = { from: Point; to: Point };
@@ -90,6 +99,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
   const [livePoints, setLivePoints] = useState<number[]>([]);
   const [liveShape, setLiveShape] = useState<Box | null>(null);
+  /** The pen stroke, read as the figure it was meant to be after a hold; lifting draws that instead. */
+  const [liveSketch, setLiveSketch] = useState<Sketch | null>(null);
   // The selection while a handle or a body is being dragged; the elements only
   // change (one op each) when the pointer lifts.
   const [liveEdit, setLiveEdit] = useState<LiveEdit | null>(null);
@@ -113,6 +124,12 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   // them to check they are pure — and send the stroke to everyone twice.
   const livePointsRef = useRef<number[]>([]);
   const liveShapeRef = useRef<Box | null>(null);
+  const liveSketchRef = useRef<Sketch | null>(null);
+  /** Where the pen was last held still, and the wait for it to become a figure. */
+  const still = useRef<{ at: Point; timer: ReturnType<typeof setTimeout> | null }>({
+    at: { x: 0, y: 0 },
+    timer: null,
+  });
   const editRef = useRef<LiveEdit | null>(null);
   const marqueeRef = useRef<Box | null>(null);
   /** Where a line was started, unsnapped: its anchor can change as the end moves. */
@@ -126,6 +143,29 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     liveShapeRef.current = shape;
     setLiveShape(shape);
   };
+  const setSketch = (sketch: Sketch | null) => {
+    liveSketchRef.current = sketch;
+    setLiveSketch(sketch);
+  };
+
+  // A pen stroke held still at its end for 800 ms becomes the figure it was
+  // meant to be (`recognizeSketch`): it turns into it under the pointer, and
+  // lifting draws the figure instead. Moving on keeps drawing the stroke.
+  const stopSketch = () => {
+    if (still.current.timer) clearTimeout(still.current.timer);
+    still.current.timer = null;
+  };
+  const awaitSketch = (at: Point) => {
+    stopSketch();
+    still.current.at = at;
+    still.current.timer = setTimeout(() => {
+      still.current.timer = null;
+      const scale = useBoardStore.getState().camera.scale;
+      const sketch = recognizeSketch(livePointsRef.current, 24 / scale);
+      if (sketch) setSketch(sketch);
+    }, SKETCH_MS);
+  };
+  useEffect(() => stopSketch, []);
   const setEdit = (edit: LiveEdit | null) => {
     editRef.current = edit;
     keys.dragging = edit !== null;
@@ -190,7 +230,17 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       // The in-progress stroke and shape are drawn as ordinary elements on top
       // of everything else, so what is being drawn looks exactly like what it
       // will become the moment the pointer lifts.
-      if (livePoints.length >= 4) {
+      if (liveSketch) {
+        drafts.push(
+          sketchElement(liveSketch, cfg, {
+            id: 'live-sketch',
+            createdBy: 'local',
+            createdAt: 0,
+            updatedAt: 0,
+            z: Number.MAX_SAFE_INTEGER,
+          }),
+        );
+      } else if (livePoints.length >= 4) {
         drafts.push({
           id: 'live-stroke',
           kind: 'stroke',
@@ -244,7 +294,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     // `config` is in the list because changing the colour or width while a
     // shape is being dragged has to repaint the draft, and no pointer event
     // follows to trigger it.
-  }, [list, livePoints, liveShape, marquee, selected, selectedShape, smooth, grid, config, tool, dark]);
+  }, [list, livePoints, liveShape, liveSketch, marquee, selected, selectedShape, smooth, grid, config, tool, dark]);
 
   useEffect(() => {
     repaint.current = paint;
@@ -304,6 +354,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setBand(null);
     setPoints([]);
     setShape(null);
+    stopSketch();
+    setSketch(null);
   };
 
   /** A line's ends bind to the shapes they land on; other shapes pass through. */
@@ -341,6 +393,10 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     const store = useBoardStore.getState();
     const sel = store.selectedElements();
     if (!sel.length) return false;
+    // Something drawn above the selection owns the press there. After "send
+    // to back" the selection sits hidden under other figures; a click on one
+    // of them must pick it, not move or resize everything behind it.
+    if (coveringFigure(store.visibleElements(), sel, p, 6 / scale)) return false;
     const hitR = 12 / scale;
     const one = sel.length === 1 ? sel[0] : null;
     const fold = one?.kind === 'shape' ? bendHandleOf(one) : null;
@@ -413,6 +469,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         break;
       case 'pen':
         setPoints([p.x, p.y]);
+        awaitSketch(at);
         break;
       case 'shape': {
         if (beginEdit(p, store.camera.scale)) break;
@@ -488,6 +545,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     // Presence follows the pointer whether or not anything is being drawn: it
     // is how the others see you thinking, not just marking.
     onCursorMove?.(p);
+    // Where Ctrl+V lands.
+    keys.pointer = at;
 
     if (state.drawingId !== e.pointerId) return;
     const store = useBoardStore.getState();
@@ -499,6 +558,10 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       case 'pen': {
         // The stroke is sent as one `add` when the gesture ends, not per point.
         const prev = livePointsRef.current;
+        if (Math.hypot(at.x - still.current.at.x, at.y - still.current.at.y) > STILL_PX) {
+          if (liveSketchRef.current) setSketch(null);
+          awaitSketch(at);
+        }
         if (prev.length / 2 < LIMITS.maxStrokePoints) setPoints([...prev, p.x, p.y]);
         break;
       }
@@ -545,8 +608,12 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
     if (store.tool === 'pen') {
       const points = livePointsRef.current;
+      const sketch = liveSketchRef.current;
       setPoints([]);
-      if (points.length >= 4) store.addStroke(simplify(points));
+      stopSketch();
+      setSketch(null);
+      if (sketch) store.addSketch(sketch);
+      else if (points.length >= 4) store.addStroke(simplify(points));
     }
     const edit = editRef.current;
     if (edit) {
