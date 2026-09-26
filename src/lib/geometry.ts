@@ -160,29 +160,40 @@ export function contentBounds(elements: BoardElement[]): Bounds | null {
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
+/** Whether `(x, y)` is within `reach` of the line through a stroke's points. */
+function nearStroke(points: number[], x: number, y: number, reach: number): boolean {
+  const reach2 = reach * reach;
+  for (let i = 0; i < points.length - 1; i += 2) {
+    const ax = points[i];
+    const ay = points[i + 1];
+    // Each point to the next one; the last (or only) one on its own.
+    const last = i + 3 >= points.length;
+    const dx = last ? 0 : points[i + 2] - ax;
+    const dy = last ? 0 : points[i + 3] - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2)) : 0;
+    const ex = ax + t * dx - x;
+    const ey = ay + t * dy - y;
+    if (ex * ex + ey * ey <= reach2) return true;
+  }
+  return false;
+}
+
 /**
  * Which elements sit under a point — used by the eraser and the paint bucket.
- * Strokes are tested against their points and everything else against its
- * bounding box, which is generous but matches what a pointer expects.
+ * Strokes are tested along the line they draw, not only at its points: a quick
+ * stroke's points are far apart, and a click between two of them landed on
+ * whatever was underneath (the selection behind it, after "send to back").
+ * Everything else is tested against its bounding box, which is generous but
+ * matches what a pointer expects.
  */
 export function hitTest(elements: BoardElement[], at: Point, radius: number): string[] {
   const r2 = radius * radius;
   const hits: string[] = [];
 
-  const dist2 = (ax: number, ay: number, bx: number, by: number) => {
-    const dx = ax - bx;
-    const dy = ay - by;
-    return dx * dx + dy * dy;
-  };
-
   for (const el of elements) {
     if (el.kind === 'stroke') {
-      for (let i = 0; i < el.points.length - 1; i += 2) {
-        if (dist2(el.points[i], el.points[i + 1], at.x, at.y) <= r2 + el.width * el.width) {
-          hits.push(el.id);
-          break;
-        }
-      }
+      if (nearStroke(el.points, at.x, at.y, Math.sqrt(r2 + el.width * el.width))) hits.push(el.id);
     } else if (el.kind === 'shape') {
       if (shapeHit(el, at, radius)) hits.push(el.id);
     } else {
@@ -199,6 +210,35 @@ export function hitTest(elements: BoardElement[], at: Point, radius: number): st
     }
   }
   return hits;
+}
+
+/**
+ * The unselected figure a press at `at` lands on when it is drawn above the
+ * selection there, or null when the press is the selection's.
+ *
+ * After "send to back" the selection sits hidden under other figures, and a
+ * click on one of those must pick it rather than move (or resize) everything
+ * selected behind it. Over a selected element anything painted on top of it
+ * wins; off every selected element — on a handle — only a figure above the
+ * whole selection does, so a handle over something lower still resizes.
+ */
+export function coveringFigure(
+  visible: BoardElement[],
+  selected: BoardElement[],
+  at: Point,
+  radius: number,
+): BoardElement | null {
+  const hits = hitTest(visible, at, radius);
+  if (!hits.length) return null;
+  const chosen = new Set(selected.map((el) => el.id));
+  // Hits come in paint order: the last one is what is drawn on top here.
+  const top = hits[hits.length - 1];
+  if (chosen.has(top)) return null;
+  const figure = visible.find((el) => el.id === top) ?? null;
+  const onSelection = hits.some((id) => chosen.has(id));
+  return figure && (onSelection || figure.z > Math.max(...selected.map((el) => el.z)))
+    ? figure
+    : null;
 }
 
 // --- selecting and reshaping a shape ---------------------------------------
@@ -656,4 +696,206 @@ export function markerPaths(kind: Marker, tip: Point, angle: number, size: numbe
         { d: bar(size), fill: 'none' },
       ];
   }
+}
+
+// --- a sketched shape, recognised ----------------------------------------------
+// A pen stroke held still at its end is read as the figure it was meant to be
+// (`recognizeSketch`): a loop becomes an ellipse — a circle when it is about as
+// tall as wide — a loop with four corners a rectangle (a square), with three a
+// triangle; a straight run becomes a line, and a straight run with a hook at
+// its tip an arrow. Anything else stays the stroke it was.
+
+export interface Sketch {
+  shape: 'ellipse' | 'rectangle' | 'triangle' | 'line' | 'arrow';
+  from: Point;
+  to: Point;
+}
+
+/** How sharply the loop has to turn, in degrees, for a corner. */
+const CORNER_DEG = 55;
+
+const dist = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
+
+function pathLength(p: Point[]): number {
+  let total = 0;
+  for (let i = 1; i < p.length; i++) total += dist(p[i - 1], p[i]);
+  return total;
+}
+
+function boundsOf(p: Point[]): Bounds {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const q of p) {
+    x0 = Math.min(x0, q.x);
+    y0 = Math.min(y0, q.y);
+    x1 = Math.max(x1, q.x);
+    y1 = Math.max(y1, q.y);
+  }
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
+/** `n` points evenly spaced round the closed loop through `p`: fast and slow parts of a stroke weigh the same. */
+function resampleLoop(p: Point[], n: number): Point[] {
+  const loop = [...p, p[0]];
+  const step = pathLength(loop) / n;
+  const out: Point[] = [loop[0]];
+  let carried = 0;
+  for (let i = 1; i < loop.length && out.length < n; i++) {
+    let a = loop[i - 1];
+    const b = loop[i];
+    let d = dist(a, b);
+    while (carried + d >= step && out.length < n) {
+      const t = (step - carried) / d;
+      a = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      out.push(a);
+      d = dist(a, b);
+      carried = 0;
+    }
+    carried += d;
+  }
+  return out;
+}
+
+/** The loop's corners — where it turns sharply, one per turn — with how sharply. */
+function cornersOf(q: Point[]): { i: number; turn: number }[] {
+  const n = q.length;
+  const k = 3;
+  const turn = q.map((p, i) => {
+    const a = q[(i - k + n) % n];
+    const b = q[(i + k) % n];
+    const ux = p.x - a.x;
+    const uy = p.y - a.y;
+    const vx = b.x - p.x;
+    const vy = b.y - p.y;
+    const cos = (ux * vx + uy * vy) / (Math.hypot(ux, uy) * Math.hypot(vx, vy) || 1);
+    return (Math.acos(Math.max(-1, Math.min(1, cos))) * 180) / Math.PI;
+  });
+  const out: { i: number; turn: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    if (turn[i] < CORNER_DEG) continue;
+    let peak = true;
+    for (let d = 1; d <= k && peak; d++) {
+      peak = turn[i] >= turn[(i + d) % n] && turn[i] > turn[(i - d + n) % n];
+    }
+    if (peak) out.push({ i, turn: turn[i] });
+  }
+  return out;
+}
+
+/** Mean distance from the loop to the polygon through `corners`, relative to its size. */
+function polygonError(q: Point[], corners: Point[], size: number): number {
+  let sum = 0;
+  for (const p of q) {
+    let best = Infinity;
+    for (let i = 0; i < corners.length; i++) {
+      best = Math.min(best, segmentDistance(corners[i], corners[(i + 1) % corners.length], p));
+    }
+    sum += best;
+  }
+  return sum / q.length / size;
+}
+
+/** Mean radial distance from the loop to the ellipse inscribed in `b`, relative to its size. */
+function ellipseError(q: Point[], b: Bounds): number {
+  const rx = b.width / 2;
+  const ry = b.height / 2;
+  if (!rx || !ry) return Infinity;
+  const cx = b.x + rx;
+  const cy = b.y + ry;
+  let sum = 0;
+  for (const p of q) sum += Math.abs(Math.hypot((p.x - cx) / rx, (p.y - cy) / ry) - 1);
+  return sum / q.length;
+}
+
+/** The figure over `b`; about as tall as wide, it was meant square (round), so it is. */
+function boxed(shape: Sketch['shape'], b: Bounds): Sketch {
+  if (shape !== 'triangle' && Math.abs(b.width - b.height) <= 0.15 * Math.max(b.width, b.height)) {
+    const s = (b.width + b.height) / 2;
+    const cx = b.x + b.width / 2;
+    const cy = b.y + b.height / 2;
+    return { shape, from: { x: cx - s / 2, y: cy - s / 2 }, to: { x: cx + s / 2, y: cy + s / 2 } };
+  }
+  return { shape, from: { x: b.x, y: b.y }, to: { x: b.x + b.width, y: b.y + b.height } };
+}
+
+function closedSketch(loop: Point[]): Sketch | null {
+  const b = boundsOf(loop);
+  const q = resampleLoop(loop, 64);
+  const size = (b.width + b.height) / 4;
+  const found = cornersOf(q);
+  // The strongest n corners, in their order round the loop.
+  const polygon = (n: number) =>
+    found.length < n
+      ? null
+      : [...found]
+          .sort((a, c) => c.turn - a.turn)
+          .slice(0, n)
+          .sort((a, c) => a.i - c.i)
+          .map((c) => q[c.i]);
+  const tri = polygon(3);
+  const quad = polygon(4);
+  const triError = tri ? polygonError(q, tri, size) : Infinity;
+  const quadError = quad ? polygonError(q, quad, size) : Infinity;
+  // A fourth corner has to earn its place: a stray one on a triangle's side
+  // fits about as well without it.
+  const [shape, error] =
+    quadError < triError * 0.7 ? (['rectangle', quadError] as const) : (['triangle', triError] as const);
+  const round = ellipseError(q, b);
+  // Corners win only when they fit clearly better than a curve: a lumpy
+  // circle has "corners" too, and is still a circle.
+  if (error <= 0.15 && error < round * 0.6) return boxed(shape, b);
+  // Lenient: this is what a really bad circle is for.
+  if (round <= 0.28) return boxed('ellipse', b);
+  return null;
+}
+
+/** Whether every point of `p` lies near the segment `a`→`b`: within 8% of its length. */
+function hugs(p: Point[], a: Point, b: Point): boolean {
+  const chord = dist(a, b);
+  return chord > 0 && p.every((q) => segmentDistance(a, b, q) <= 0.08 * chord);
+}
+
+function openSketch(p: Point[]): Sketch | null {
+  // An arrow: a straight run out to its tip — where it first gets (about)
+  // furthest from the start: a head drawn as two barbs passes the tip twice —
+  // then a short hook back from the tip, off the line, for the head.
+  const far = Math.max(...p.map((q) => dist(p[0], q)));
+  let tip = p.findIndex((q) => dist(p[0], q) >= 0.97 * far);
+  while (tip + 1 < p.length && dist(p[0], p[tip + 1]) > dist(p[0], p[tip])) tip++;
+  const shaft = dist(p[0], p[tip]);
+  const head = p.slice(tip);
+  const reach = Math.max(...head.map((q) => dist(q, p[tip])));
+  if (
+    hugs(p.slice(0, tip + 1), p[0], p[tip]) &&
+    reach >= 0.08 * shaft &&
+    reach <= 0.5 * shaft &&
+    head.some((q) => segmentDistance(p[0], p[tip], q) >= 0.04 * shaft)
+  ) {
+    return { shape: 'arrow', from: p[0], to: p[tip] };
+  }
+  if (hugs(p, p[0], p[p.length - 1])) return { shape: 'line', from: p[0], to: p[p.length - 1] };
+  return null;
+}
+
+/**
+ * The figure a stroke (flat `[x0, y0, ...]`) was meant to be, or null. Smaller
+ * than `minSize` across, it is left alone.
+ */
+export function recognizeSketch(flat: number[], minSize: number): Sketch | null {
+  const p = flatToPoints(flat);
+  if (p.length < 3) return null;
+  const all = boundsOf(p);
+  if (Math.hypot(all.width, all.height) < minSize) return null;
+  // Back where it started, it is a loop: cut any run past the start (the
+  // point nearest the start in the last stretch), then allow a gap of up to a
+  // third of its size.
+  let end = p.length - 1;
+  for (let i = Math.floor(p.length * 0.7); i < p.length; i++) {
+    if (dist(p[i], p[0]) < dist(p[end], p[0])) end = i;
+  }
+  const loop = p.slice(0, end + 1);
+  const lb = boundsOf(loop);
+  if (loop.length >= 3 && dist(loop[end], p[0]) <= 0.35 * Math.hypot(lb.width, lb.height)) {
+    return closedSketch(loop);
+  }
+  return openSketch(p);
 }
