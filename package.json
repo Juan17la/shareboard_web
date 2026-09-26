@@ -1,13 +1,14 @@
 {
   "name": "web",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0-beta.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:geometry": "node --import ../server/node_modules/tsx/dist/loader.mjs test/geometry.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
