@@ -38,6 +38,7 @@ import {
 } from '../../lib/contract';
 import { dashIntervals, headsOf, isLineLike, markerPaths, routePath } from '../../lib/geometry';
 import { Colors, DrawingPalette, StrokeSizes, fillFor, fillLevelOf, inkFor, type FillLevel } from '../../lib/theme';
+import { toast } from '../../lib/toast';
 import { useSessionStore } from '../../features/session';
 
 import { StepperButton } from '../ui/Button';
@@ -105,6 +106,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const pickTool = useBoardStore((s) => s.pickTool);
   const setConfig = useBoardStore((s) => s.setConfig);
   const reorder = useBoardStore((s) => s.reorder);
+  const copySelection = useBoardStore((s) => s.copySelection);
+  const cutSelection = useBoardStore((s) => s.cutSelection);
   const group = useBoardStore((s) => s.group);
   const ungroup = useBoardStore((s) => s.ungroup);
   const selectedIds = useBoardStore((s) => s.selectedIds);
@@ -414,6 +417,24 @@ export function Toolbar({ compact }: { compact: boolean }) {
                       />
                     </>
                   ) : null}
+                </Group>
+              ) : null}
+
+              {showOrder ? (
+                <Group>
+                  <MiniButton
+                    label={t.copy}
+                    active={false}
+                    onClick={() => {
+                      copySelection();
+                      toast(t.toastCopiedSelection);
+                    }}
+                  >
+                    <Icon name="copy" size={18} />
+                  </MiniButton>
+                  <MiniButton label={t.cut} active={false} onClick={cutSelection}>
+                    <Icon name="cut" size={18} />
+                  </MiniButton>
                 </Group>
               ) : null}
 

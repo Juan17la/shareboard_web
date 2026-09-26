@@ -24,6 +24,7 @@ import {
   type BoardElement,
   type BoardMeta,
   type Dash,
+  type ElementBase,
   type ElementId,
   type Link,
   type Marker,
@@ -48,6 +49,7 @@ import {
   translate,
   zoomAround,
   type Camera,
+  type Sketch,
 } from '../lib/geometry';
 import { shortId } from '../lib/id';
 import { applyOps, invertOps, visibleSorted, type ElementMap } from '../lib/ops';
@@ -123,6 +125,36 @@ export function editPatches(
   return out;
 }
 
+/**
+ * The figure a recognised pen sketch becomes: the pen's colour and width, no
+ * fill — it stands in for a line drawn by hand — and, for a line or an arrow,
+ * the plain straight kind. Shared by the preview and the commit, so what shows
+ * under the pointer is what lands.
+ */
+export function sketchElement(sketch: Sketch, config: ToolConfig, base: ElementBase): ShapeElement {
+  const line = sketch.shape === 'line' || sketch.shape === 'arrow';
+  return {
+    ...base,
+    kind: 'shape',
+    shape: sketch.shape,
+    from: sketch.from,
+    to: sketch.to,
+    stroke: config.color,
+    strokeWidth: clampWidth(config.width),
+    fill: null,
+    ...(line
+      ? {
+          headStart: 'none',
+          headEnd: sketch.shape === 'arrow' ? 'arrow' : 'none',
+          route: 'straight',
+          dash: 'solid',
+          fromLink: null,
+          toLink: null,
+        }
+      : null),
+  };
+}
+
 export type ReorderOp = 'back' | 'backward' | 'forward' | 'front';
 
 interface HistoryEntry {
@@ -175,6 +207,11 @@ interface BoardState {
   clientSeq: number;
   undoStack: HistoryEntry[];
   redoStack: HistoryEntry[];
+  /**
+   * What copy or cut took, in paint order. Outlives the board: a copy made on
+   * one board pastes on the next. Local, like the selection.
+   */
+  clipboard: BoardElement[];
 
   hydrate(args: {
     meta: BoardMeta;
@@ -203,6 +240,16 @@ interface BoardState {
   deleteSelection(): void;
   /** Copies of the selection a little to the right and down — Ctrl+D. */
   duplicateSelection(): void;
+  /** Puts the selection on the clipboard — Ctrl+C. */
+  copySelection(): void;
+  /** Puts the selection on the clipboard and takes it off the board, in one undo step — Ctrl+X. */
+  cutSelection(): void;
+  /**
+   * Adds a copy of the clipboard centred on `at` — fresh ids, on top of
+   * everything — and selects it. Without `at`, a step off where it was copied
+   * from — Ctrl+V.
+   */
+  paste(at?: Point): void;
   setConfig(patch: Partial<ToolConfig>): void;
   setCamera(camera: Camera): void;
   setRailOpen(open: boolean): void;
@@ -218,6 +265,8 @@ interface BoardState {
   commitEdit(edit: LiveEdit): void;
 
   addStroke(points: number[]): void;
+  /** Draws a recognised sketch as its figure, in the pen's ink (`sketchElement`). */
+  addSketch(sketch: Sketch): void;
   /** Returns the new id so the caller can select it for resizing. */
   addShape(
     shape: ShapeKind,
@@ -368,6 +417,7 @@ export const useBoardStore = create<BoardState>((set, get) => {
     clientSeq: 0,
     undoStack: [],
     redoStack: [],
+    clipboard: [],
 
     /** Replaces local state wholesale with the server's `joined` payload. */
     hydrate({ meta, elements, participants, you, seq }) {
@@ -648,6 +698,11 @@ export const useBoardStore = create<BoardState>((set, get) => {
     // rights, so a viewer's gestures die here rather than being drawn locally
     // and then rejected by the server a moment later.
 
+    addSketch(sketch) {
+      if (!get().canEditNow()) return;
+      commitLocal([{ t: 'add', el: sketchElement(sketch, get().config, baseFields()) }]);
+    },
+
     addStroke(points) {
       if (!get().canEditNow() || points.length < 4) return;
       const { config } = get();
@@ -812,6 +867,54 @@ export const useBoardStore = create<BoardState>((set, get) => {
     clearBoard() {
       if (!get().canEditNow()) return;
       commitLocal([{ t: 'clear' }]);
+    },
+
+    copySelection() {
+      const chosen = new Set(get().selectedIds);
+      const clipboard = get()
+        .visibleElements()
+        .filter((el) => chosen.has(el.id));
+      if (clipboard.length) set({ clipboard });
+    },
+
+    cutSelection() {
+      const sel = get().selectedElements();
+      if (!sel.length || !get().canEditNow() || get().connection !== 'online') return;
+      get().copySelection();
+      commitLocal(sel.map((el) => ({ t: 'delete', id: el.id }) as Op));
+      set({ selectedIds: [] });
+    },
+
+    paste(at) {
+      const { clipboard } = get();
+      const b = contentBounds(clipboard);
+      if (!b || !get().canEditNow() || get().connection !== 'online') return;
+      const dx = at ? at.x - (b.x + b.width / 2) : 16;
+      const dy = at ? at.y - (b.y + b.height / 2) : 16;
+      // Copies are new elements: new ids, and a group of their own, so the
+      // copy of a group selects apart from the original. A line keeps its
+      // link only to a shape that was copied with it.
+      const ids = new Map(clipboard.map((el) => [el.id, shortId()]));
+      const groups = new Map<string, string>();
+      const relink = (link: Link | null | undefined) =>
+        link && ids.has(link.id) ? { ...link, id: ids.get(link.id)! } : null;
+      const copies = clipboard.map((el) => {
+        const copy = { ...el, ...translate(el, dx, dy), ...baseFields(), id: ids.get(el.id)! } as BoardElement;
+        if (el.group) {
+          if (!groups.has(el.group)) groups.set(el.group, shortId());
+          copy.group = groups.get(el.group);
+        }
+        if (copy.kind === 'shape' && el.kind === 'shape') {
+          if (el.fromLink !== undefined) copy.fromLink = relink(el.fromLink);
+          if (el.toLink !== undefined) copy.toLink = relink(el.toLink);
+        }
+        return copy;
+      });
+      commitLocal(copies.map((el) => ({ t: 'add', el }) as Op));
+      // What was pasted is in hand, ready to move: the cursor holds it, its options up.
+      if (get().tool !== 'select') get().setTool('select');
+      get().select(copies.map((el) => el.id));
+      set({ railOpen: true });
     },
 
     // --- history -----------------------------------------------------------
