@@ -7,6 +7,7 @@
  * not find them.
  */
 import { useT } from '../../features/i18n';
+import { useBoardStore } from '../../features/board-store';
 
 import { Icon, type IconName } from '../ui/Icon';
 import { Sheet } from '../ui/Sheet';
@@ -19,6 +20,7 @@ export function MenuSheet({
   onOpenPrivacy,
   onOpenPeople,
   onOpenSettings,
+  onOpenAi,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,8 +29,10 @@ export function MenuSheet({
   onOpenPrivacy: () => void;
   onOpenPeople: () => void;
   onOpenSettings: () => void;
+  onOpenAi: () => void;
 }) {
   const t = useT();
+  const canEdit = useBoardStore((s) => s.canEditNow());
 
   const rows: { icon: IconName; label: string; onClick: () => void }[] = [
     { icon: 'image', label: t.exportImage, onClick: onOpenExport },
@@ -36,6 +40,7 @@ export function MenuSheet({
     { icon: 'lock', label: t.whoEdits, onClick: onOpenPrivacy },
     { icon: 'people', label: t.sheetPeople, onClick: onOpenPeople },
     { icon: 'settings', label: t.sheetSettings, onClick: onOpenSettings },
+    ...(canEdit ? [{ icon: 'sparkle' as const, label: t.sheetAi, onClick: onOpenAi }] : []),
   ];
 
   return (

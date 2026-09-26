@@ -359,7 +359,7 @@ function DemoBoard() {
           onGoHome={noop}
         />
         <Toolbar compact={compact} />
-        <BottomControls top={landscape ? (compact ? 62 : 76) : compact ? 108 : 128} />
+        <BottomControls top={landscape ? (compact ? 62 : 76) : compact ? 108 : 128} onOpenAi={noop} />
       </div>
       {/* A faint veil: the board is there, but not yet yours. */}
       <div className="absolute inset-0 bg-background/25" />

@@ -16,7 +16,7 @@ import { Colors } from '../../lib/theme';
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
 
-export function BottomControls({ top }: { top: number }) {
+export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () => void }) {
   const t = useT();
   const camera = useBoardStore((s) => s.camera);
   const setCamera = useBoardStore((s) => s.setCamera);
@@ -55,6 +55,8 @@ export function BottomControls({ top }: { top: number }) {
               <span className="mx-1 h-5 w-px bg-line" />
               <ControlButton icon="undo" label={t.undo} hint="Ctrl Z" enabled={undoDepth > 0} onClick={undo} />
               <ControlButton icon="redo" label={t.redo} hint="Ctrl Y" enabled={redoDepth > 0} onClick={redo} />
+              <span className="mx-1 h-5 w-px bg-line" />
+              <ControlButton icon="sparkle" label={t.sheetAi} hint="AI" enabled onClick={onOpenAi} />
             </>
           ) : null}
         </div>

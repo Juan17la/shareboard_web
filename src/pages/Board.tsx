@@ -22,6 +22,7 @@ import { Toolbar } from '../components/board/Toolbar';
 import { BoardHeader } from '../components/header/BoardHeader';
 import { NicknameScreen } from '../components/screens/NicknameScreen';
 import { PinScreen } from '../components/screens/PinScreen';
+import { AiSheet } from '../components/sheets/AiSheet';
 import { ExportSheet } from '../components/sheets/ExportSheet';
 import { ImportSheet } from '../components/sheets/ImportSheet';
 import { MenuSheet } from '../components/sheets/MenuSheet';
@@ -48,7 +49,7 @@ import { Layout } from '../lib/theme';
 import { useViewport } from '../hooks/use-viewport';
 import { useShortcuts } from '../hooks/use-shortcuts';
 
-type SheetName = 'share' | 'people' | 'privacy' | 'export' | 'import' | 'menu' | 'settings';
+type SheetName = 'share' | 'people' | 'privacy' | 'export' | 'import' | 'menu' | 'settings' | 'ai';
 type ConfirmName = 'clear' | 'delete';
 
 export default function BoardPage() {
@@ -215,7 +216,7 @@ export default function BoardPage() {
       />
 
       <Toolbar compact={compact} />
-      <BottomControls top={controlsTop} />
+      <BottomControls top={controlsTop} onOpenAi={() => setSheet('ai')} />
       <ConnectionBanner top={controlsTop + 44} onRetry={sync.retry} />
 
       <ToastHost bottom={compact ? 140 : 132} enabled={!anyOverlay} />
@@ -228,6 +229,7 @@ export default function BoardPage() {
         onOpenPrivacy={() => setSheet('privacy')}
       />
       <PeopleSheet open={sheet === 'people'} onClose={() => setSheet(null)} />
+      <AiSheet open={sheet === 'ai'} onClose={() => setSheet(null)} />
       <PrivacySheet
         open={sheet === 'privacy'}
         onClose={() => setSheet(null)}
@@ -248,6 +250,7 @@ export default function BoardPage() {
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenPeople={() => setSheet('people')}
         onOpenSettings={() => setSheet('settings')}
+        onOpenAi={() => setSheet('ai')}
       />
       <SettingsSheet
         open={sheet === 'settings'}

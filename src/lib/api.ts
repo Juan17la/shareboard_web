@@ -14,6 +14,7 @@ import type {
   BoardSnapshot,
   EditPolicy,
   Participant,
+  Point,
   UserId,
 } from './contract';
 
@@ -138,6 +139,14 @@ export const updatePermissions = (id: string, patch: UpdatePermissionsRequest, a
 /** Server-side snapshot. Members only, so it needs the token from `join`. */
 export const getSnapshot = (id: string, auth: Auth) =>
   request<BoardSnapshot>(`/boards/${id}/snapshot`, auth);
+
+/** Draws `prompt` centred on `at` (board coords); the elements arrive over the socket. */
+export const drawWithAi = (id: string, prompt: string, at: Point, auth: Auth) =>
+  request<{ reply: string; added: number }>(`/boards/${id}/ai`, {
+    method: 'POST',
+    body: { prompt, at },
+    ...auth,
+  });
 
 export const importSnapshot = (snapshot: BoardSnapshot, creatorId: UserId) =>
   request<BoardMeta>('/boards/import', {
