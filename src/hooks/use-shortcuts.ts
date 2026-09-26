@@ -7,6 +7,7 @@
  *            R O Y L A one kind each · T text · F fill
  * History:   Ctrl/⌘ Z undo · Ctrl/⌘ Shift Z or Ctrl/⌘ Y redo
  * Selection: Delete/Backspace · Escape · Ctrl/⌘ A · Ctrl/⌘ D duplicate ·
+ *            Ctrl/⌘ C copy · Ctrl/⌘ X cut · Ctrl/⌘ V paste (under the pointer) ·
  *            arrows nudge (Shift ×10)
  * Camera:    Ctrl/⌘ + / − · Ctrl/⌘ 0 home · Shift 1 fit · Shift or Space held: drag pans
  *
@@ -16,8 +17,10 @@
 import { useEffect } from 'react';
 
 import { useBoardStore } from '../features/board-store';
-import type { ShapeKind, ToolType } from '../lib/contract';
+import { currentStrings } from '../features/i18n';
+import type { Point, ShapeKind, ToolType } from '../lib/contract';
 import { ZOOM_STEP } from '../lib/geometry';
+import { toast } from '../lib/toast';
 
 const TOOL_KEYS: Record<string, { tool: ToolType; shape?: ShapeKind }> = {
   v: { tool: 'select' },
@@ -43,10 +46,11 @@ const NUDGE: Record<string, [number, number]> = {
 
 /**
  * What the keyboard and the pointer tell each other: Space held means the next
- * drag pans; a drag in progress means history keys wait. A plain object rather
- * than store state, because nothing needs to re-render on it.
+ * drag pans; a drag in progress means history keys wait; `pointer` is where it
+ * was last over the board, in screen pixels, which is where a paste lands. A
+ * plain object rather than store state, because nothing needs to re-render on it.
  */
-export const keys = { spaceHeld: false, dragging: false };
+export const keys = { spaceHeld: false, dragging: false, pointer: null as Point | null };
 
 export function useShortcuts(enabled: boolean) {
   useEffect(() => {
@@ -86,6 +90,19 @@ export function useShortcuts(enabled: boolean) {
       // --- selection ---
       if (mod && key === 'a') return act(e, () => s.selectAll());
       if (mod && key === 'd') return act(e, () => s.duplicateSelection());
+      // Only with something to copy or paste: otherwise the keys stay the browser's.
+      if (mod && key === 'c' && s.selectedIds.length) {
+        return act(e, () => {
+          s.copySelection();
+          toast(currentStrings().toastCopiedSelection);
+        });
+      }
+      if (mod && key === 'x' && s.selectedIds.length) return act(e, () => s.cutSelection());
+      if (mod && key === 'v' && s.clipboard.length) {
+        const at = keys.pointer;
+        const { x, y, scale } = s.camera;
+        return act(e, () => s.paste(at ? { x: (at.x - x) / scale, y: (at.y - y) / scale } : undefined));
+      }
       if (mod || e.altKey) return;
       if (e.key === 'Delete' || e.key === 'Backspace') return act(e, () => s.deleteSelection());
       if (e.key === 'Escape') {

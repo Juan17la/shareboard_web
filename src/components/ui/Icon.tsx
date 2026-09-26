@@ -17,6 +17,8 @@ export type IconName =
   | 'more'
   | 'close'
   | 'copy'
+  | 'cut'
+  | 'paste'
   | 'link'
   | 'plus'
   | 'minus'
@@ -57,7 +59,8 @@ export type IconName =
   | 'forward'
   | 'to-front'
   | 'moon'
-  | 'sun';
+  | 'sun'
+  | 'sparkle';
 
 /**
  * `s` is the stroke width the design uses for that glyph — a few are drawn
@@ -90,6 +93,27 @@ const PATHS: Record<IconName, { s?: number; fill?: boolean; body: ReactElement }
       <>
         <rect x="9" y="9" width="11" height="11" rx="2.5" />
         <path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H6.5A2.5 2.5 0 0 0 4 5.5v6A2.5 2.5 0 0 0 6.5 14" />
+      </>
+    ),
+  },
+  // Scissors: two loops, blades crossing — cut.
+  cut: {
+    body: (
+      <>
+        <circle cx="6" cy="6" r="3" />
+        <circle cx="6" cy="18" r="3" />
+        <path d="M20 4L8.1 15.9" />
+        <path d="M14.5 14.5L20 20" />
+        <path d="M8.1 8.1L12 12" />
+      </>
+    ),
+  },
+  // A clipboard with its clip — paste.
+  paste: {
+    body: (
+      <>
+        <path d="M16 4h1.5A2.5 2.5 0 0 1 20 6.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 19.5v-13A2.5 2.5 0 0 1 6.5 4H8" />
+        <rect x="8" y="2" width="8" height="4" rx="1.5" />
       </>
     ),
   },
@@ -399,6 +423,14 @@ const PATHS: Record<IconName, { s?: number; fill?: boolean; body: ReactElement }
   },
   // Web-only: the shortcuts row in the settings sheet. A keyboard is the one
   // affordance a browser has that a phone does not.
+  sparkle: {
+    body: (
+      <>
+        <path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z" />
+        <path d="M19 3v4M17 5h4" />
+      </>
+    ),
+  },
   keyboard: {
     body: (
       <>
