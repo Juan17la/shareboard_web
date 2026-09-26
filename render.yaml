@@ -1,0 +1,21 @@
+# Render Blueprint (Dashboard → New → Blueprint → this repo).
+services:
+  - type: web
+    name: shareboard-web
+    # Deploys follow main; develop is work in progress.
+    branch: main
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    # BrowserRouter: /board/:id must serve index.html on a reload.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Read at build time, e.g. https://shareboard-server.onrender.com
+      - key: VITE_API_URL
+        sync: false
+      # e.g. wss://shareboard-server.onrender.com/ws
+      - key: VITE_WS_URL
+        sync: false

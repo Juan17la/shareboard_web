@@ -7,6 +7,11 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `render.yaml` Blueprint: static site on Render with the SPA rewrite, so
+  reloading `/board/:id` works. Set `VITE_API_URL` and `VITE_WS_URL`.
+
 ## [1.0.0-beta.1] - 2026-09-25
 
 First public beta.
