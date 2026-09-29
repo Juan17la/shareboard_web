@@ -54,32 +54,31 @@ export function NicknameScreen({
             className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col gap-6 overflow-y-auto px-5 pb-5 pt-6 sm:px-6"
           >
             <div className="flex flex-col gap-2">
-              <h1 className="text-[24px] leading-[1.15] font-extrabold tracking-[-0.5px]">
+              <h1 className="text-[1.5rem] leading-[1.15] font-extrabold tracking-[-0.5px]">
                 {t.nickTitle}
               </h1>
-              <p className="text-[13.5px] leading-relaxed text-text-secondary">{t.nickSub}</p>
+              <p className="text-[0.8438rem] leading-relaxed text-text-secondary">{t.nickSub}</p>
             </div>
 
-            <GlassPanel level="row" radius={20}>
+            <GlassPanel level="row" radius={20} className="sb-focus-row">
               <div className="flex items-center gap-3 p-3.5">
                 <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={46} />
                 <div className="min-w-0 flex-1">
                   <Field
                     bare
                     value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={(e) => setDraft(e.target.value.trimStart().slice(0, LIMITS.maxNicknameLength))}
                     placeholder={t.nickPlaceholder}
-                    maxLength={LIMITS.maxNicknameLength}
                     autoFocus={!storedNickname}
                     autoComplete="nickname"
                     aria-label={t.nickPlaceholder}
-                    className="!text-[17px]"
+                    className="!text-[1.0625rem]"
                   />
                 </div>
               </div>
             </GlassPanel>
 
-            {error ? <p className="text-[12.5px] font-semibold text-danger">{error}</p> : null}
+            {error ? <p className="text-[0.7812rem] font-semibold text-danger">{error}</p> : null}
 
             <div className="flex flex-col gap-2.5">
               {/* One choice, not two: every icon brings its own colour. */}
