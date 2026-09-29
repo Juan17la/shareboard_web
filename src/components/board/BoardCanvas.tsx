@@ -26,6 +26,7 @@ import { useSessionStore } from '../../features/session';
 import {
   boardToScreen,
   editPatches,
+  heldByOthers,
   screenToBoard,
   sketchElement,
   useBoardStore,
@@ -62,7 +63,7 @@ import { keys } from '../../hooks/use-shortcuts';
 import { PeerCursors } from './PeerCursors';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { cursorFor } from './cursors';
-import { paintAnchors, paintBoard, paintDashedBox, paintSelection } from './renderer';
+import { paintAnchors, paintBoard, paintDashedBox, paintHeld, paintSelection } from './renderer';
 
 /** How long a pen stroke's end is held before it is read as a figure (`recognizeSketch`). */
 const SKETCH_MS = 800;
@@ -196,6 +197,11 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     );
   }, [sorted, liveEdit, editingId, draft]);
 
+  // What the others hold: dimmed, framed in their colour, not for picking.
+  const participants = useBoardStore((s) => s.participants);
+  const you = useBoardStore((s) => s.you);
+  const held = useMemo(() => heldByOthers(participants, you), [participants, you]);
+
   const selecting = tool === 'select' || tool === 'shape';
   const selected = useMemo(
     () => (selecting ? list.filter((e) => selectedIds.includes(e.id)) : []),
@@ -287,8 +293,10 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         grid,
         background: Colors.background,
         dark,
+        held,
         onImageReady: () => repaint.current(),
       });
+      if (held.size) paintHeld(ctx, list, held, cam);
       if (selected.length) paintSelection(ctx, selected, cam);
       if (marquee) paintDashedBox(ctx, shapeBounds(marquee), cam);
       // Connection points show whenever a line or arrow could land on them.
@@ -302,7 +310,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     // `config` is in the list because changing the colour or width while a
     // shape is being dragged has to repaint the draft, and no pointer event
     // follows to trigger it.
-  }, [list, livePoints, liveShape, liveSketch, marquee, selected, selectedShape, smooth, grid, config, tool, dark]);
+  }, [list, livePoints, liveShape, liveSketch, marquee, selected, selectedShape, smooth, grid, config, tool, dark, held]);
 
   useEffect(() => {
     repaint.current = paint;
@@ -727,7 +735,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     const box = canvasRef.current!.getBoundingClientRect();
     const p = screenToBoard(e.clientX - box.left, e.clientY - box.top);
     const hit = store.elementAt(p, 6 / store.camera.scale);
-    if (hit && (hit.kind === 'text' || hit.kind === 'shape')) setEditingId(hit.id);
+    // Not what someone else holds: it is theirs to edit until they let go.
+    if (hit && (hit.kind === 'text' || hit.kind === 'shape') && !held.has(hit.id)) setEditingId(hit.id);
   };
 
   return (
@@ -752,18 +761,18 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       {labelAt && selectedShape && !editing ? (
         <button
           type="button"
-          aria-label={t.text}
-          title={t.text}
+          aria-label={t.addText}
           onClick={() => setEditingId(selectedShape.id)}
-          className="absolute z-20 rounded-full border bg-surface px-2.5 py-1 text-[12px] font-extrabold shadow-panel transition hover:bg-surface-selected"
+          className="absolute z-20 rounded-full border bg-surface px-2.5 py-1 text-[0.75rem] font-extrabold shadow-panel transition hover:bg-surface-selected"
           style={{
-            left: labelAt.x - 22,
+            left: labelAt.x,
             top: labelAt.y - 42,
+            transform: 'translateX(-50%)',
             borderColor: Colors.accent,
             color: Colors.accent,
           }}
         >
-          Aa
+          Aa · {t.addText}
         </button>
       ) : null}
 

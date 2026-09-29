@@ -9,6 +9,38 @@ All notable changes to the Shareboard web client. The format follows
 
 ### Added
 
+- `vercel.json`: Vite build, `dist` output, every path rewritten to `index.html`
+  (so a reload on `/board/:id` or `/b/CODE` works), hashed assets cached for a
+  year. `VITE_API_URL` / `VITE_WS_URL` are set in the Vercel project.
+- The selected "who can edit" option is a hairline ring with a centred dot; the
+  old 5.5 px ring looked like a heavy blob on the light board.
+
+- A board opens framed on its content instead of on an origin that may be empty
+  space, and a **Fit to content** button sits beside the zoom controls (Shift+1
+  as before). Reconnecting never moves the camera.
+- On touch screens, picking a tool names it for a moment (tooltips never show
+  there), and an empty board shows a one-time "pick a tool and draw" hint.
+- Menus and confirmations are real dialogs: focus moves in, Tab stays inside,
+  and focus returns to the button that opened them. `<html lang>` follows the
+  chosen language, and the page can be pinch-zoomed again.
+- Nicknames may be 40 characters (was 24); leading spaces are dropped and no
+  longer count toward the limit.
+- The options strip names its rows (*Style* / *Arrange*), the "Aa" handle on a
+  selected figure says "Add text", and on a phone the strip stops at 45 % of
+  the screen and scrolls, so what is being edited stays in view.
+- Touch screens get 36 px controls (they stay compact under a mouse); the
+  Start card sits in two columns on a phone held sideways; the header, toolbar
+  and options fit a 320 px screen; the Share button says "Share" where there
+  is room; `?` opens the keyboard shortcuts, and the menu lists them.
+- Text follows the browser's font-size setting (rem, never below 12 px), the
+  controls move down with a taller header, and a long board name is shown
+  whole in the menu.
+
+- Selecting something holds it: the first person to select an element owns
+  it until they deselect it or leave. Everyone else sees it dimmed, framed in
+  that person's colour with their name on a tag, and cannot select, erase,
+  fill or edit it.
+
 - Export only what is selected: with a selection, the export sheet offers
   *Whole board* or *Selection* (selection first); the preview, the picture and
   the embedded board follow the choice.
@@ -51,6 +83,10 @@ All notable changes to the Shareboard web client. The format follows
   the `·` still join.
 
 ### Fixed
+
+- The active tab and links in the dark theme are readable (`accent-text`
+  token, 6.6:1 instead of 2.5:1), and the nickname field's focus ring follows
+  the rounded row instead of drawing a hard rectangle.
 
 - Transparent PNG/SVG images keep their transparency instead of getting a white
   background.
