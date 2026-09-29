@@ -20,7 +20,7 @@ export type BoardAccess = 'public' | 'private';
 export type EditPolicy = 'everyone' | 'selected' | 'creator-only';
 export type Role = 'creator' | 'editor' | 'viewer';
 
-export type ShapeKind = 'rectangle' | 'ellipse' | 'triangle' | 'line' | 'arrow';
+export type ShapeKind = 'rectangle' | 'ellipse' | 'triangle' | 'polygon' | 'line' | 'arrow';
 
 /**
  * The active tool. The shape *kind* is not a tool: it lives in
@@ -30,12 +30,15 @@ export type ShapeKind = 'rectangle' | 'ellipse' | 'triangle' | 'line' | 'arrow';
 export type ToolType = 'hand' | 'select' | 'pen' | 'eraser' | 'shape' | 'text' | 'fill';
 
 /** Shape kinds that enclose an area, and so can carry a fill. */
-export const FILLABLE_SHAPES: ShapeKind[] = ['rectangle', 'ellipse', 'triangle'];
+export const FILLABLE_SHAPES: ShapeKind[] = ['rectangle', 'ellipse', 'triangle', 'polygon'];
 
 export const isFillable = (shape: ShapeKind): boolean => FILLABLE_SHAPES.includes(shape);
 
 /** Default size of a label inside a shape. Smaller than the text tool's: it has to fit. */
 export const SHAPE_TEXT_SIZE = 18;
+
+/** Corners of a new polygon. */
+export const DEFAULT_SIDES = 5;
 
 export interface Point {
   x: number;
@@ -51,6 +54,12 @@ export interface ElementBase {
   deleted?: boolean;
   /** Elements sharing a group id select and move as one. */
   group?: string | null;
+  /**
+   * Radians, clockwise, about the centre of the element's box. Only boxes
+   * (enclosed shapes), text and images turn; lines and strokes ignore it —
+   * their points already say which way they go.
+   */
+  rotation?: number;
 }
 
 /** What a line or arrow ends in. Grouped as the toolbar shows them. */
@@ -67,6 +76,9 @@ export const ROUTES = ['straight', 'curved', 'elbow'] as const;
 export type Route = (typeof ROUTES)[number];
 export const DASHES = ['solid', 'dashed', 'dotted'] as const;
 export type Dash = (typeof DASHES)[number];
+/** Typefaces a text or a figure's label can be set in; absent is `sans` (Nunito). */
+export const FONTS = ['sans', 'serif', 'mono', 'hand'] as const;
+export type FontKey = (typeof FONTS)[number];
 
 /** A line end bound to a shape: the point is (u, v) ∈ [0,1]² of that shape's box. */
 export interface Link {
@@ -95,6 +107,10 @@ export interface ShapeElement extends ElementBase {
   text?: string;
   /** Label size; `SHAPE_TEXT_SIZE` when absent. */
   fontSize?: number;
+  /** Label typeface; `sans` when absent. */
+  font?: FontKey;
+  /** A polygon's corner count, `LIMITS.minSides`..`maxSides`; `DEFAULT_SIDES` when absent. */
+  sides?: number;
   // Lines and arrows only. Absent: no start marker, an `arrow` head on an arrow.
   headStart?: Marker;
   headEnd?: Marker;
@@ -120,6 +136,10 @@ export interface TextElement extends ElementBase {
   fontSize: number;
   bold?: boolean;
   italic?: boolean;
+  /** Typeface; `sans` when absent. */
+  font?: FontKey;
+  /** Wrap width in board units; absent, each line is as long as it is typed. */
+  width?: number;
 }
 
 export interface ImageElement extends ElementBase {
@@ -158,6 +178,12 @@ export interface Participant {
   role: Role;
   /** Latest known position; never persisted. */
   cursor?: Point;
+  /**
+   * Element ids this participant has selected — and so holds: first to select
+   * wins, and nobody else can select or change them until they are let go
+   * (deselected, or the participant leaves).
+   */
+  selection?: string[];
   lastSeen: number;
 }
 
@@ -189,8 +215,10 @@ export const LIMITS = {
   minStrokeWidth: 1,
   maxStrokeWidth: 64,
   minFontSize: 10,
-  maxFontSize: 96,
-  maxNicknameLength: 24,
+  maxFontSize: 400,
+  minSides: 3,
+  maxSides: 12,
+  maxNicknameLength: 40,
   maxBoardNameLength: 80,
   /** #RRGGBB, or #RRGGBBAA for the translucent fills the shape tool paints. */
   colorPattern: /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/,
@@ -205,6 +233,8 @@ export type ClientMessage =
   /** `seq` is this client's own counter, echoed back for debugging. */
   | { type: 'op'; boardId: string; ops: Op[]; seq: number }
   | { type: 'cursor'; boardId: string; at: Point }
+  /** What this client now has selected: it holds those elements (`Participant.selection`). */
+  | { type: 'select'; boardId: string; ids: ElementId[] }
   | { type: 'leave'; boardId: string }
   | { type: 'ping'; t: number };
 
@@ -217,7 +247,11 @@ export type ServerMessage =
       you: Participant;
       seq: number;
     }
-  /** `seq` is the board-wide monotonic counter; apply in order. */
+  /**
+   * `seq` is the board-wide monotonic counter; apply in order. `from` is
+   * `'server'` for a correction: the current state of elements whose edit was
+   * refused because someone else holds them.
+   */
   | { type: 'op'; ops: Op[]; from: UserId; seq: number }
   | { type: 'participants'; participants: Participant[] }
   | { type: 'cursor'; from: UserId; at: Point }

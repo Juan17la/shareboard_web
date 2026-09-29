@@ -45,6 +45,7 @@ export type IconName =
   | 'rectangle'
   | 'ellipse'
   | 'triangle'
+  | 'polygon'
   | 'line'
   | 'arrow'
   | 'undo'
@@ -60,7 +61,8 @@ export type IconName =
   | 'to-front'
   | 'moon'
   | 'sun'
-  | 'sparkle';
+  | 'sparkle'
+  | 'fit';
 
 /**
  * `s` is the stroke width the design uses for that glyph — a few are drawn
@@ -396,6 +398,7 @@ const PATHS: Record<IconName, { s?: number; fill?: boolean; body: ReactElement }
   rectangle: { body: <rect x="4" y="5.5" width="16" height="13" rx="2" /> },
   ellipse: { body: <ellipse cx="12" cy="12" rx="8" ry="8" /> },
   triangle: { body: <path d="M12 5l8 14H4z" /> },
+  polygon: { body: <path d="M12 4l7 4v8l-7 4-7-4V8z" /> },
   line: { body: <path d="M5 19L19 5" /> },
   arrow: {
     body: (
@@ -418,6 +421,15 @@ const PATHS: Record<IconName, { s?: number; fill?: boolean; body: ReactElement }
       <>
         <polyline points="15,5 20,10 15,15" />
         <path d="M20 10h-9a6 6 0 0 0 0 12h3" />
+      </>
+    ),
+  },
+  // Web-only: "fit the view to the content" beside the zoom readout.
+  fit: {
+    body: (
+      <>
+        <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" />
+        <rect x="9" y="9" width="6" height="6" rx="1" />
       </>
     ),
   },

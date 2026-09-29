@@ -22,7 +22,7 @@ export function Field({
   return (
     <label className="flex flex-col gap-[7px]">
       {label ? (
-        <span className="text-[10.5px] font-extrabold tracking-[0.9px] text-text-secondary uppercase">
+        <span className="text-[0.75rem] font-extrabold tracking-[0.9px] text-text-secondary uppercase">
           {label}
         </span>
       ) : null}
@@ -31,10 +31,10 @@ export function Field({
         className={[
           'w-full min-w-0 text-text outline-none placeholder:text-text/30',
           bare
-            ? 'bg-transparent p-0'
+            ? 'sb-bare bg-transparent p-0'
             : 'rounded-lg border bg-surface px-[13px] py-3 focus:border-accent',
           bare ? '' : error ? 'border-danger-bright' : 'border-line-strong',
-          mono ? 'font-mono text-[15px] font-bold tracking-[1.5px]' : 'text-[16px] font-semibold',
+          mono ? 'font-mono text-[0.9375rem] font-bold tracking-[1.5px]' : 'text-[1rem] font-semibold',
           className,
         ]
           .filter(Boolean)
@@ -42,9 +42,9 @@ export function Field({
         {...rest}
       />
       {error ? (
-        <span className="text-[11.5px] leading-snug text-danger">{error}</span>
+        <span className="text-[0.75rem] leading-snug text-danger">{error}</span>
       ) : hint ? (
-        <span className="text-[11.5px] leading-snug text-text-secondary">{hint}</span>
+        <span className="text-[0.75rem] leading-snug text-text-secondary">{hint}</span>
       ) : null}
     </label>
   );

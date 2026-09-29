@@ -12,6 +12,7 @@
 import { useT, useTf } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
 import { useSessionStore } from '../../features/session';
+import { formatShortCode } from '../../lib/short-code';
 import { Colors, StatusColors } from '../../lib/theme';
 
 import { Avatar, AvatarOverflow } from '../ui/Avatar';
@@ -72,7 +73,8 @@ export function BoardHeader({
   // (click to copy), who may edit, share. In portrait it is the second row; in
   // landscape there is room for it beside the title, so the header is one row.
   const actions = (
-    <div className="pointer-events-auto flex flex-none items-center gap-[7px]">
+    // Portrait: may wrap to a second line when the text is large; landscape keeps one row.
+    <div className={`pointer-events-auto flex items-center gap-[7px] ${landscape ? 'flex-none' : 'flex-wrap'}`}>
       <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
       <IconButton icon={dark ? 'sun' : 'moon'} label={t.theme} title={dark ? t.themeLight : t.themeDark} onClick={toggleTheme} />
 
@@ -91,8 +93,8 @@ export function BoardHeader({
         }}
       >
         <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
-        <span className="font-mono text-[12.5px] font-bold tracking-[0.6px]">
-          {meta?.shortCode ?? '——————'}
+        <span className="text-[0.8125rem] font-extrabold tracking-[1px]">
+          {meta ? formatShortCode(meta.shortCode) : '———·———'}
         </span>
       </button>
 
@@ -102,13 +104,25 @@ export function BoardHeader({
         data-tip={t.privacyShort}
         data-tip-side="bottom"
         onClick={onOpenPrivacy}
-        className="flex items-center gap-1.5 rounded-md border border-line bg-glass-solid px-2.5 py-[7px] backdrop-blur-md transition hover:bg-surface-selected"
+        className="touch-36 flex items-center justify-center gap-1.5 rounded-md border border-line bg-glass-solid px-2.5 py-[7px] backdrop-blur-md transition hover:bg-surface-selected"
       >
         <Icon name={isPrivate ? 'lock' : 'lock-open'} size={14} />
-        <span className="text-[11.5px] font-bold">{t.privacyShort}</span>
+        {/* Below 360px the strip has no room for the word; the icon and its label stay. */}
+        <span className="text-[0.75rem] font-bold max-[359px]:hidden">{t.privacyShort}</span>
       </button>
 
-      <IconButton icon="share" label={t.share} onClick={onOpenShare} active />
+      {/* The primary action says what it is once there is room for the word. */}
+      <button
+        type="button"
+        aria-label={t.share}
+        data-tip={t.share}
+        data-tip-side="bottom"
+        onClick={onOpenShare}
+        className="touch-36 flex h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-[12px] bg-accent px-2.5 text-white shadow-accent transition hover:bg-accent-deep sm:px-3.5"
+      >
+        <Icon name="share" size={18} />
+        <span className="hidden text-[0.8125rem] font-extrabold sm:inline">{t.share}</span>
+      </button>
     </div>
   );
 
@@ -139,6 +153,7 @@ export function BoardHeader({
       />
 
       <header
+        data-board-header
         className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-3 sm:px-4 sm:pt-4"
         // In landscape the rail starts below the header, so the header runs
         // flush to the rail's right edge (ToolRail's `right-2.5` / `sm:right-4`);
@@ -151,10 +166,13 @@ export function BoardHeader({
           <IconButton icon="back" label={t.back} onClick={onGoHome} />
 
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[15px] leading-tight font-extrabold tracking-[-0.2px]">
+            <h1
+              title={meta?.name}
+              className="truncate text-[0.9375rem] leading-tight font-extrabold tracking-[-0.2px]"
+            >
               {meta?.name ?? t.appName}
             </h1>
-            <div className="mt-px flex items-center gap-1.5 text-[11px] font-semibold text-text-secondary">
+            <div className="mt-px flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-secondary">
               <span
                 className={`h-1.5 w-1.5 flex-none rounded-full ${online ? 'sb-pulse' : ''}`}
                 style={{ background: statusColor }}

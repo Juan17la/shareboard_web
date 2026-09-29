@@ -73,7 +73,7 @@ export function PrivacySheet({
               { value: 'private' as BoardAccess, label: t.privateLabel },
             ]}
           />
-          <p className="text-[11.5px] leading-snug text-text-secondary">{t.visibilityHint}</p>
+          <p className="text-[0.75rem] leading-snug text-text-secondary">{t.visibilityHint}</p>
         </div>
 
         {isPrivate ? (
@@ -81,12 +81,12 @@ export function PrivacySheet({
             <div className="flex items-center gap-2.5 p-3.5">
               <Icon name="lock" size={18} />
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] leading-tight font-bold">{t.pinLabel}</div>
+                <div className="text-[0.8125rem] leading-tight font-bold">{t.pinLabel}</div>
                 {!knownPin ? (
-                  <div className="text-[11px] leading-snug text-text-secondary">{t.pinHidden}</div>
+                  <div className="text-[0.75rem] leading-snug text-text-secondary">{t.pinHidden}</div>
                 ) : null}
               </div>
-              <span className="font-mono text-[16px] font-bold tracking-[3px]">
+              <span className="font-mono text-[1rem] font-bold tracking-[3px]">
                 {knownPin ?? '••••'}
               </span>
               {isCreator ? (
@@ -95,7 +95,7 @@ export function PrivacySheet({
                   aria-label={t.newPin}
                   disabled={busy}
                   onClick={() => void apply({ pin: generatePin() })}
-                  className="flex-none rounded-[11px] border border-line-strong bg-surface px-2.5 py-[7px] text-[10.5px] font-extrabold text-text-secondary transition hover:bg-surface-selected disabled:opacity-50"
+                  className="flex-none rounded-[11px] border border-line-strong bg-surface px-2.5 py-[7px] text-[0.75rem] font-extrabold text-text-secondary transition hover:bg-surface-selected disabled:opacity-50"
                 >
                   {t.newPin}
                 </button>
@@ -126,18 +126,18 @@ export function PrivacySheet({
                   }}
                 >
                   <span
-                    className="h-[18px] w-[18px] flex-none rounded-full"
-                    style={{
-                      border: active
-                        ? `5.5px solid ${Colors.accent}`
-                        : `2px solid ${Colors.borderDashed}`,
-                    }}
-                  />
+                    className="grid h-[18px] w-[18px] flex-none place-items-center rounded-full"
+                    style={{ border: `1.5px solid ${active ? Colors.accent : Colors.borderDashed}` }}
+                  >
+                    {active ? (
+                      <span className="h-2 w-2 rounded-full" style={{ background: Colors.accent }} />
+                    ) : null}
+                  </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13.5px] leading-tight font-bold">
+                    <span className="block text-[0.8438rem] leading-tight font-bold">
                       {mode.label}
                     </span>
-                    <span className="mt-0.5 block text-[11.5px] leading-snug text-text-secondary">
+                    <span className="mt-0.5 block text-[0.75rem] leading-snug text-text-secondary">
                       {mode.desc}
                     </span>
                   </span>
@@ -154,15 +154,15 @@ export function PrivacySheet({
               className="flex items-center justify-between gap-2 rounded-[14px] border px-3.5 py-3 transition hover:brightness-95"
               style={{ borderColor: Colors.accent, background: Colors.accentSofter }}
             >
-              <span className="text-[12.5px] font-extrabold text-accent">{t.chooseEditors}</span>
-              <span className="text-accent">
+              <span className="text-[0.7812rem] font-extrabold text-accent-text">{t.chooseEditors}</span>
+              <span className="text-accent-text">
                 <Icon name="chevron" size={15} strokeWidth={2.4} />
               </span>
             </button>
           ) : null}
 
           {!isCreator ? (
-            <p className="text-[11.5px] leading-snug text-text-secondary">{t.ownerOnlyHint}</p>
+            <p className="text-[0.75rem] leading-snug text-text-secondary">{t.ownerOnlyHint}</p>
           ) : null}
         </div>
       </div>

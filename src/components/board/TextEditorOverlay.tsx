@@ -1,9 +1,10 @@
 /**
  * The inline editor a text element is typed into.
  *
- * It is positioned over the exact spot on the board where the text will land
- * and drawn at the zoomed font size, so what is being typed sits where it will
- * end up rather than in a dialog somewhere else. Committing on blur (and on
+ * What is typed is painted by the board itself, in place — a figure's label
+ * centred and wrapped inside the figure, a text in its own font and turn — so
+ * it looks exactly as it will once committed. The textarea over it only holds
+ * the caret and the selection: same box, font and line height, glyphs clear. Committing on blur (and on
  * Enter) is what makes clicking elsewhere on the board finish the text
  * naturally; an empty value deletes the element the click created, so nothing
  * is left behind. No confirm button: Enter or a click outside is the finish.
@@ -11,20 +12,32 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useT } from '../../features/i18n';
-import { boardToScreen, useBoardStore, type Camera } from '../../features/board-store';
+import { useBoardStore, type Camera } from '../../features/board-store';
 import { useSessionStore } from '../../features/session';
 import { SHAPE_TEXT_SIZE, type ShapeElement, type TextElement } from '../../lib/contract';
-import { shapeBounds } from '../../lib/geometry';
+import {
+  boxOf,
+  isLineLike,
+  labelLines,
+  LABEL_PAD,
+  rotationOf,
+  shapeBounds,
+  TEXT_LINE_HEIGHT,
+} from '../../lib/geometry';
 import { Colors, inkFor } from '../../lib/theme';
+import { FONT_FAMILIES } from './renderer';
 
 export function TextEditorOverlay({
   element,
   camera,
+  onDraft,
   onClose,
 }: {
   /** A text element, or a shape whose label is being typed. */
   element: TextElement | ShapeElement;
   camera: Camera;
+  /** Every keystroke's text, for the board to paint in place. */
+  onDraft: (text: string) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -32,6 +45,7 @@ export function TextEditorOverlay({
   const updateText = useBoardStore((s) => s.updateText);
   const updateShape = useBoardStore((s) => s.updateShape);
   const [value, setValue] = useState(element.text ?? '');
+  useEffect(() => onDraft(value), [value, onDraft]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const committed = useRef(false);
 
@@ -40,7 +54,13 @@ export function TextEditorOverlay({
     // browser's own focus handling for that press runs right after, and would
     // pull focus off a textarea focused now — blurring it, committing an empty
     // text and deleting the element. A task later, the press is over.
-    const timer = setTimeout(() => ref.current?.focus(), 0);
+    const timer = setTimeout(() => {
+      const area = ref.current;
+      if (!area) return;
+      area.focus();
+      // Typing continues an existing label rather than starting before it.
+      area.setSelectionRange(area.value.length, area.value.length);
+    }, 0);
     return () => clearTimeout(timer);
   }, []);
 
@@ -62,20 +82,47 @@ export function TextEditorOverlay({
     onClose();
   };
 
-  // A shape's label sits centred in its box, so the editor does too.
-  const width = 160;
-  const fontSize = (element.fontSize ?? SHAPE_TEXT_SIZE) * camera.scale;
-  let at: { x: number; y: number };
-  if (element.kind === 'text') {
-    at = boardToScreen(element.at.x, element.at.y, camera);
+  // The renderer paints the draft (`onDraft`) exactly as it will look; this
+  // textarea lies over it in the same font, size, line height and turn, with
+  // its own glyphs invisible — only the caret and the selection show.
+  const s = camera.scale;
+  const draft = { ...element, text: value } as TextElement | ShapeElement;
+  const fontSize = (element.fontSize ?? SHAPE_TEXT_SIZE) * s;
+  const step = fontSize * TEXT_LINE_HEIGHT;
+  let box: { x: number; y: number; width: number; height: number };
+  let paddingTop = 0;
+  let paddingX = 0;
+  if (draft.kind === 'text') {
+    const b = boxOf(draft);
+    // Unwrapped text grows to the right as it is typed: leave the textarea
+    // room so the browser never wraps a line the board does not.
+    const width = draft.width ? draft.width * s : Math.max(b.width * s + fontSize * 2, 80);
+    box = { x: b.x * s + camera.x, y: b.y * s + camera.y, width, height: b.height * s };
+  } else if (isLineLike(draft)) {
+    // A line's label floats just above its midpoint (paintShapeLabel).
+    const b = shapeBounds(draft);
+    const lines = labelLines(draft, fontSize / s).length;
+    const cx = (b.x + b.width / 2) * s + camera.x;
+    const cy = (b.y + b.height / 2) * s + camera.y - (lines * step) / 2 - fontSize * 0.4;
+    box = { x: cx - 160, y: cy - (lines * step) / 2, width: 320, height: lines * step };
   } else {
-    const b = shapeBounds(element);
-    const c = boardToScreen(b.x + b.width / 2, b.y + b.height / 2, camera);
-    at = { x: c.x - width / 2, y: c.y - fontSize * 0.75 };
+    // A box's label is centred in it, wrapped inside its padding.
+    const b = shapeBounds(draft);
+    const lines = labelLines(draft, fontSize / s).length;
+    box = {
+      x: b.x * s + camera.x,
+      y: b.y * s + camera.y,
+      width: b.width * s,
+      height: b.height * s,
+    };
+    paddingTop = Math.max(0, (box.height - lines * step) / 2);
+    paddingX = LABEL_PAD * s;
   }
+  const angle = rotationOf(element);
+  const origin = boxOf(element);
   // The stored colour is the light-theme ink by default; flip it to the dark
   // board's ink the same way the committed element already paints (`inked` in
-  // renderer.ts) — otherwise typing on the dark board shows black on black.
+  // renderer.ts) — otherwise the caret is black on black.
   const color = inkFor(element.kind === 'text' ? element.color : element.stroke, dark);
   const bold = element.kind === 'text' && element.bold;
   const italic = element.kind === 'text' && element.italic;
@@ -106,23 +153,28 @@ export function TextEditorOverlay({
         }}
         placeholder={t.typeHere}
         aria-label={t.text}
-        className={`absolute resize-none overflow-hidden rounded-md border-[1.5px] border-dashed bg-glass-solid px-1 py-0.5 outline-none placeholder:text-text/30 ${
+        wrap={draft.kind === 'text' && !draft.width ? 'off' : 'soft'}
+        className={`absolute resize-none overflow-hidden border-0 bg-transparent p-0 outline-none placeholder:text-text/35 ${
           element.kind === 'shape' ? 'text-center' : ''
-        }`}
+        } ${element.kind === 'text' ? 'rounded-sm outline-1 outline-offset-4 outline-dashed' : ''}`}
         style={{
-          left: at.x,
-          // The dashed frame sits a hair above the baseline box so it does not
-          // cover the glyphs it is framing.
-          top: at.y - 4,
-          minWidth: element.kind === 'shape' ? width : 120,
-          maxWidth: 320,
-          borderColor: Colors.accent,
-          color,
-          fontFamily: 'Nunito, system-ui, sans-serif',
+          left: box.x,
+          top: box.y,
+          width: box.width,
+          height: Math.max(box.height, step),
+          paddingTop,
+          paddingLeft: paddingX,
+          paddingRight: paddingX,
+          transform: angle ? `rotate(${angle}rad)` : undefined,
+          transformOrigin: `${(origin.x + origin.width / 2) * s + camera.x - box.x}px ${(origin.y + origin.height / 2) * s + camera.y - box.y}px`,
+          outlineColor: Colors.accent,
+          color: 'transparent',
+          caretColor: color,
+          fontFamily: FONT_FAMILIES[element.font ?? 'sans'],
           fontWeight: bold ? 800 : 500,
           fontStyle: italic ? 'italic' : 'normal',
           fontSize,
-          lineHeight: 1.25,
+          lineHeight: TEXT_LINE_HEIGHT,
         }}
       />
     </div>
