@@ -14,6 +14,8 @@ import { SHAPE_TEXT_SIZE, type BoardElement, type ShapeElement, type TextElement
 import {
   anchorsOf,
   bendHandleOf,
+  boxOf,
+  canRotate,
   dashIntervals,
   elementBounds,
   endAngles,
@@ -21,9 +23,16 @@ import {
   headsOf,
   isLineLike,
   markerPaths,
+  polygonPoints,
+  rotateHandleOf,
+  rotationOf,
   routePath,
+  setTextMeasure,
   shapeBounds,
   strokePath,
+  textLines,
+  toWorld,
+  TEXT_LINE_HEIGHT,
   type Bounds,
 } from '../../lib/geometry';
 import { Colors, GRID, inkFor } from '../../lib/theme';
@@ -63,18 +72,25 @@ export function fontFor(el: Pick<TextElement, 'fontSize' | 'bold' | 'italic'>): 
   return `${el.italic ? 'italic ' : ''}${el.bold ? 800 : 500} ${el.fontSize}px Nunito, system-ui, sans-serif`;
 }
 
-/** Text is drawn from its baseline, so a line sits `fontSize` below `at.y`. */
-export const TEXT_LINE_HEIGHT = 1.25;
+export { TEXT_LINE_HEIGHT };
+
+// Geometry measures text (bounds, wrapping, hit tests) with the same font the
+// board paints it in.
+const measurer = document.createElement('canvas').getContext('2d');
+if (measurer) {
+  setTextMeasure((text, font) => {
+    measurer.font = fontFor(font);
+    return measurer.measureText(text).width;
+  });
+}
 
 function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   ctx.font = fontFor(el);
   ctx.fillStyle = el.color;
   ctx.textBaseline = 'alphabetic';
   const step = el.fontSize * TEXT_LINE_HEIGHT;
-  // The editor is multi-line, so a text element may hold newlines. Skia on
-  // mobile draws only the first line; splitting here is a superset that renders
-  // the same single-line elements identically.
-  el.text.split('\n').forEach((line, i) => {
+  // Its own newlines, then wrapped to its width if it has one.
+  textLines(el).forEach((line, i) => {
     ctx.fillText(line, el.at.x, el.at.y + el.fontSize + i * step);
   });
 }
@@ -142,13 +158,19 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
     return;
   }
 
-  if (el.shape === 'triangle') {
-    // Apex centred on the top edge, base along the bottom — the shape the tool
-    // icon promises, drawn inside the dragged box.
+  if (el.shape === 'triangle' || el.shape === 'polygon') {
+    // A triangle: apex centred on the top edge, base along the bottom — the
+    // shape the tool icon promises. A polygon: regular, first corner up.
+    const pts =
+      el.shape === 'triangle'
+        ? [
+            { x: x + w / 2, y },
+            { x: x + w, y: y + h },
+            { x, y: y + h },
+          ]
+        : polygonPoints({ x, y, width: w, height: h }, el.sides);
     const path = new Path2D();
-    path.moveTo(x + w / 2, y);
-    path.lineTo(x + w, y + h);
-    path.lineTo(x, y + h);
+    pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
     path.closePath();
     if (el.fill) {
       ctx.fillStyle = el.fill;
@@ -217,6 +239,18 @@ export function paintElement(
   dark = false,
 ): void {
   if (dark) el = inked(el);
+  const angle = rotationOf(el);
+  if (angle) {
+    // Turned about the centre of its box: everything below paints unturned.
+    const b = boxOf(el);
+    ctx.save();
+    ctx.translate(b.x + b.width / 2, b.y + b.height / 2);
+    ctx.rotate(angle);
+    ctx.translate(-(b.x + b.width / 2), -(b.y + b.height / 2));
+    paintElement(ctx, { ...el, rotation: 0 }, smooth, onImageReady);
+    ctx.restore();
+    return;
+  }
   switch (el.kind) {
     case 'stroke': {
       ctx.strokeStyle = el.color;
@@ -278,12 +312,27 @@ export function paintGrid(
  */
 export const HANDLE_SIZE = 10;
 
-/** A dashed screen-space box round board-space bounds: the frame, and the marquee. */
-export function paintDashedBox(ctx: CanvasRenderingContext2D, b: Bounds, camera: Camera): void {
+/**
+ * A dashed screen-space box round board-space bounds: the frame, and the
+ * marquee. `angle` turns it about its centre, for a single turned element.
+ */
+export function paintDashedBox(
+  ctx: CanvasRenderingContext2D,
+  b: Bounds,
+  camera: Camera,
+  angle = 0,
+): void {
   ctx.save();
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
   ctx.setLineDash([5, 4]);
+  if (angle) {
+    const cx = (b.x + b.width / 2) * camera.scale + camera.x;
+    const cy = (b.y + b.height / 2) * camera.scale + camera.y;
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.translate(-cx, -cy);
+  }
   ctx.strokeRect(
     b.x * camera.scale + camera.x - 4,
     b.y * camera.scale + camera.y - 4,
@@ -312,9 +361,32 @@ export function paintSelection(
 ): void {
   const one = elements.length === 1 ? elements[0] : null;
   const line = one?.kind === 'shape' && isLineLike(one) ? one : null;
-  if (!line) paintDashedBox(ctx, one ? elementBounds(one) : unionBounds(elements), camera);
+  if (!line) {
+    // One turnable element is framed along its own (turned) box.
+    if (one && canRotate(one)) paintDashedBox(ctx, boxOf(one), camera, rotationOf(one));
+    else paintDashedBox(ctx, one ? elementBounds(one) : unionBounds(elements), camera);
+  }
   if (!one) return;
   ctx.save();
+  // The rotate knob: a round handle on a short stem above the top edge.
+  const knob = rotateHandleOf(one, camera.scale);
+  if (knob) {
+    const b = boxOf(one);
+    const top = toWorld(one, { x: b.x + b.width / 2, y: b.y });
+    const sx = knob.x * camera.scale + camera.x;
+    const sy = knob.y * camera.scale + camera.y;
+    ctx.strokeStyle = Colors.accent;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(top.x * camera.scale + camera.x, top.y * camera.scale + camera.y);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+    ctx.fillStyle = Colors.background;
+    ctx.beginPath();
+    ctx.arc(sx, sy, HANDLE_SIZE / 2 + 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
   if (line) {
     // A line has no box to frame, so the line itself lights up: a soft accent
     // halo along its route, and round handles at the two ends it can be
@@ -374,7 +446,6 @@ export function paintAnchors(
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
   for (const el of elements) {
-    if (el.kind !== 'shape') continue;
     for (const a of anchorsOf(el)) {
       ctx.beginPath();
       ctx.arc(a.x * camera.scale + camera.x, a.y * camera.scale + camera.y, 4, 0, Math.PI * 2);
