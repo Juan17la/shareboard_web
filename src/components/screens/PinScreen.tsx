@@ -95,10 +95,10 @@ export function PinScreen({
             </div>
 
             <div className="flex flex-col items-center gap-1.5 text-center">
-              <h1 className="text-[20px] leading-tight font-extrabold tracking-[-0.4px]">
+              <h1 className="text-[1.25rem] leading-tight font-extrabold tracking-[-0.4px]">
                 {t.pinTitle}
               </h1>
-              <p className="text-[13px] leading-snug text-[#565D6C]">
+              <p className="text-[0.8125rem] leading-snug text-[#565D6C]">
                 {error ? t.pinWrong : t.pinSub}
               </p>
             </div>
@@ -134,7 +134,7 @@ export function PinScreen({
                   onClick={() => press(key)}
                   className={
                     key
-                      ? 'flex h-[60px] w-[74px] items-center justify-center rounded-[18px] border border-line bg-glass-solid text-[21px] font-bold shadow-card transition hover:bg-surface-selected active:bg-surface-selected'
+                      ? 'flex h-[60px] w-[74px] items-center justify-center rounded-[18px] border border-line bg-glass-solid text-[1.3125rem] font-bold shadow-card transition hover:bg-surface-selected active:bg-surface-selected'
                       : 'h-[60px] w-[74px]'
                   }
                 >

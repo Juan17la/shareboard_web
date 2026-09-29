@@ -193,12 +193,12 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
         {bounds ? (
           <canvas ref={previewRef} className="block max-w-full" />
         ) : (
-          <span className="font-mono text-[11.5px] text-text-tertiary">{t.previewEmpty}</span>
+          <span className="font-mono text-[0.75rem] text-text-tertiary">{t.previewEmpty}</span>
         )}
       </div>
 
       {size ? (
-        <p className="text-center font-mono text-[11px] text-text-secondary">
+        <p className="text-center font-mono text-[0.75rem] text-text-secondary">
           {tf('exportSize', { W: size.width, H: size.height, N: list.length })}
         </p>
       ) : null}
