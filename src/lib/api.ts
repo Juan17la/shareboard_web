@@ -10,6 +10,7 @@
 import { API_BASE_URL } from './config';
 import type {
   BoardAccess,
+  BoardElement,
   BoardMeta,
   BoardSnapshot,
   EditPolicy,
@@ -140,11 +141,14 @@ export const updatePermissions = (id: string, patch: UpdatePermissionsRequest, a
 export const getSnapshot = (id: string, auth: Auth) =>
   request<BoardSnapshot>(`/boards/${id}/snapshot`, auth);
 
-/** Draws `prompt` centred on `at` (board coords); the elements arrive over the socket. */
+/**
+ * Draws `prompt` centred on `at` (board coords). Nothing lands on the board:
+ * the elements come back for a preview, and `addElements` puts them there.
+ */
 export const drawWithAi = (id: string, prompt: string, at: Point, auth: Auth) =>
-  request<{ reply: string; added: number }>(`/boards/${id}/ai`, {
+  request<{ reply: string; elements: BoardElement[] }>(`/boards/${id}/ai`, {
     method: 'POST',
-    body: { prompt, at },
+    body: { prompt, at, preview: true },
     ...auth,
   });
 

@@ -9,6 +9,10 @@ All notable changes to the Shareboard web client. The format follows
 
 ### Added
 
+- Draw with AI shows a preview of each drawing first: *Add to board* puts it
+  there as one group (one undo removes it), *Discard* drops it. The AI sheet is
+  bigger to fit it.
+
 - Ctrl/⌘ V pastes an image straight from the system clipboard onto the board,
   centred under the pointer (copied elements still paste as before).
 - Images in WebP, GIF, SVG, AVIF and BMP can be imported, not just PNG/JPG.
