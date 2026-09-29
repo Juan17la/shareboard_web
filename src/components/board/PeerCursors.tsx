@@ -40,7 +40,7 @@ export function PeerCursors({ camera }: { camera: Camera }) {
               }}
             />
             <span
-              className="rounded-full px-[7px] py-0.5 text-[10px] leading-[1.3] font-bold whitespace-nowrap text-white"
+              className="block max-w-[160px] truncate rounded-full px-[7px] py-0.5 text-[10px] leading-[1.3] font-bold whitespace-nowrap text-white"
               style={{ background: p.color }}
             >
               {p.nickname}
