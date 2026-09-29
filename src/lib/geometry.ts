@@ -58,26 +58,18 @@ export function simplify(flat: number[], min = 1.5): number[] {
  * straight segments — faster, and closer to what was literally drawn, which a
  * few people prefer for diagrams; on (the default) they are curve-fitted.
  *
- * Returns a `Path2D` rather than a string: the canvas renderer strokes the same
- * element on every frame, and a path object can be cached and reused where a
- * string has to be re-parsed each time.
+ * An SVG path string, so the canvas (`strokePath`) and an SVG export draw the
+ * very same curve. Same code as mobile's.
  */
-export function strokePath(flat: number[], smooth = true): Path2D {
-  const path = new Path2D();
+export function strokeToSvgPath(flat: number[], smooth = true): string {
   const p = flatToPoints(flat);
-  if (p.length === 0) return path;
-
-  path.moveTo(p[0].x, p[0].y);
+  if (p.length === 0) return '';
+  const P = (q: Point) => `${n(q.x)} ${n(q.y)}`;
   // A tap has nowhere to curve to; the zero-length line still paints a round cap.
-  if (p.length === 1) {
-    path.lineTo(p[0].x, p[0].y);
-    return path;
-  }
-  if (p.length === 2 || !smooth) {
-    for (let i = 1; i < p.length; i++) path.lineTo(p[i].x, p[i].y);
-    return path;
-  }
+  if (p.length === 1) return `M ${P(p[0])} L ${P(p[0])}`;
+  if (p.length === 2 || !smooth) return p.map((q, i) => `${i ? 'L' : 'M'} ${P(q)}`).join(' ');
 
+  let d = `M ${P(p[0])}`;
   for (let i = 0; i < p.length - 1; i++) {
     // Each segment is steered by its neighbours, so the curve stays continuous
     // across joins. The ends have no outer neighbour and reuse the endpoint.
@@ -85,18 +77,23 @@ export function strokePath(flat: number[], smooth = true): Path2D {
     const from = p[i];
     const to = p[i + 1];
     const next = p[i + 2] ?? to;
-
     // Catmull-Rom -> Bézier: the control points sit a sixth of the way along
     // the neighbouring chord, which is the standard uniform conversion.
-    path.bezierCurveTo(
-      from.x + (to.x - prev.x) / 6,
-      from.y + (to.y - prev.y) / 6,
-      to.x - (next.x - from.x) / 6,
-      to.y - (next.y - from.y) / 6,
-      to.x,
-      to.y,
-    );
+    d += ` C ${n(from.x + (to.x - prev.x) / 6)} ${n(from.y + (to.y - prev.y) / 6)} ${n(to.x - (next.x - from.x) / 6)} ${n(to.y - (next.y - from.y) / 6)} ${P(to)}`;
   }
+  return d;
+}
+
+// A stroke's points are replaced, never mutated, so its parsed path is kept
+// per points array — the canvas repaints every frame of a pan.
+const strokePaths = new WeakMap<number[], { smooth: boolean; path: Path2D }>();
+
+/** The stroke as a `Path2D`, parsed once per points array. */
+export function strokePath(flat: number[], smooth = true): Path2D {
+  const cached = strokePaths.get(flat);
+  if (cached?.smooth === smooth) return cached.path;
+  const path = new Path2D(strokeToSvgPath(flat, smooth));
+  strokePaths.set(flat, { smooth, path });
   return path;
 }
 

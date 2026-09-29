@@ -13,7 +13,6 @@
 import {
   SHAPE_TEXT_SIZE,
   type BoardElement,
-  type FontKey,
   type ShapeElement,
   type TextElement,
 } from '../../lib/contract';
@@ -42,6 +41,7 @@ import {
   TEXT_LINE_HEIGHT,
   type Bounds,
 } from '../../lib/geometry';
+import { FONT_FAMILIES, markerSize } from '../../lib/svg';
 import { Colors, GRID, inkFor } from '../../lib/theme';
 import type { Camera } from '../../features/board-store';
 
@@ -74,20 +74,12 @@ export function imageFor(uri: string, onReady: () => void): HTMLImageElement | n
   return null;
 }
 
-/** The CSS family of each board typeface (loaded in index.html). */
-export const FONT_FAMILIES: Record<FontKey, string> = {
-  sans: 'Nunito, system-ui, sans-serif',
-  serif: 'Lora, Georgia, serif',
-  mono: '"JetBrains Mono", ui-monospace, monospace',
-  hand: 'Caveat, "Comic Sans MS", cursive',
-};
-
 /** Font shorthand for a text element or a label, in its typeface. */
 export function fontFor(el: Pick<TextElement, 'fontSize' | 'bold' | 'italic' | 'font'>): string {
   return `${el.italic ? 'italic ' : ''}${el.bold ? 800 : 500} ${el.fontSize}px ${FONT_FAMILIES[el.font ?? 'sans']}`;
 }
 
-export { TEXT_LINE_HEIGHT };
+export { FONT_FAMILIES, markerSize, TEXT_LINE_HEIGHT };
 
 // Geometry measures text (bounds, wrapping, hit tests) with the same font the
 // board paints it in.
@@ -226,8 +218,6 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   }
 }
 
-/** A marker's size grows with the stroke, and never below a fingertip's worth. */
-export const markerSize = (width: number) => Math.max(10, width * 3);
 
 /** What a hollow marker is filled with: the surface the frame is painted on. */
 let ground = '#FFFFFF';
