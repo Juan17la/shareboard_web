@@ -22,12 +22,15 @@ export function Sheet({
   onClose,
   children,
   closeLabel = 'Close',
+  wide = false,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
   closeLabel?: string;
+  /** A wider card on desktop, for sheets with a preview (AI). */
+  wide?: boolean;
 }) {
   // Escape closes the sheet, which is what the mobile app's Android back
   // gesture does and what a browser user will try first.
@@ -60,7 +63,7 @@ export function Sheet({
         level="panel"
         radius={26}
         border={null}
-        className="sb-sheet relative flex max-h-[82vh] w-full flex-col rounded-b-none border-t border-t-glass-highlight sm:max-w-[520px] sm:rounded-b-[26px] sm:border sm:border-glass-highlight"
+        className={`sb-sheet relative flex max-h-[82vh] w-full flex-col rounded-b-none border-t border-t-glass-highlight ${wide ? 'sm:max-w-[720px]' : 'sm:max-w-[520px]'} sm:rounded-b-[26px] sm:border sm:border-glass-highlight`}
         style={{ boxShadow: '0 -12px 40px rgba(21,26,45,0.18)' }}
       >
         {/* The grab handle is decorative on a pointer device, but it is what
