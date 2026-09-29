@@ -7,6 +7,24 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Ctrl/⌘ V pastes an image straight from the system clipboard onto the board,
+  centred under the pointer (copied elements still paste as before).
+- Images in WebP, GIF, SVG, AVIF and BMP can be imported, not just PNG/JPG.
+
+### Changed
+
+- The ✦ AI button in the top-right controls is filled in the brand colour so it
+  stands out.
+- The board code reads as `ABC·DEF` in a sans font; codes typed or pasted with
+  the `·` still join.
+
+### Fixed
+
+- Transparent PNG/SVG images keep their transparency instead of getting a white
+  background.
+
 ## [1.0.0-beta.4] - 2026-09-26
 
 ### Changed
