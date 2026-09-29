@@ -9,9 +9,13 @@
 export const SHORT_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ';
 export const SHORT_CODE_LENGTH = 6;
 
-/** Uppercases and strips the spaces or dashes a user may have typed. */
+/** Uppercases and strips the spaces, dashes or dots a user may have typed. */
 export const normalizeShortCode = (input: string): string =>
-  input.trim().toUpperCase().replace(/[\s-]/g, '');
+  input.trim().toUpperCase().replace(/[\s\-·.]/g, '');
+
+/** For display only: `ABC·DEF` reads as two short chunks. Copy/share the raw code. */
+export const formatShortCode = (code: string): string =>
+  code.length === SHORT_CODE_LENGTH ? `${code.slice(0, 3)}·${code.slice(3)}` : code;
 
 export function isValidShortCode(input: string): boolean {
   const code = normalizeShortCode(input);

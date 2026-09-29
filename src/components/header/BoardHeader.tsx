@@ -12,6 +12,7 @@
 import { useT, useTf } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
 import { useSessionStore } from '../../features/session';
+import { formatShortCode } from '../../lib/short-code';
 import { Colors, StatusColors } from '../../lib/theme';
 
 import { Avatar, AvatarOverflow } from '../ui/Avatar';
@@ -91,8 +92,8 @@ export function BoardHeader({
         }}
       >
         <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
-        <span className="font-mono text-[12.5px] font-bold tracking-[0.6px]">
-          {meta?.shortCode ?? '——————'}
+        <span className="text-[13px] font-extrabold tracking-[1px]">
+          {meta ? formatShortCode(meta.shortCode) : '———·———'}
         </span>
       </button>
 

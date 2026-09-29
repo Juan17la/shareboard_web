@@ -10,6 +10,7 @@
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
 import { copyText } from '../../lib/clipboard';
+import { formatShortCode } from '../../lib/short-code';
 
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
@@ -57,7 +58,9 @@ export function ShareSheet({
                 onClick={() => copy(code, t.toastCopied)}
                 className="flex items-center gap-2 self-start rounded-[13px] border border-line-strong bg-surface px-[11px] py-2.5 transition hover:bg-surface-selected"
               >
-                <span className="font-mono text-[16px] font-bold tracking-[1.4px]">{code}</span>
+                <span className="text-[17px] font-extrabold tracking-[1.6px]">
+                  {formatShortCode(code)}
+                </span>
                 <Icon name="copy" size={15} />
               </button>
               <p className="text-[11px] leading-snug text-text-secondary">{t.qrHint}</p>
