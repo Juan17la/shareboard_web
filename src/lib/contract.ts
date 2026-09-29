@@ -20,7 +20,7 @@ export type BoardAccess = 'public' | 'private';
 export type EditPolicy = 'everyone' | 'selected' | 'creator-only';
 export type Role = 'creator' | 'editor' | 'viewer';
 
-export type ShapeKind = 'rectangle' | 'ellipse' | 'triangle' | 'line' | 'arrow';
+export type ShapeKind = 'rectangle' | 'ellipse' | 'triangle' | 'polygon' | 'line' | 'arrow';
 
 /**
  * The active tool. The shape *kind* is not a tool: it lives in
@@ -30,12 +30,15 @@ export type ShapeKind = 'rectangle' | 'ellipse' | 'triangle' | 'line' | 'arrow';
 export type ToolType = 'hand' | 'select' | 'pen' | 'eraser' | 'shape' | 'text' | 'fill';
 
 /** Shape kinds that enclose an area, and so can carry a fill. */
-export const FILLABLE_SHAPES: ShapeKind[] = ['rectangle', 'ellipse', 'triangle'];
+export const FILLABLE_SHAPES: ShapeKind[] = ['rectangle', 'ellipse', 'triangle', 'polygon'];
 
 export const isFillable = (shape: ShapeKind): boolean => FILLABLE_SHAPES.includes(shape);
 
 /** Default size of a label inside a shape. Smaller than the text tool's: it has to fit. */
 export const SHAPE_TEXT_SIZE = 18;
+
+/** Corners of a new polygon. */
+export const DEFAULT_SIDES = 5;
 
 export interface Point {
   x: number;
@@ -51,6 +54,12 @@ export interface ElementBase {
   deleted?: boolean;
   /** Elements sharing a group id select and move as one. */
   group?: string | null;
+  /**
+   * Radians, clockwise, about the centre of the element's box. Only boxes
+   * (enclosed shapes), text and images turn; lines and strokes ignore it —
+   * their points already say which way they go.
+   */
+  rotation?: number;
 }
 
 /** What a line or arrow ends in. Grouped as the toolbar shows them. */
@@ -95,6 +104,8 @@ export interface ShapeElement extends ElementBase {
   text?: string;
   /** Label size; `SHAPE_TEXT_SIZE` when absent. */
   fontSize?: number;
+  /** A polygon's corner count, `LIMITS.minSides`..`maxSides`; `DEFAULT_SIDES` when absent. */
+  sides?: number;
   // Lines and arrows only. Absent: no start marker, an `arrow` head on an arrow.
   headStart?: Marker;
   headEnd?: Marker;
@@ -120,6 +131,8 @@ export interface TextElement extends ElementBase {
   fontSize: number;
   bold?: boolean;
   italic?: boolean;
+  /** Wrap width in board units; absent, each line is as long as it is typed. */
+  width?: number;
 }
 
 export interface ImageElement extends ElementBase {
@@ -189,7 +202,9 @@ export const LIMITS = {
   minStrokeWidth: 1,
   maxStrokeWidth: 64,
   minFontSize: 10,
-  maxFontSize: 96,
+  maxFontSize: 400,
+  minSides: 3,
+  maxSides: 12,
   maxNicknameLength: 24,
   maxBoardNameLength: 80,
   /** #RRGGBB, or #RRGGBBAA for the translucent fills the shape tool paints. */
