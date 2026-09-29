@@ -44,6 +44,7 @@ import {
 import { FONT_FAMILIES, markerSize } from '../../lib/svg';
 import { Colors, GRID, inkFor } from '../../lib/theme';
 import type { Camera } from '../../features/board-store';
+import type { Participant } from '../../lib/contract';
 
 // --- images ----------------------------------------------------------------
 // An image element carries its bytes as a data: URI, and decoding is async. The
@@ -332,6 +333,13 @@ export function paintDashedBox(
 ): void {
   ctx.save();
   ctx.strokeStyle = Colors.accent;
+  paintFrame(ctx, b, camera, angle);
+  ctx.restore();
+}
+
+/** The dashed frame itself, in the current stroke colour. */
+function paintFrame(ctx: CanvasRenderingContext2D, b: Bounds, camera: Camera, angle: number): void {
+  ctx.save();
   ctx.lineWidth = 1.5;
   ctx.setLineDash([5, 4]);
   if (angle) {
@@ -464,6 +472,49 @@ export function paintAnchors(
   ctx.restore();
 }
 
+/** How opaque an element someone else holds is painted. */
+export const HELD_ALPHA = 0.45;
+
+/**
+ * Who holds what: a dashed frame in the holder's presence colour round each
+ * element someone else has selected, and their name on a tag above it — the
+ * same colour and name as their cursor. Screen space, like the selection.
+ */
+export function paintHeld(
+  ctx: CanvasRenderingContext2D,
+  elements: BoardElement[],
+  held: ReadonlyMap<string, Participant>,
+  camera: Camera,
+): void {
+  const tagged = new Set<string>();
+  for (const el of elements) {
+    const who = held.get(el.id);
+    if (!who) continue;
+    const b = canRotate(el) ? boxOf(el) : elementBounds(el);
+    ctx.save();
+    ctx.strokeStyle = who.color;
+    paintFrame(ctx, b, camera, canRotate(el) ? rotationOf(el) : 0);
+    ctx.restore();
+    // One tag per holder is enough; more would stack on a held group.
+    if (tagged.has(who.userId)) continue;
+    tagged.add(who.userId);
+    const top = elementBounds(el);
+    const x = top.x * camera.scale + camera.x - 4;
+    const y = top.y * camera.scale + camera.y - 8;
+    ctx.save();
+    ctx.font = '800 11px Nunito, system-ui, sans-serif';
+    const w = ctx.measureText(who.nickname).width + 12;
+    ctx.fillStyle = who.color;
+    ctx.beginPath();
+    ctx.roundRect(x, y - 18, w, 18, 6);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(who.nickname, x + 6, y - 9);
+    ctx.restore();
+  }
+}
+
 export interface PaintOptions {
   elements: BoardElement[];
   camera: Camera;
@@ -476,6 +527,8 @@ export interface PaintOptions {
   background: string | null;
   /** The dark board: the default ink is painted light so it stays visible. */
   dark?: boolean;
+  /** Elements someone else holds (has selected): painted dimmed. */
+  held?: ReadonlyMap<string, unknown>;
   onImageReady: () => void;
 }
 
@@ -495,7 +548,10 @@ export function paintBoard(ctx: CanvasRenderingContext2D, opts: PaintOptions): v
   ctx.translate(camera.x, camera.y);
   ctx.scale(camera.scale, camera.scale);
   for (const el of opts.elements) {
+    const dim = opts.held?.has(el.id);
+    if (dim) ctx.globalAlpha = HELD_ALPHA;
     paintElement(ctx, el, opts.smooth, opts.onImageReady, opts.dark);
+    if (dim) ctx.globalAlpha = 1;
   }
   ctx.restore();
 }
