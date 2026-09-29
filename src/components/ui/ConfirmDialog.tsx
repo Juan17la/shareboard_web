@@ -6,8 +6,9 @@
  * *everyone else* on the board, and the browser dialog offers neither the copy
  * layout nor the warning glyph the design specifies.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
+import { useDialogFocus } from '../../hooks/use-dialog-focus';
 import { GlassPanel } from './Glass';
 import { Icon } from './Icon';
 
@@ -34,6 +35,9 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, dialog);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -53,10 +57,12 @@ export function ConfirmDialog({
 
   return (
     <div
+      ref={dialog}
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-0 z-60 grid place-items-center p-6"
+      tabIndex={-1}
+      className="fixed inset-0 z-60 grid place-items-center p-6 outline-none"
     >
       {/* The scrim is a sibling of the card, not its parent: nesting the card
           inside a clickable backdrop makes the card's own buttons children of a
@@ -85,15 +91,15 @@ export function ConfirmDialog({
             <Icon name="warning" size={24} />
           </div>
 
-          <h2 className="text-[17px] leading-tight font-extrabold tracking-[-0.2px]">{title}</h2>
-          <p className="text-[12.5px] leading-relaxed text-text-secondary">{body}</p>
+          <h2 className="text-[1.0625rem] leading-tight font-extrabold tracking-[-0.2px]">{title}</h2>
+          <p className="text-[0.7812rem] leading-relaxed text-text-secondary">{body}</p>
 
           <div className="mt-1 flex w-full gap-2.5">
             <button
               type="button"
               disabled={busy}
               onClick={onCancel}
-              className="flex-1 rounded-[14px] border border-line-strong bg-glass-solid py-[13px] text-[13px] font-extrabold transition hover:bg-surface-selected disabled:opacity-60"
+              className="flex-1 rounded-[14px] border border-line-strong bg-glass-solid py-[13px] text-[0.8125rem] font-extrabold transition hover:bg-surface-selected disabled:opacity-60"
             >
               {cancelLabel}
             </button>
@@ -102,7 +108,7 @@ export function ConfirmDialog({
               disabled={busy}
               onClick={onConfirm}
               style={{ background: accent }}
-              className="flex-1 rounded-[14px] py-[13px] text-[13px] font-extrabold text-white transition hover:brightness-110 disabled:opacity-60"
+              className="flex-1 rounded-[14px] py-[13px] text-[0.8125rem] font-extrabold text-white transition hover:brightness-110 disabled:opacity-60"
             >
               {confirmLabel}
             </button>
