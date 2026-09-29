@@ -14,6 +14,7 @@
  */
 import { create, persisted } from '../lib/store';
 import { newUserId } from '../lib/id';
+import { LIMITS } from '../lib/contract';
 import { Avatars, avatarColor, type Theme } from '../lib/theme';
 import type { Lang } from './strings';
 
@@ -55,8 +56,11 @@ interface SessionState {
   recent: RecentBoard[];
   /** PINs this browser chose, by board id. */
   pins: Record<string, string>;
+  /** The first-run hint on an empty board has been dismissed (or acted on). */
+  hintDismissed: boolean;
 
   setNickname(nickname: string): void;
+  dismissHint(): void;
   setAvatar(avatar: string): void;
   setLang(lang: Lang): void;
   toggleLang(): void;
@@ -82,6 +86,7 @@ interface Persisted {
   settings: AppSettings;
   recent: RecentBoard[];
   pins: Record<string, string>;
+  hintDismissed?: boolean;
 }
 
 /**
@@ -109,9 +114,14 @@ export const useSessionStore = create<SessionState>((set) => ({
   settings: DEFAULT_SETTINGS,
   recent: [],
   pins: {},
+  hintDismissed: false,
 
   setNickname(nickname) {
-    set({ nickname: nickname.trim().slice(0, 24) });
+    set({ nickname: nickname.trim().slice(0, LIMITS.maxNicknameLength) });
+  },
+
+  dismissHint() {
+    set({ hintDismissed: true });
   },
 
   /** The icon brings its colour along: one choice, not two. */
@@ -176,6 +186,7 @@ const saved = persisted<SessionState, Persisted>(useSessionStore, STORAGE_KEY, (
   settings: s.settings,
   recent: s.recent,
   pins: s.pins,
+  hintDismissed: s.hintDismissed,
 }));
 
 if (saved) {
@@ -185,6 +196,7 @@ if (saved) {
     nickColor: avatarColor(saved.avatar || Avatars[0].icon),
     theme: saved.theme === 'dark' ? 'dark' : 'light',
     settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
+    hintDismissed: saved.hintDismissed === true,
   });
 }
 
@@ -197,5 +209,15 @@ if (typeof document !== 'undefined') {
   apply(useSessionStore.getState().theme);
   useSessionStore.subscribe((s, prev) => {
     if (s.theme !== prev.theme) apply(s.theme);
+  });
+
+  // `<html lang>` follows the chosen language, not the one index.html shipped
+  // with: screen readers pick their voice and pronunciation from it.
+  const applyLang = (lang: Lang) => {
+    document.documentElement.lang = lang;
+  };
+  applyLang(useSessionStore.getState().lang);
+  useSessionStore.subscribe((s, prev) => {
+    if (s.lang !== prev.lang) applyLang(s.lang);
   });
 }

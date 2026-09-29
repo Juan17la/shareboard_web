@@ -57,7 +57,7 @@ export function Button({
         'flex items-center justify-center gap-2.5 font-extrabold transition',
         stacked ? 'flex-col gap-2' : '',
         variant === 'dashed' ? 'rounded-lg' : 'rounded-xl',
-        compact ? 'px-4 py-3 text-[13.5px]' : 'px-[18px] py-4 text-[15.5px]',
+        compact ? 'px-4 py-3 text-[0.8438rem]' : 'px-[18px] py-4 text-[0.9688rem]',
         fullWidth ? 'w-full' : '',
         off ? 'opacity-55' : 'active:scale-[0.985]',
         VARIANT[variant],
@@ -151,7 +151,7 @@ export function StepperButton({
       data-tip={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-[26px] w-[26px] items-center justify-center rounded-[9px] border border-line-strong bg-surface text-text transition hover:bg-surface-selected disabled:opacity-40"
+      className="touch-36 flex h-[26px] w-[26px] items-center justify-center rounded-[9px] border border-line-strong bg-surface text-text transition hover:bg-surface-selected disabled:opacity-40"
     >
       <Icon name={icon} size={14} />
     </button>
