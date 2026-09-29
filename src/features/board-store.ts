@@ -250,6 +250,8 @@ interface BoardState {
    * from — Ctrl+V.
    */
   paste(at?: Point): void;
+  /** Adds ready-made elements (an accepted AI drawing) as one undo step and selects them. */
+  addElements(elements: BoardElement[]): void;
   setConfig(patch: Partial<ToolConfig>): void;
   setCamera(camera: Camera): void;
   setRailOpen(open: boolean): void;
@@ -915,6 +917,15 @@ export const useBoardStore = create<BoardState>((set, get) => {
       if (get().tool !== 'select') get().setTool('select');
       get().select(copies.map((el) => el.id));
       set({ railOpen: true });
+    },
+
+    addElements(elements) {
+      if (!elements.length || !get().canEditNow() || get().connection !== 'online') return;
+      // Ids are kept (lines are linked by them); authorship and order are ours.
+      const added = elements.map((el) => ({ ...el, ...baseFields(), id: el.id }) as BoardElement);
+      commitLocal(added.map((el) => ({ t: 'add', el }) as Op));
+      if (get().tool !== 'select') get().setTool('select');
+      get().select(added.map((el) => el.id));
     },
 
     // --- history -----------------------------------------------------------
