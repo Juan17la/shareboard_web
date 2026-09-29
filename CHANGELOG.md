@@ -9,6 +9,12 @@ All notable changes to the Shareboard web client. The format follows
 
 ### Added
 
+- Export only what is selected: with a selection, the export sheet offers
+  *Whole board* or *Selection* (selection first); the preview, the picture and
+  the embedded board follow the choice.
+- SVG export next to PNG and JPG: a vector file with the board's fonts,
+  wrapped labels, polygons and rotation, optionally transparent.
+
 - Font picker for text and figure labels: rounded (Nunito, the default),
   serif (Lora), monospace (JetBrains Mono) and handwritten (Caveat).
 - Typing into a figure edits its label in place: the text appears exactly as
