@@ -10,8 +10,9 @@
  * it, and the design's own tablet/desktop breakpoint (mobile/docs/03-styles)
  * already expects the layout to reflow.
  */
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 
+import { useDialogFocus } from '../../hooks/use-dialog-focus';
 import { IconButton } from './Button';
 import { GlassPanel } from './Glass';
 import { ToastHost } from './Toast';
@@ -32,6 +33,10 @@ export function Sheet({
   /** A wider card on desktop, for sheets with a preview (AI). */
   wide?: boolean;
 }) {
+  const titleId = useId();
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, dialog);
+
   // Escape closes the sheet, which is what the mobile app's Android back
   // gesture does and what a browser user will try first.
   useEffect(() => {
@@ -49,7 +54,14 @@ export function Sheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center sm:p-6">
+    <div
+      ref={dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex flex-col justify-end outline-none sm:items-center sm:justify-center sm:p-6"
+    >
       {/* Tap-outside-to-close, hidden from assistive tech: it does exactly what
           the close button beside the title does, and announcing both gives a
           screen-reader user two identical "Close" targets. */}
@@ -73,7 +85,7 @@ export function Sheet({
         </div>
 
         <div className="flex items-center justify-between gap-2.5 px-5 pt-1.5 pb-3.5 sm:pt-4">
-          <h2 className="flex-1 truncate text-[18px] font-extrabold tracking-[-0.3px]">{title}</h2>
+          <h2 id={titleId} className="flex-1 truncate text-[1.125rem] font-extrabold tracking-[-0.3px]">{title}</h2>
           <IconButton
             icon="close"
             label={closeLabel}
@@ -81,6 +93,7 @@ export function Sheet({
             size={30}
             iconSize={15}
             radius={10}
+            className="touch-36"
           />
         </div>
 
@@ -113,9 +126,9 @@ export function SheetRow({
   const body = (
     <>
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] leading-tight font-bold">{title}</div>
+        <div className="text-[0.8125rem] leading-tight font-bold">{title}</div>
         {description ? (
-          <div className="mt-0.5 text-[11px] leading-snug text-text-secondary">{description}</div>
+          <div className="mt-0.5 text-[0.75rem] leading-snug text-text-secondary">{description}</div>
         ) : null}
       </div>
       {right}
@@ -143,7 +156,7 @@ export function SheetRow({
 /** Small uppercase section label used above groups inside sheets and screens. */
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="text-[10.5px] font-extrabold tracking-[0.9px] text-text-secondary uppercase">
+    <div className="text-[0.75rem] font-extrabold tracking-[0.9px] text-text-secondary uppercase">
       {children}
     </div>
   );
