@@ -10,6 +10,7 @@
  *   a Shareboard PNG/JPG   -> the same, read back out of the picture
  *                             (`lib/embed.ts`), unless the switch is off
  *   any other picture      -> placed on the board as one flat image
+ *                             (PNG, JPG, WebP, GIF's first frame, SVG rasterised)
  *
  * The flat-image path has a hard constraint behind it. An image element carries
  * its bytes inline as a `data:` URI, and that element travels to the server
@@ -51,8 +52,8 @@ const ENCODE_ATTEMPTS = [
 ];
 
 /** The file types the picker offers. `*` stays out: the bytes decide anyway. */
-export const IMPORT_ACCEPT = '.json,application/json,image/png,image/jpeg';
-export const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif';
+export const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif,image/bmp';
+export const IMPORT_ACCEPT = `.json,application/json,${IMAGE_ACCEPT}`;
 
 /**
  * Reads a picked file and decides what it is.
@@ -84,6 +85,8 @@ export async function readBoardFile(
     }
     return shrinkToElement(file);
   }
+  // WebP, GIF, SVG…: the browser decodes whatever it can; `decode` throws otherwise.
+  if (file.type.startsWith('image/')) return shrinkToElement(file);
 
   throw new SnapshotParseError('That file is not a Shareboard board or an image.');
 }
@@ -91,27 +94,30 @@ export async function readBoardFile(
 /** Re-encodes a picture until it fits inside one realtime frame. */
 export async function shrinkToElement(file: File): Promise<ImportedImage> {
   const bitmap = await decode(file);
+  // An SVG without width/height decodes as 0×0; give it a sensible raster size.
+  const srcW = bitmap.width || 512;
+  const srcH = bitmap.height || 512;
   // Constraining the *longer* edge is what keeps a tall photo from coming back
   // with far more pixels than a wide one at the same nominal "size".
-  const longest = Math.max(bitmap.width, bitmap.height);
+  const longest = Math.max(srcW, srcH);
+  let transparent: boolean | null = null;
 
   for (const attempt of ENCODE_ATTEMPTS) {
     const scale = Math.min(1, attempt.size / longest);
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const width = Math.max(1, Math.round(srcW * scale));
+    const height = Math.max(1, Math.round(srcH * scale));
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) break;
-    // A JPEG has no alpha, so a transparent PNG would come out black without a
-    // white ground painted under it first.
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, width, height);
     ctx.drawImage(bitmap, 0, 0, width, height);
+    transparent ??= hasAlpha(ctx, width, height);
 
-    const uri = canvas.toDataURL('image/jpeg', attempt.quality);
+    // Keep see-through parts: WebP has alpha and stays small (Safari can't
+    // encode WebP and hands back a PNG, which is fine too). Opaque: JPEG.
+    const uri = canvas.toDataURL(transparent ? 'image/webp' : 'image/jpeg', attempt.quality);
     // The base64 body is ASCII, so one character is one byte on the wire.
     if (uri.length - uri.indexOf(',') <= MAX_IMAGE_BYTES) {
       return { kind: 'image', uri, width, height };
@@ -121,6 +127,12 @@ export async function shrinkToElement(file: File): Promise<ImportedImage> {
   throw new Error(
     'That image is too detailed to add to a board. Try a smaller image, or crop it first.',
   );
+}
+
+function hasAlpha(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
+  const data = ctx.getImageData(0, 0, width, height).data;
+  for (let i = 3; i < data.length; i += 4) if (data[i] < 255) return true;
+  return false;
 }
 
 async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
