@@ -1,15 +1,19 @@
 /**
- * "Draw with AI": a small chat. Each message is drawn by the server (see
- * server/src/ai.ts) centred on what this screen is looking at, and the
- * elements arrive over the socket like anyone else's — so this sheet only
- * keeps the log. Each prompt is independent: the model does not see the board.
+ * "Draw with AI": a small chat. The server (server/src/ai.ts) answers each
+ * message with a drawing centred on what this screen is looking at, as one
+ * group. It shows here as a preview first; *Add to board* commits it as this
+ * user's own edit (one undo step), *Discard* drops it. Each prompt is
+ * independent: the model does not see the board.
  */
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { fill, useT } from '../../features/i18n';
 import { screenToBoard, useBoardStore } from '../../features/board-store';
 import { useSessionStore } from '../../features/session';
 import { drawWithAi } from '../../lib/api';
+import type { BoardElement } from '../../lib/contract';
+import { contentBounds } from '../../lib/geometry';
+import { paintBoard } from '../board/renderer';
 
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Field';
@@ -18,6 +22,8 @@ import { Sheet } from '../ui/Sheet';
 interface Message {
   from: 'you' | 'ai' | 'error';
   text: string;
+  /** An AI drawing still waiting for Add/Discard; cleared once decided. */
+  elements?: BoardElement[];
 }
 
 export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -27,6 +33,23 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<Message[]>([]);
   const end = useRef<HTMLDivElement>(null);
+  const addElements = useBoardStore((s) => s.addElements);
+
+  const decide = (i: number, accept: boolean) => {
+    const els = log[i].elements ?? [];
+    if (accept) addElements(els);
+    setLog((l) =>
+      l.map((m, j) =>
+        j === i
+          ? {
+              ...m,
+              elements: undefined,
+              text: `${m.text} ${accept ? fill(t.aiAdded, { N: String(els.length) }) : t.aiDiscarded}`.trim(),
+            }
+          : m,
+      ),
+    );
+  };
 
   const push = (msg: Message) => {
     setLog((l) => [...l, msg]);
@@ -44,10 +67,7 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
     try {
       const at = screenToBoard(viewport.width / 2, viewport.height / 2);
       const res = await drawWithAi(meta.id, text, at, { userId, token: boardToken ?? '' });
-      push({
-        from: 'ai',
-        text: [res.reply, fill(t.aiAdded, { N: String(res.added) })].join(' ').trim(),
-      });
+      push({ from: 'ai', text: res.reply, elements: res.elements.length ? res.elements : undefined });
     } catch (err) {
       push({ from: 'error', text: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -56,15 +76,15 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
   }
 
   return (
-    <Sheet open={open} title={t.sheetAi} onClose={onClose} closeLabel={t.close}>
+    <Sheet open={open} title={t.sheetAi} onClose={onClose} closeLabel={t.close} wide>
       <div className="flex flex-col gap-3">
         {log.length ? (
-          <div className="flex max-h-[34vh] flex-col gap-2 overflow-y-auto" aria-live="polite">
+          <div className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto" aria-live="polite">
             {log.map((m, i) => (
-              <p
+              <div
                 key={i}
                 className={[
-                  'max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-snug',
+                  'flex max-w-[85%] flex-col gap-2 rounded-xl px-3 py-2 text-[0.8125rem] leading-snug',
                   m.from === 'you'
                     ? 'self-end bg-accent text-white'
                     : m.from === 'error'
@@ -72,11 +92,25 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
                       : 'self-start bg-surface-selected',
                 ].join(' ')}
               >
-                {m.text}
-              </p>
+                {m.text ? <p>{m.text}</p> : null}
+                {m.elements ? (
+                  <>
+                    <Preview elements={m.elements} />
+                    <div className="flex gap-2">
+                      <Button compact icon="check" label={t.aiAccept} onClick={() => decide(i, true)} />
+                      <Button
+                        compact
+                        variant="secondary"
+                        label={t.aiDiscard}
+                        onClick={() => decide(i, false)}
+                      />
+                    </div>
+                  </>
+                ) : null}
+              </div>
             ))}
             {busy ? (
-              <p className="self-start text-[12px] text-text-secondary">{t.aiThinking}</p>
+              <p className="self-start text-[0.75rem] text-text-secondary">{t.aiThinking}</p>
             ) : null}
             <div ref={end} />
           </div>
@@ -106,4 +140,45 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
       </div>
     </Sheet>
   );
+}
+
+const PREVIEW_W = 320;
+const PREVIEW_H = 200;
+const PAD = 12;
+
+/** The drawing as it will look, scaled to fit a card — the same `paintBoard` the board uses. */
+function Preview({ elements }: { elements: BoardElement[] }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const bounds = useMemo(() => contentBounds(elements), [elements]);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || !bounds) return;
+    const scale = Math.min(
+      1,
+      (PREVIEW_W - PAD * 2) / Math.max(1, bounds.width),
+      (PREVIEW_H - PAD * 2) / Math.max(1, bounds.height),
+    );
+    const width = Math.round(bounds.width * scale + PAD * 2);
+    const height = Math.round(bounds.height * scale + PAD * 2);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    paintBoard(ctx, {
+      elements,
+      camera: { x: PAD - bounds.x * scale, y: PAD - bounds.y * scale, scale },
+      width,
+      height,
+      smooth: true,
+      grid: false,
+      background: '#FFFFFF',
+      onImageReady: () => {},
+    });
+  }, [elements, bounds]);
+
+  return <canvas ref={ref} className="block max-w-full rounded-lg border border-line" />;
 }

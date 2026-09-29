@@ -4,10 +4,11 @@
  * typed, and never while a sheet or dialog is open (those own the keyboard).
  *
  * Tools:     V cursor · H hand · P pencil · E eraser · S shapes (last kind) ·
- *            R O Y L A one kind each · T text · F fill
+ *            R O Y G L A one kind each · T text · F fill
  * History:   Ctrl/⌘ Z undo · Ctrl/⌘ Shift Z or Ctrl/⌘ Y redo
  * Selection: Delete/Backspace · Escape · Ctrl/⌘ A · Ctrl/⌘ D duplicate ·
- *            Ctrl/⌘ C copy · Ctrl/⌘ X cut · Ctrl/⌘ V paste (under the pointer) ·
+ *            Ctrl/⌘ C copy · Ctrl/⌘ X cut · Ctrl/⌘ V paste (under the pointer;
+ *            an image on the system clipboard wins over copied elements) ·
  *            arrows nudge (Shift ×10)
  * Camera:    Ctrl/⌘ + / − · Ctrl/⌘ 0 home · Shift 1 fit · Shift or Space held: drag pans
  *
@@ -19,6 +20,7 @@ import { useEffect } from 'react';
 import { useBoardStore } from '../features/board-store';
 import { currentStrings } from '../features/i18n';
 import type { Point, ShapeKind, ToolType } from '../lib/contract';
+import { placementSize, shrinkToElement } from '../features/import';
 import { ZOOM_STEP } from '../lib/geometry';
 import { toast } from '../lib/toast';
 
@@ -31,6 +33,7 @@ const TOOL_KEYS: Record<string, { tool: ToolType; shape?: ShapeKind }> = {
   r: { tool: 'shape', shape: 'rectangle' },
   o: { tool: 'shape', shape: 'ellipse' },
   y: { tool: 'shape', shape: 'triangle' },
+  g: { tool: 'shape', shape: 'polygon' },
   l: { tool: 'shape', shape: 'line' },
   a: { tool: 'shape', shape: 'arrow' },
   t: { tool: 'text' },
@@ -52,7 +55,7 @@ const NUDGE: Record<string, [number, number]> = {
  */
 export const keys = { spaceHeld: false, dragging: false, pointer: null as Point | null };
 
-export function useShortcuts(enabled: boolean) {
+export function useShortcuts(enabled: boolean, onHelp?: () => void) {
   useEffect(() => {
     if (!enabled) return;
     const typing = (e: KeyboardEvent) => {
@@ -72,6 +75,9 @@ export function useShortcuts(enabled: boolean) {
         e.preventDefault();
         return;
       }
+
+      // ? lists the shortcuts: for everyone, viewers included.
+      if (e.key === '?' && !mod && onHelp) return act(e, onHelp);
 
       // --- camera: for everyone, viewers included ---
       if (mod && (key === '=' || key === '+')) return act(e, () => s.zoomBy(ZOOM_STEP));
@@ -98,11 +104,8 @@ export function useShortcuts(enabled: boolean) {
         });
       }
       if (mod && key === 'x' && s.selectedIds.length) return act(e, () => s.cutSelection());
-      if (mod && key === 'v' && s.clipboard.length) {
-        const at = keys.pointer;
-        const { x, y, scale } = s.camera;
-        return act(e, () => s.paste(at ? { x: (at.x - x) / scale, y: (at.y - y) / scale } : undefined));
-      }
+      // Ctrl/⌘ V is left to the browser: it fires `paste` below, which can see
+      // an image on the system clipboard (a keydown can't).
       if (mod || e.altKey) return;
       if (e.key === 'Delete' || e.key === 'Backspace') return act(e, () => s.deleteSelection());
       if (e.key === 'Escape') {
@@ -135,14 +138,50 @@ export function useShortcuts(enabled: boolean) {
       if (e.code === 'Space') keys.spaceHeld = false;
     };
 
+    const paste = (e: ClipboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      const s = useBoardStore.getState();
+      if (!s.canEditNow()) return;
+      const { x, y, scale } = s.camera;
+      const at = keys.pointer ?? { x: s.viewport.width / 2, y: s.viewport.height / 2 };
+      const board = { x: (at.x - x) / scale, y: (at.y - y) / scale };
+
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+      if (file) {
+        e.preventDefault();
+        shrinkToElement(file).then(
+          (img) => {
+            const size = placementSize(img.width, img.height);
+            useBoardStore
+              .getState()
+              .addImage(
+                { x: board.x - size.width / 2, y: board.y - size.height / 2 },
+                size.width,
+                size.height,
+                img.uri,
+              );
+          },
+          (err: unknown) => toast(err instanceof Error ? err.message : String(err)),
+        );
+        return;
+      }
+      if (s.clipboard.length) {
+        e.preventDefault();
+        s.paste(keys.pointer ? board : undefined);
+      }
+    };
+
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('paste', paste);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('paste', paste);
       keys.spaceHeld = false;
     };
-  }, [enabled]);
+  }, [enabled, onHelp]);
 }
 
 function act(e: KeyboardEvent, run: () => void) {

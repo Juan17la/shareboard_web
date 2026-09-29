@@ -4,7 +4,7 @@
  * fill — one click away. On a wide screen the shape kinds are buttons of their
  * own rather than a sub-menu: the old rail needed two clicks and a second
  * column to get to an arrow, and that is the click this layout gives back. On
- * a phone that width is not there, so the five kinds fold into one "shapes"
+ * a phone that width is not there, so the six kinds fold into one "shapes"
  * button and the options strip offers the kind.
  *
  * What is not a tool (colour, stroke size, fill, font size, bold/italic) lives
@@ -18,12 +18,13 @@
  * contribution: on a phone the bar is the only way to switch tools, but at a
  * keyboard reaching for the mouse to change pen colour is the slow path.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useT } from '../../features/i18n';
 import { useBoardStore, type ReorderOp } from '../../features/board-store';
 import {
   DASHES,
+  FONTS,
   LIMITS,
   MARKERS,
   ROUTES,
@@ -40,11 +41,13 @@ import { dashIntervals, headsOf, isLineLike, markerPaths, routePath } from '../.
 import { Colors, DrawingPalette, StrokeSizes, fillFor, fillLevelOf, inkFor, type FillLevel } from '../../lib/theme';
 import { toast } from '../../lib/toast';
 import { useSessionStore } from '../../features/session';
+import { useViewport } from '../../hooks/use-viewport';
 
 import { StepperButton } from '../ui/Button';
 import { ColorPickerSheet } from '../ui/ColorPickerSheet';
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
+import { FONT_FAMILIES } from './renderer';
 
 type LabelKey =
   | 'hand'
@@ -54,6 +57,7 @@ type LabelKey =
   | 'shapeRectangle'
   | 'shapeEllipse'
   | 'shapeTriangle'
+  | 'shapePolygon'
   | 'shapeLine'
   | 'shapeArrow'
   | 'shapes'
@@ -73,10 +77,18 @@ interface ToolEntry {
   key: string;
 }
 
+const FONT_LABELS = {
+  sans: 'fontSans',
+  serif: 'fontSerif',
+  mono: 'fontMono',
+  hand: 'fontHand',
+} as const;
+
 const SHAPES: ToolEntry[] = [
   { tool: 'shape', shape: 'rectangle', icon: 'rectangle', labelKey: 'shapeRectangle', key: 'r' },
   { tool: 'shape', shape: 'ellipse', icon: 'ellipse', labelKey: 'shapeEllipse', key: 'o' },
   { tool: 'shape', shape: 'triangle', icon: 'triangle', labelKey: 'shapeTriangle', key: 'y' },
+  { tool: 'shape', shape: 'polygon', icon: 'polygon', labelKey: 'shapePolygon', key: 'g' },
   { tool: 'shape', shape: 'line', icon: 'line', labelKey: 'shapeLine', key: 'l' },
   { tool: 'shape', shape: 'arrow', icon: 'arrow', labelKey: 'shapeArrow', key: 'a' },
 ];
@@ -92,7 +104,7 @@ const TOOLS: ToolEntry[] = [
   { tool: 'fill', icon: 'fill', labelKey: 'fill', key: 'f' },
 ];
 
-/** The phone strip: the five kinds fold into one button (S picks the last kind used). */
+/** The phone strip: the six kinds fold into one button (S picks the last kind used). */
 const COMPACT_TOOLS: ToolEntry[] = [
   ...TOOLS.slice(0, 4),
   { tool: 'shape', icon: 'shapes', labelKey: 'shapes', key: 's' },
@@ -116,8 +128,24 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const open = useBoardStore((s) => s.railOpen);
   const setOpen = useBoardStore((s) => s.setRailOpen);
   const dark = useSessionStore((s) => s.theme === 'dark');
+  const narrow = useViewport().width < 360;
 
   const [picking, setPicking] = useState(false);
+  // On a touch screen the tooltips never show, so picking a tool names it for a
+  // moment instead (`.sb-touch-only` hides this where a pointer can hover).
+  const [caption, setCaption] = useState<string | null>(null);
+  const captionTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (captionTimer.current !== null) clearTimeout(captionTimer.current);
+    },
+    [],
+  );
+  const announce = (text: string) => {
+    setCaption(text);
+    if (captionTimer.current !== null) clearTimeout(captionTimer.current);
+    captionTimer.current = window.setTimeout(() => setCaption(null), 1600);
+  };
   /** Which end's marker grid is open, replacing the strip while it is. */
   // Remembered with the tool it was opened for: a new tool or kind starts
   // without the grid, with no effect needed to close it.
@@ -166,6 +194,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
     tool === 'pen' || tool === 'eraser' || shapeTool || has((el) => el.kind === 'stroke') || selShape;
   const showFill = (shapeTool && isFillable(config.shape)) || selBox;
   const showLine = lineTool || selLine;
+  const showSides =
+    (shapeTool && config.shape === 'polygon') || has((el) => el.kind === 'shape' && el.shape === 'polygon');
   // A selected shape borrows the text tool's size stepper for its label.
   const showTextOptions = tool === 'text' || selText || selShape;
   const showStyle = tool === 'text' || selText;
@@ -180,7 +210,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const kinds: ShapeKind[] = selLine
     ? ['line', 'arrow']
     : selShape
-      ? ['rectangle', 'ellipse', 'triangle']
+      ? ['rectangle', 'ellipse', 'triangle', 'polygon']
       : compact && shapeTool
         ? SHAPES.map((e) => e.shape!)
         : [];
@@ -203,12 +233,16 @@ export function Toolbar({ compact }: { compact: boolean }) {
       first((el) =>
         el.kind === 'text' ? el.fontSize : el.kind === 'shape' ? (el.fontSize ?? SHAPE_TEXT_SIZE) : undefined,
       ) ?? config.fontSize,
+    font:
+      first((el) => (el.kind === 'text' || el.kind === 'shape' ? (el.font ?? 'sans') : undefined)) ??
+      config.font,
     bold: first((el) => (el.kind === 'text' ? !!el.bold : undefined)) ?? config.bold,
     italic: first((el) => (el.kind === 'text' ? !!el.italic : undefined)) ?? config.italic,
     headStart: first((el) => (line(el) ? headsOf(line(el)!)[0] : undefined)) ?? config.headStart,
     headEnd: first((el) => (line(el) ? headsOf(line(el)!)[1] : undefined)) ?? config.headEnd,
     route: first((el) => line(el)?.route ?? (line(el) ? 'straight' : undefined)) ?? config.route,
     shape: first((el) => (el.kind === 'shape' ? el.shape : undefined)) ?? config.shape,
+    sides: first((el) => (el.kind === 'shape' && el.shape === 'polygon' ? el.sides : undefined)) ?? config.sides,
     dash: first((el) => line(el)?.dash ?? (line(el) ? 'solid' : undefined)) ?? config.dash,
   };
   const fontSize = cur.fontSize;
@@ -238,12 +272,21 @@ export function Toolbar({ compact }: { compact: boolean }) {
     { op: 'front', icon: 'to-front', labelKey: 'toFront' },
   ];
 
-  const button = compact ? 38 : 40;
+  // 320px phones: eight 38px buttons plus their gaps do not fit, so the strip tightens.
+  const button = narrow ? 34 : compact ? 38 : 40;
   const tools = compact ? COMPACT_TOOLS : TOOLS;
 
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex flex-col items-center gap-2 px-2">
+        {caption ? (
+          <div
+            aria-hidden="true"
+            className="sb-touch-only rounded-full bg-text px-3 py-1 text-[0.7812rem] font-bold text-background shadow-panel"
+          >
+            {caption}
+          </div>
+        ) : null}
         {open && hasOptions ? (
           <GlassPanel level="panel" radius={16} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
             {pickingHead ? (
@@ -256,7 +299,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                   ] as const
                 ).map(([labelKey, kinds]) => (
                   <div key={labelKey} className="flex items-center gap-1.5">
-                    <span className="w-[76px] text-[10px] font-bold text-text/60">{t[labelKey]}</span>
+                    <span className="w-[76px] text-[0.75rem] font-bold text-text/60">{t[labelKey]}</span>
                     {kinds.map((kind) => (
                       <MiniButton
                         key={kind}
@@ -274,7 +317,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 ))}
               </div>
             ) : (
-            <div className="flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-2 px-2.5 py-2">
+            <div className="sb-strip flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-2 px-2.5 py-2">
+              {showOrder ? <Caption>{t.styleGroup}</Caption> : null}
               {showSizes ? (
                 <Group>
                   {StrokeSizes.map((value) => {
@@ -287,7 +331,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                         aria-pressed={active}
                         data-tip={`${t.size} ${value}`}
                         onClick={() => setConfig({ width: value })}
-                        className="flex h-8 w-8 items-center justify-center rounded-[9px] border transition"
+                        className="touch-36 flex h-8 w-8 items-center justify-center rounded-[9px] border transition"
                         style={{
                           borderColor: active ? 'transparent' : Colors.border,
                           background: active ? Colors.accentSoft : Colors.surface,
@@ -319,6 +363,26 @@ export function Toolbar({ compact }: { compact: boolean }) {
                       <Icon name={kind} size={18} />
                     </MiniButton>
                   ))}
+                </Group>
+              ) : null}
+
+              {showSides ? (
+                <Group>
+                  <StepperButton
+                    icon="minus"
+                    label={t.fewerSides}
+                    disabled={cur.sides <= LIMITS.minSides}
+                    onClick={() => setConfig({ sides: cur.sides - 1 })}
+                  />
+                  <span className="w-12 text-center font-mono text-[0.75rem] font-bold">
+                    {cur.sides} {t.sides}
+                  </span>
+                  <StepperButton
+                    icon="plus"
+                    label={t.moreSides}
+                    disabled={cur.sides >= LIMITS.maxSides}
+                    onClick={() => setConfig({ sides: cur.sides + 1 })}
+                  />
                 </Group>
               ) : null}
 
@@ -392,13 +456,25 @@ export function Toolbar({ compact }: { compact: boolean }) {
                     disabled={fontSize <= LIMITS.minFontSize}
                     onClick={() => setFontSize(Math.max(LIMITS.minFontSize, fontSize - 4))}
                   />
-                  <span className="w-10 text-center font-mono text-[11px] font-bold">{fontSize}px</span>
+                  <span className="w-10 text-center font-mono text-[0.75rem] font-bold">{fontSize}px</span>
                   <StepperButton
                     icon="plus"
                     label={t.bigger}
                     disabled={fontSize >= LIMITS.maxFontSize}
                     onClick={() => setFontSize(Math.min(LIMITS.maxFontSize, fontSize + 4))}
                   />
+                  {FONTS.map((font) => (
+                    <MiniButton
+                      key={font}
+                      label={t[FONT_LABELS[font]]}
+                      active={cur.font === font}
+                      onClick={() => setConfig({ font })}
+                    >
+                      <span className="text-[0.875rem]" style={{ fontFamily: FONT_FAMILIES[font] }}>
+                        Aa
+                      </span>
+                    </MiniButton>
+                  ))}
                   {showStyle ? (
                     <>
                       <MiniButton
@@ -420,6 +496,41 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
+              {showColor ? (
+                <Group last>
+                  {DrawingPalette.map((swatch) => {
+                    const active = cur.color.toUpperCase() === swatch.toUpperCase();
+                    return (
+                      <button
+                        key={swatch}
+                        type="button"
+                        aria-label={`${t.color} ${swatch}`}
+                        aria-pressed={active}
+                        data-tip={swatch}
+                        onClick={() => setConfig({ color: swatch })}
+                        className="touch-36 h-[26px] w-[26px] flex-none rounded-lg border-2 transition hover:scale-110"
+                        style={{
+                          background: inkFor(swatch, dark),
+                          borderColor: active ? Colors.accent : Colors.background,
+                        }}
+                      />
+                    );
+                  })}
+                  <button
+                    type="button"
+                    aria-label={t.custom}
+                    data-tip={t.custom}
+                    onClick={() => setPicking(true)}
+                    className="touch-36 flex h-[26px] flex-none items-center gap-1.5 rounded-lg border border-dashed border-line-dashed px-2 text-[0.75rem] font-bold text-text-secondary transition hover:bg-surface-selected"
+                  >
+                    <span className="h-3.5 w-3.5 rounded border border-line" style={{ background: ink }} />
+                    {t.custom}
+                  </button>
+                </Group>
+              ) : null}
+
+              {showOrder ? <Caption>{t.arrangeGroup}</Caption> : null}
+
               {showOrder ? (
                 <Group>
                   <MiniButton
@@ -432,16 +543,31 @@ export function Toolbar({ compact }: { compact: boolean }) {
                   >
                     <Icon name="copy" size={18} />
                   </MiniButton>
-                  <MiniButton label={t.cut} active={false} onClick={cutSelection}>
+                  <MiniButton
+                    label={t.cut}
+                    active={false}
+                    onClick={() => {
+                      cutSelection();
+                      announce(t.cut);
+                    }}
+                  >
                     <Icon name="cut" size={18} />
                   </MiniButton>
                 </Group>
               ) : null}
 
               {showOrder ? (
-                <Group>
+                <Group last>
                   {orderOps.map(({ op, icon, labelKey }) => (
-                    <MiniButton key={op} label={t[labelKey]} active={false} onClick={() => reorder(op)}>
+                    <MiniButton
+                      key={op}
+                      label={t[labelKey]}
+                      active={false}
+                      onClick={() => {
+                        reorder(op);
+                        announce(t[labelKey]);
+                      }}
+                    >
                       <Icon name={icon} size={18} />
                     </MiniButton>
                   ))}
@@ -457,39 +583,6 @@ export function Toolbar({ compact }: { compact: boolean }) {
                   ) : null}
                 </Group>
               ) : null}
-
-              {showColor ? (
-                <Group last>
-                  {DrawingPalette.map((swatch) => {
-                    const active = cur.color.toUpperCase() === swatch.toUpperCase();
-                    return (
-                      <button
-                        key={swatch}
-                        type="button"
-                        aria-label={`${t.color} ${swatch}`}
-                        aria-pressed={active}
-                        data-tip={swatch}
-                        onClick={() => setConfig({ color: swatch })}
-                        className="h-[26px] w-[26px] flex-none rounded-lg border-2 transition hover:scale-110"
-                        style={{
-                          background: inkFor(swatch, dark),
-                          borderColor: active ? Colors.accent : Colors.background,
-                        }}
-                      />
-                    );
-                  })}
-                  <button
-                    type="button"
-                    aria-label={t.custom}
-                    data-tip={t.custom}
-                    onClick={() => setPicking(true)}
-                    className="flex h-[26px] flex-none items-center gap-1.5 rounded-lg border border-dashed border-line-dashed px-2 text-[10px] font-bold text-text/60 transition hover:bg-surface-selected"
-                  >
-                    <span className="h-3.5 w-3.5 rounded border border-line" style={{ background: ink }} />
-                    {t.custom}
-                  </button>
-                </Group>
-              ) : null}
             </div>
             )}
           </GlassPanel>
@@ -497,7 +590,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
 
         <GlassPanel level="panel" radius={compact ? 17 : 20} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
           <div
-            className="flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center gap-1 p-1.5"
+            className={`flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center p-1.5 ${narrow ? 'gap-0' : 'gap-1'}`}
             role="toolbar"
             aria-label={t.tools}
           >
@@ -509,7 +602,10 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 shortcut={entry.key}
                 active={isActive(entry)}
                 size={button}
-                onClick={() => pickTool(entry.tool, entry.shape)}
+                onClick={() => {
+                  pickTool(entry.tool, entry.shape);
+                  announce(t[entry.labelKey]);
+                }}
               />
             ))}
 
@@ -522,7 +618,10 @@ export function Toolbar({ compact }: { compact: boolean }) {
               aria-label={t.color}
               aria-expanded={open}
               data-tip={`${t.color} · ${config.color}`}
-              onClick={() => setOpen(!open)}
+              onClick={() => {
+                setOpen(!open);
+                announce(t.color);
+              }}
               style={{ width: button, height: button, borderRadius: compact ? 12 : 14 }}
               className="flex flex-none items-center justify-center border border-line bg-glass-solid transition hover:bg-surface-selected"
             >
@@ -548,12 +647,23 @@ export function Toolbar({ compact }: { compact: boolean }) {
   );
 }
 
+/** A one-line heading for a row of the options strip (only shown with a selection). */
+function Caption({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="basis-full text-[0.75rem] font-extrabold tracking-[0.6px] text-text-secondary uppercase">
+      {children}
+    </span>
+  );
+}
+
 /** One cluster of options, separated from the next by a hairline. */
 function Group({ children, last }: { children: React.ReactNode; last?: boolean }) {
   return (
     <>
-      <div className="flex flex-none items-center gap-1.5">{children}</div>
-      {last ? null : <span className="h-6 w-px flex-none bg-line" />}
+      {/* Wraps inside itself when it is wider than the screen (the text group is ~340px). */}
+      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">{children}</div>
+      {/* Hairlines only where the groups share a row: wrapped, they would dangle at a row's end. */}
+      {last ? null : <span className="hidden h-6 w-px flex-none bg-line sm:block" />}
     </>
   );
 }
@@ -635,14 +745,14 @@ function MiniButton({
       aria-pressed={active}
       data-tip={label}
       onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-[9px] border transition"
+      className="touch-36 flex h-8 w-8 items-center justify-center rounded-[9px] border transition"
       style={{
         borderColor: active ? 'transparent' : Colors.borderStrong,
         background: active ? Colors.accent : Colors.surface,
         color: active ? '#FFFFFF' : Colors.text,
       }}
     >
-      {children ?? <span className={`text-[13px] ${glyphClass}`}>{glyph}</span>}
+      {children ?? <span className={`text-[0.8125rem] ${glyphClass}`}>{glyph}</span>}
     </button>
   );
 }

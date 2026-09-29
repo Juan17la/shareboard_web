@@ -26,7 +26,7 @@ import type { Lang } from '../features/strings';
 import { createBoard, importSnapshot, resolveShortCode } from '../lib/api';
 import { LIMITS, type BoardSnapshot } from '../lib/contract';
 import { parseBoardRef } from '../lib/deep-link';
-import { SHORT_CODE_LENGTH, normalizeShortCode } from '../lib/short-code';
+import { SHORT_CODE_LENGTH, formatShortCode, normalizeShortCode } from '../lib/short-code';
 import { Layout, type Theme } from '../lib/theme';
 import { toast } from '../lib/toast';
 
@@ -174,103 +174,108 @@ export default function HomePage() {
             />
 
             {tab === 'start' ? (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="grid h-11 w-11 flex-none place-items-center rounded-[14px] bg-accent text-white shadow-accent">
-                    <Icon name="board" size={22} />
-                  </span>
-                  <div className="min-w-0">
-                    <h1 className="text-[26px] leading-none font-extrabold tracking-[-0.6px]">{t.appName}</h1>
-                    <p className="mt-1 text-[12.5px] font-semibold text-text-secondary">{t.tagline}</p>
+              // Two columns on a short landscape screen (see `.sb-start` in index.css).
+              <div className="sb-start flex flex-col gap-5">
+                <div className="sb-start-col flex flex-col gap-5">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-11 w-11 flex-none place-items-center rounded-[14px] bg-accent text-white shadow-accent">
+                      <Icon name="board" size={22} />
+                    </span>
+                    <div className="min-w-0">
+                      <h1 className="text-[1.625rem] leading-none font-extrabold tracking-[-0.6px]">{t.appName}</h1>
+                      <p className="mt-1 text-[0.7812rem] font-semibold text-text-secondary">{t.tagline}</p>
+                    </div>
                   </div>
-                </div>
 
-                <form
-                  className="flex flex-col gap-2.5"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!busy) void handleCreate();
-                  }}
-                >
-                  <Field
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={t.boardNamePlaceholder}
-                    maxLength={LIMITS.maxBoardNameLength}
-                    aria-label={t.boardNamePlaceholder}
-                  />
-                  <Button label={t.createBoard} icon="plus" type="submit" loading={busy} fullWidth />
-                </form>
-
-                <div className="flex flex-col gap-2">
-                  <SectionLabel>{t.joinCode}</SectionLabel>
-                  {/* The boxes are a picture of the input; the input itself is
-                      the thing with focus, so paste and autofill just work. */}
-                  <div
-                    className={`relative flex justify-between gap-1.5 transition-opacity ${busy ? 'opacity-60' : ''}`}
-                    onClick={() => codeInput.current?.focus()}
+                  <form
+                    className="flex flex-col gap-2.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!busy) void handleCreate();
+                    }}
                   >
-                    {Array.from({ length: SHORT_CODE_LENGTH }, (_, i) => (
-                      <span
-                        key={i}
-                        aria-hidden="true"
-                        className={`grid h-[52px] flex-1 place-items-center rounded-[14px] border-[1.5px] font-mono text-[20px] font-bold transition ${
-                          code.length === i ? 'border-accent bg-background' : 'border-line-strong bg-glass-solid'
-                        }`}
-                      >
-                        {code[i] ?? ''}
-                      </span>
-                    ))}
-                    <input
-                      ref={codeInput}
-                      value={code}
-                      onChange={(e) => onCodeChange(e.target.value)}
-                      aria-label={t.joinCode}
-                      autoCapitalize="characters"
-                      autoComplete="one-time-code"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      inputMode="text"
-                      disabled={busy}
-                      className="absolute inset-0 h-full w-full cursor-text opacity-0"
+                    <Field
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t.boardNamePlaceholder}
+                      maxLength={LIMITS.maxBoardNameLength}
+                      aria-label={t.boardNamePlaceholder}
                     />
-                  </div>
-                  <p className="text-[11.5px] leading-snug text-text-secondary">{t.joinCodeHint}</p>
+                    <Button label={t.createBoard} icon="plus" type="submit" loading={busy} fullWidth />
+                  </form>
                 </div>
 
-                <button
-                  type="button"
-                  aria-label={t.importBoard}
-                  disabled={busy}
-                  onClick={() => setImporting(true)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragging(true);
-                  }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragging(false);
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) void handleDrop(file);
-                  }}
-                  className={`flex flex-col items-center gap-1.5 rounded-lg border border-dashed px-3 py-5 transition ${
-                    dragging
-                      ? 'border-accent bg-accent-soft text-accent'
-                      : 'border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text'
-                  } ${busy ? 'opacity-55' : ''}`}
-                >
-                  <Icon name="upload" size={20} />
-                  <span className="text-[13px] font-extrabold">{t.importBoard}</span>
-                  <span className="text-[11px] font-semibold">{t.homeDropHint}</span>
-                </button>
-              </>
+                <div className="sb-start-col flex flex-col gap-5">
+                  <div className="flex flex-col gap-2">
+                    <SectionLabel>{t.joinCode}</SectionLabel>
+                    {/* The boxes are a picture of the input; the input itself is
+                        the thing with focus, so paste and autofill just work. */}
+                    <div
+                      className={`relative flex justify-between gap-1.5 transition-opacity ${busy ? 'opacity-60' : ''}`}
+                      onClick={() => codeInput.current?.focus()}
+                    >
+                      {Array.from({ length: SHORT_CODE_LENGTH }, (_, i) => (
+                        <span
+                          key={i}
+                          aria-hidden="true"
+                          className={`grid h-[52px] flex-1 place-items-center rounded-[14px] border-[1.5px] font-mono text-[1.25rem] font-bold transition ${
+                            code.length === i ? 'border-accent bg-background' : 'border-line-strong bg-glass-solid'
+                          }`}
+                        >
+                          {code[i] ?? ''}
+                        </span>
+                      ))}
+                      <input
+                        ref={codeInput}
+                        value={code}
+                        onChange={(e) => onCodeChange(e.target.value)}
+                        aria-label={t.joinCode}
+                        autoCapitalize="characters"
+                        autoComplete="one-time-code"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        inputMode="text"
+                        disabled={busy}
+                        className="absolute inset-0 h-full w-full cursor-text opacity-0"
+                      />
+                    </div>
+                    <p className="text-[0.75rem] leading-snug text-text-secondary">{t.joinCodeHint}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label={t.importBoard}
+                    disabled={busy}
+                    onClick={() => setImporting(true)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) void handleDrop(file);
+                    }}
+                    className={`sb-import flex flex-col items-center gap-1.5 rounded-lg border border-dashed px-3 py-5 transition ${
+                      dragging
+                        ? 'border-accent bg-accent-soft text-accent-text'
+                        : 'border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text'
+                    } ${busy ? 'opacity-55' : ''}`}
+                  >
+                    <Icon name="upload" size={20} />
+                    <span className="text-[0.8125rem] font-extrabold">{t.importBoard}</span>
+                    <span className="text-[0.75rem] font-semibold">{t.homeDropHint}</span>
+                  </button>
+                </div>
+              </div>
             ) : null}
 
             {tab === 'recent' ? (
               <div className="flex flex-col gap-2">
                 {recent.length === 0 ? (
-                  <p className="py-6 text-center text-[12.5px] leading-snug text-text-secondary">{t.noRecent}</p>
+                  <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">{t.noRecent}</p>
                 ) : (
                   recent.map((board) => (
                     <GlassPanel key={board.id} level="row" radius={16}>
@@ -283,9 +288,9 @@ export default function HomePage() {
                         >
                           <Avatar name={board.name} color={nickColor} size={38} />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13.5px] leading-tight font-bold">{board.name}</span>
-                            <span className="mt-0.5 block truncate font-mono text-[11px] text-text-secondary">
-                              {board.shortCode} · {relativeTime(t, board.lastOpenedAt)}
+                            <span className="block truncate text-[0.8438rem] leading-tight font-bold">{board.name}</span>
+                            <span className="mt-0.5 block truncate font-mono text-[0.75rem] text-text-secondary">
+                              {formatShortCode(board.shortCode)} · {relativeTime(t, board.lastOpenedAt)}
                             </span>
                           </span>
                         </button>
@@ -384,7 +389,7 @@ function SettingsTab() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <SectionLabel>{t.nickPlaceholder}</SectionLabel>
-        <GlassPanel level="row" radius={18}>
+        <GlassPanel level="row" radius={18} className="sb-focus-row">
           <div className="flex items-center gap-3 p-3">
             <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={42} />
             <div className="min-w-0 flex-1">
@@ -392,14 +397,14 @@ function SettingsTab() {
                 bare
                 value={draft}
                 onChange={(e) => {
-                  setDraft(e.target.value);
-                  setNickname(e.target.value);
+                  const value = e.target.value.trimStart().slice(0, LIMITS.maxNicknameLength);
+                  setDraft(value);
+                  setNickname(value);
                 }}
                 placeholder={t.nickPlaceholder}
-                maxLength={LIMITS.maxNicknameLength}
                 autoComplete="nickname"
                 aria-label={t.nickPlaceholder}
-                className="!text-[16px]"
+                className="!text-[1rem]"
               />
             </div>
           </div>

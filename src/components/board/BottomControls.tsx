@@ -22,6 +22,8 @@ export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () =>
   const setCamera = useBoardStore((s) => s.setCamera);
   const zoomBy = useBoardStore((s) => s.zoomBy);
   const homeCamera = useBoardStore((s) => s.homeCamera);
+  const fitCamera = useBoardStore((s) => s.fitCamera);
+  const hasContent = useBoardStore((s) => Object.values(s.elements).some((el) => !el.deleted));
   const undo = useBoardStore((s) => s.undo);
   const redo = useBoardStore((s) => s.redo);
   const undoDepth = useBoardStore((s) => s.undoStack.length);
@@ -44,11 +46,12 @@ export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () =>
             data-tip-side="bottom"
             disabled={home}
             onClick={() => setCamera(homeCamera())}
-            className="h-[30px] min-w-[46px] rounded-[10px] px-1 font-mono text-[11.5px] font-bold transition hover:bg-surface-selected disabled:cursor-default disabled:hover:bg-transparent"
+            className="touch-36 h-[30px] min-w-[46px] rounded-[10px] px-1 font-mono text-[0.75rem] font-bold transition hover:bg-surface-selected disabled:cursor-default disabled:hover:bg-transparent"
           >
             {zoom}
           </button>
           <ControlButton icon="plus" label={t.zoomIn} hint="Ctrl +" enabled={camera.scale < 6} onClick={() => zoomBy(ZOOM_STEP)} />
+          <ControlButton icon="fit" label={t.fitContent} hint="Shift 1" enabled={hasContent} onClick={fitCamera} />
 
           {canEdit ? (
             <>
@@ -56,7 +59,7 @@ export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () =>
               <ControlButton icon="undo" label={t.undo} hint="Ctrl Z" enabled={undoDepth > 0} onClick={undo} />
               <ControlButton icon="redo" label={t.redo} hint="Ctrl Y" enabled={redoDepth > 0} onClick={redo} />
               <span className="mx-1 h-5 w-px bg-line" />
-              <ControlButton icon="sparkle" label={t.sheetAi} hint="AI" enabled onClick={onOpenAi} />
+              <ControlButton icon="sparkle" label={t.sheetAi} hint="AI" enabled accent onClick={onOpenAi} />
             </>
           ) : null}
         </div>
@@ -70,12 +73,15 @@ function ControlButton({
   label,
   hint,
   enabled,
+  accent = false,
   onClick,
 }: {
   icon: IconName;
   label: string;
   hint: string;
   enabled: boolean;
+  /** Lit in the brand colour so the one entry point to AI is easy to spot. */
+  accent?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -86,8 +92,12 @@ function ControlButton({
       data-tip-side="bottom"
       disabled={!enabled}
       onClick={onClick}
-      className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition hover:bg-surface-selected disabled:hover:bg-transparent"
-      style={{ color: enabled ? Colors.text : Colors.borderDashed }}
+      className={`touch-36 flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition disabled:hover:bg-transparent ${
+        accent
+          ? 'bg-accent text-white shadow-[0_0_12px_var(--color-accent-soft)] hover:bg-accent-deep'
+          : 'hover:bg-surface-selected'
+      }`}
+      style={accent ? undefined : { color: enabled ? Colors.text : Colors.borderDashed }}
     >
       <Icon name={icon} size={15} />
     </button>

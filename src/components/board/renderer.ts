@@ -10,24 +10,41 @@
  * before calling. The one exception is the dot grid, which is spaced in screen
  * pixels so it stays crisp instead of being scaled with the drawing.
  */
-import { SHAPE_TEXT_SIZE, type BoardElement, type ShapeElement, type TextElement } from '../../lib/contract';
+import {
+  SHAPE_TEXT_SIZE,
+  type BoardElement,
+  type ShapeElement,
+  type TextElement,
+} from '../../lib/contract';
 import {
   anchorsOf,
   bendHandleOf,
+  boxOf,
+  canRotate,
   dashIntervals,
   elementBounds,
   endAngles,
   handlesOf,
   headsOf,
   isLineLike,
+  labelLines,
   markerPaths,
+  polygonPoints,
+  rotateHandleOf,
+  rotationOf,
   routePath,
+  setTextMeasure,
   shapeBounds,
   strokePath,
+  textLines,
+  toWorld,
+  TEXT_LINE_HEIGHT,
   type Bounds,
 } from '../../lib/geometry';
+import { FONT_FAMILIES, markerSize } from '../../lib/svg';
 import { Colors, GRID, inkFor } from '../../lib/theme';
 import type { Camera } from '../../features/board-store';
+import type { Participant } from '../../lib/contract';
 
 // --- images ----------------------------------------------------------------
 // An image element carries its bytes as a data: URI, and decoding is async. The
@@ -58,23 +75,33 @@ export function imageFor(uri: string, onReady: () => void): HTMLImageElement | n
   return null;
 }
 
-/** Font shorthand for a text element, in the app's own typeface. */
-export function fontFor(el: Pick<TextElement, 'fontSize' | 'bold' | 'italic'>): string {
-  return `${el.italic ? 'italic ' : ''}${el.bold ? 800 : 500} ${el.fontSize}px Nunito, system-ui, sans-serif`;
+/** Font shorthand for a text element or a label, in its typeface. */
+export function fontFor(el: Pick<TextElement, 'fontSize' | 'bold' | 'italic' | 'font'>): string {
+  return `${el.italic ? 'italic ' : ''}${el.bold ? 800 : 500} ${el.fontSize}px ${FONT_FAMILIES[el.font ?? 'sans']}`;
 }
 
-/** Text is drawn from its baseline, so a line sits `fontSize` below `at.y`. */
-export const TEXT_LINE_HEIGHT = 1.25;
+export { FONT_FAMILIES, markerSize, TEXT_LINE_HEIGHT };
+
+// Geometry measures text (bounds, wrapping, hit tests) with the same font the
+// board paints it in.
+const measurer = document.createElement('canvas').getContext('2d');
+const measure = (text: string, font: Parameters<typeof fontFor>[0]) => {
+  measurer!.font = fontFor(font);
+  return measurer!.measureText(text).width;
+};
+if (measurer) {
+  setTextMeasure(measure);
+  // A typeface arriving changes every width measured with its fallback.
+  document.fonts?.addEventListener('loadingdone', () => setTextMeasure(measure));
+}
 
 function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   ctx.font = fontFor(el);
   ctx.fillStyle = el.color;
   ctx.textBaseline = 'alphabetic';
   const step = el.fontSize * TEXT_LINE_HEIGHT;
-  // The editor is multi-line, so a text element may hold newlines. Skia on
-  // mobile draws only the first line; splitting here is a superset that renders
-  // the same single-line elements identically.
-  el.text.split('\n').forEach((line, i) => {
+  // Its own newlines, then wrapped to its width if it has one.
+  textLines(el).forEach((line, i) => {
     ctx.fillText(line, el.at.x, el.at.y + el.fontSize + i * step);
   });
 }
@@ -85,13 +112,13 @@ function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void 
   const { x, y, width, height } = shapeBounds(el);
   const fontSize = el.fontSize ?? SHAPE_TEXT_SIZE;
   const step = fontSize * TEXT_LINE_HEIGHT;
-  const lines = el.text.split('\n');
+  const lines = labelLines(el, fontSize);
   const cx = x + width / 2;
   const cy = isLineLike(el)
     ? y + height / 2 - (lines.length * step) / 2 - fontSize * 0.4
     : y + height / 2;
 
-  ctx.font = fontFor({ fontSize, bold: false, italic: false });
+  ctx.font = fontFor({ fontSize, bold: false, italic: false, font: el.font });
   ctx.fillStyle = el.stroke;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -142,13 +169,19 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
     return;
   }
 
-  if (el.shape === 'triangle') {
-    // Apex centred on the top edge, base along the bottom — the shape the tool
-    // icon promises, drawn inside the dragged box.
+  if (el.shape === 'triangle' || el.shape === 'polygon') {
+    // A triangle: apex centred on the top edge, base along the bottom — the
+    // shape the tool icon promises. A polygon: regular, first corner up.
+    const pts =
+      el.shape === 'triangle'
+        ? [
+            { x: x + w / 2, y },
+            { x: x + w, y: y + h },
+            { x, y: y + h },
+          ]
+        : polygonPoints({ x, y, width: w, height: h }, el.sides);
     const path = new Path2D();
-    path.moveTo(x + w / 2, y);
-    path.lineTo(x + w, y + h);
-    path.lineTo(x, y + h);
+    pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
     path.closePath();
     if (el.fill) {
       ctx.fillStyle = el.fill;
@@ -186,8 +219,6 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   }
 }
 
-/** A marker's size grows with the stroke, and never below a fingertip's worth. */
-export const markerSize = (width: number) => Math.max(10, width * 3);
 
 /** What a hollow marker is filled with: the surface the frame is painted on. */
 let ground = '#FFFFFF';
@@ -217,6 +248,18 @@ export function paintElement(
   dark = false,
 ): void {
   if (dark) el = inked(el);
+  const angle = rotationOf(el);
+  if (angle) {
+    // Turned about the centre of its box: everything below paints unturned.
+    const b = boxOf(el);
+    ctx.save();
+    ctx.translate(b.x + b.width / 2, b.y + b.height / 2);
+    ctx.rotate(angle);
+    ctx.translate(-(b.x + b.width / 2), -(b.y + b.height / 2));
+    paintElement(ctx, { ...el, rotation: 0 }, smooth, onImageReady);
+    ctx.restore();
+    return;
+  }
   switch (el.kind) {
     case 'stroke': {
       ctx.strokeStyle = el.color;
@@ -278,12 +321,34 @@ export function paintGrid(
  */
 export const HANDLE_SIZE = 10;
 
-/** A dashed screen-space box round board-space bounds: the frame, and the marquee. */
-export function paintDashedBox(ctx: CanvasRenderingContext2D, b: Bounds, camera: Camera): void {
+/**
+ * A dashed screen-space box round board-space bounds: the frame, and the
+ * marquee. `angle` turns it about its centre, for a single turned element.
+ */
+export function paintDashedBox(
+  ctx: CanvasRenderingContext2D,
+  b: Bounds,
+  camera: Camera,
+  angle = 0,
+): void {
   ctx.save();
   ctx.strokeStyle = Colors.accent;
+  paintFrame(ctx, b, camera, angle);
+  ctx.restore();
+}
+
+/** The dashed frame itself, in the current stroke colour. */
+function paintFrame(ctx: CanvasRenderingContext2D, b: Bounds, camera: Camera, angle: number): void {
+  ctx.save();
   ctx.lineWidth = 1.5;
   ctx.setLineDash([5, 4]);
+  if (angle) {
+    const cx = (b.x + b.width / 2) * camera.scale + camera.x;
+    const cy = (b.y + b.height / 2) * camera.scale + camera.y;
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.translate(-cx, -cy);
+  }
   ctx.strokeRect(
     b.x * camera.scale + camera.x - 4,
     b.y * camera.scale + camera.y - 4,
@@ -312,9 +377,32 @@ export function paintSelection(
 ): void {
   const one = elements.length === 1 ? elements[0] : null;
   const line = one?.kind === 'shape' && isLineLike(one) ? one : null;
-  if (!line) paintDashedBox(ctx, one ? elementBounds(one) : unionBounds(elements), camera);
+  if (!line) {
+    // One turnable element is framed along its own (turned) box.
+    if (one && canRotate(one)) paintDashedBox(ctx, boxOf(one), camera, rotationOf(one));
+    else paintDashedBox(ctx, one ? elementBounds(one) : unionBounds(elements), camera);
+  }
   if (!one) return;
   ctx.save();
+  // The rotate knob: a round handle on a short stem above the top edge.
+  const knob = rotateHandleOf(one, camera.scale);
+  if (knob) {
+    const b = boxOf(one);
+    const top = toWorld(one, { x: b.x + b.width / 2, y: b.y });
+    const sx = knob.x * camera.scale + camera.x;
+    const sy = knob.y * camera.scale + camera.y;
+    ctx.strokeStyle = Colors.accent;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(top.x * camera.scale + camera.x, top.y * camera.scale + camera.y);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+    ctx.fillStyle = Colors.background;
+    ctx.beginPath();
+    ctx.arc(sx, sy, HANDLE_SIZE / 2 + 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
   if (line) {
     // A line has no box to frame, so the line itself lights up: a soft accent
     // halo along its route, and round handles at the two ends it can be
@@ -374,7 +462,6 @@ export function paintAnchors(
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
   for (const el of elements) {
-    if (el.kind !== 'shape') continue;
     for (const a of anchorsOf(el)) {
       ctx.beginPath();
       ctx.arc(a.x * camera.scale + camera.x, a.y * camera.scale + camera.y, 4, 0, Math.PI * 2);
@@ -383,6 +470,49 @@ export function paintAnchors(
     }
   }
   ctx.restore();
+}
+
+/** How opaque an element someone else holds is painted. */
+export const HELD_ALPHA = 0.45;
+
+/**
+ * Who holds what: a dashed frame in the holder's presence colour round each
+ * element someone else has selected, and their name on a tag above it — the
+ * same colour and name as their cursor. Screen space, like the selection.
+ */
+export function paintHeld(
+  ctx: CanvasRenderingContext2D,
+  elements: BoardElement[],
+  held: ReadonlyMap<string, Participant>,
+  camera: Camera,
+): void {
+  const tagged = new Set<string>();
+  for (const el of elements) {
+    const who = held.get(el.id);
+    if (!who) continue;
+    const b = canRotate(el) ? boxOf(el) : elementBounds(el);
+    ctx.save();
+    ctx.strokeStyle = who.color;
+    paintFrame(ctx, b, camera, canRotate(el) ? rotationOf(el) : 0);
+    ctx.restore();
+    // One tag per holder is enough; more would stack on a held group.
+    if (tagged.has(who.userId)) continue;
+    tagged.add(who.userId);
+    const top = elementBounds(el);
+    const x = top.x * camera.scale + camera.x - 4;
+    const y = top.y * camera.scale + camera.y - 8;
+    ctx.save();
+    ctx.font = '800 11px Nunito, system-ui, sans-serif';
+    const w = ctx.measureText(who.nickname).width + 12;
+    ctx.fillStyle = who.color;
+    ctx.beginPath();
+    ctx.roundRect(x, y - 18, w, 18, 6);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(who.nickname, x + 6, y - 9);
+    ctx.restore();
+  }
 }
 
 export interface PaintOptions {
@@ -397,6 +527,8 @@ export interface PaintOptions {
   background: string | null;
   /** The dark board: the default ink is painted light so it stays visible. */
   dark?: boolean;
+  /** Elements someone else holds (has selected): painted dimmed. */
+  held?: ReadonlyMap<string, unknown>;
   onImageReady: () => void;
 }
 
@@ -416,7 +548,10 @@ export function paintBoard(ctx: CanvasRenderingContext2D, opts: PaintOptions): v
   ctx.translate(camera.x, camera.y);
   ctx.scale(camera.scale, camera.scale);
   for (const el of opts.elements) {
+    const dim = opts.held?.has(el.id);
+    if (dim) ctx.globalAlpha = HELD_ALPHA;
     paintElement(ctx, el, opts.smooth, opts.onImageReady, opts.dark);
+    if (dim) ctx.globalAlpha = 1;
   }
   ctx.restore();
 }

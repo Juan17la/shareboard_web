@@ -10,6 +10,7 @@
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
 import { copyText } from '../../lib/clipboard';
+import { formatShortCode } from '../../lib/short-code';
 
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
@@ -57,10 +58,12 @@ export function ShareSheet({
                 onClick={() => copy(code, t.toastCopied)}
                 className="flex items-center gap-2 self-start rounded-[13px] border border-line-strong bg-surface px-[11px] py-2.5 transition hover:bg-surface-selected"
               >
-                <span className="font-mono text-[16px] font-bold tracking-[1.4px]">{code}</span>
+                <span className="text-[1.0625rem] font-extrabold tracking-[1.6px]">
+                  {formatShortCode(code)}
+                </span>
                 <Icon name="copy" size={15} />
               </button>
-              <p className="text-[11px] leading-snug text-text-secondary">{t.qrHint}</p>
+              <p className="text-[0.75rem] leading-snug text-text-secondary">{t.qrHint}</p>
             </div>
           </div>
         </GlassPanel>
@@ -74,8 +77,8 @@ export function ShareSheet({
           >
             <Icon name="link" size={18} />
             <div className="min-w-0 flex-1">
-              <div className="text-[13.5px] leading-tight font-bold">{t.copyLink}</div>
-              <div className="truncate font-mono text-[11px] text-text-secondary">{link}</div>
+              <div className="text-[0.8438rem] leading-tight font-bold">{t.copyLink}</div>
+              <div className="truncate font-mono text-[0.75rem] text-text-secondary">{link}</div>
             </div>
           </button>
         </GlassPanel>
@@ -107,7 +110,7 @@ function ShortcutTile({
         className="flex w-full flex-col items-center gap-1.5 px-2 py-3.5 transition hover:bg-surface-selected"
       >
         <Icon name={icon} size={20} />
-        <span className="text-[11.5px] font-bold">{label}</span>
+        <span className="text-[0.75rem] font-bold">{label}</span>
       </button>
     </GlassPanel>
   );

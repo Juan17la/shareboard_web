@@ -33,6 +33,8 @@ export function MenuSheet({
 }) {
   const t = useT();
   const canEdit = useBoardStore((s) => s.canEditNow());
+  const name = useBoardStore((s) => s.meta?.name);
+  const coarsePointer = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
   const rows: { icon: IconName; label: string; onClick: () => void }[] = [
     { icon: 'image', label: t.exportImage, onClick: onOpenExport },
@@ -40,11 +42,15 @@ export function MenuSheet({
     { icon: 'lock', label: t.whoEdits, onClick: onOpenPrivacy },
     { icon: 'people', label: t.sheetPeople, onClick: onOpenPeople },
     { icon: 'settings', label: t.sheetSettings, onClick: onOpenSettings },
+    // The shortcut list is in Settings; a touch screen has no keyboard to use it with.
+    ...(coarsePointer ? [] : [{ icon: 'keyboard' as const, label: t.shortcuts, onClick: onOpenSettings }]),
     ...(canEdit ? [{ icon: 'sparkle' as const, label: t.sheetAi, onClick: onOpenAi }] : []),
   ];
 
   return (
     <Sheet open={open} title={t.sheetMenu} onClose={onClose} closeLabel={t.close}>
+      {/* A long board name is cut short in the header; here it is whole. */}
+      {name ? <p className="mb-1 px-2 text-[0.75rem] font-semibold break-words text-text-secondary">{name}</p> : null}
       <div className="flex flex-col divide-y divide-line-strong">
         {rows.map((row) => (
           <button
@@ -54,7 +60,7 @@ export function MenuSheet({
             className="flex w-full items-center gap-3 px-2 py-3 text-left hover:bg-text/[0.12] active:bg-text/[0.16]"
           >
             <Icon name={row.icon} size={19} />
-            <span className="flex-1 text-[14px] leading-tight font-semibold">{row.label}</span>
+            <span className="flex-1 text-[0.875rem] leading-tight font-semibold">{row.label}</span>
           </button>
         ))}
       </div>
