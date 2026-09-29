@@ -10,7 +10,13 @@
  * before calling. The one exception is the dot grid, which is spaced in screen
  * pixels so it stays crisp instead of being scaled with the drawing.
  */
-import { SHAPE_TEXT_SIZE, type BoardElement, type ShapeElement, type TextElement } from '../../lib/contract';
+import {
+  SHAPE_TEXT_SIZE,
+  type BoardElement,
+  type FontKey,
+  type ShapeElement,
+  type TextElement,
+} from '../../lib/contract';
 import {
   anchorsOf,
   bendHandleOf,
@@ -22,6 +28,7 @@ import {
   handlesOf,
   headsOf,
   isLineLike,
+  labelLines,
   markerPaths,
   polygonPoints,
   rotateHandleOf,
@@ -67,9 +74,17 @@ export function imageFor(uri: string, onReady: () => void): HTMLImageElement | n
   return null;
 }
 
-/** Font shorthand for a text element, in the app's own typeface. */
-export function fontFor(el: Pick<TextElement, 'fontSize' | 'bold' | 'italic'>): string {
-  return `${el.italic ? 'italic ' : ''}${el.bold ? 800 : 500} ${el.fontSize}px Nunito, system-ui, sans-serif`;
+/** The CSS family of each board typeface (loaded in index.html). */
+export const FONT_FAMILIES: Record<FontKey, string> = {
+  sans: 'Nunito, system-ui, sans-serif',
+  serif: 'Lora, Georgia, serif',
+  mono: '"JetBrains Mono", ui-monospace, monospace',
+  hand: 'Caveat, "Comic Sans MS", cursive',
+};
+
+/** Font shorthand for a text element or a label, in its typeface. */
+export function fontFor(el: Pick<TextElement, 'fontSize' | 'bold' | 'italic' | 'font'>): string {
+  return `${el.italic ? 'italic ' : ''}${el.bold ? 800 : 500} ${el.fontSize}px ${FONT_FAMILIES[el.font ?? 'sans']}`;
 }
 
 export { TEXT_LINE_HEIGHT };
@@ -77,11 +92,14 @@ export { TEXT_LINE_HEIGHT };
 // Geometry measures text (bounds, wrapping, hit tests) with the same font the
 // board paints it in.
 const measurer = document.createElement('canvas').getContext('2d');
+const measure = (text: string, font: Parameters<typeof fontFor>[0]) => {
+  measurer!.font = fontFor(font);
+  return measurer!.measureText(text).width;
+};
 if (measurer) {
-  setTextMeasure((text, font) => {
-    measurer.font = fontFor(font);
-    return measurer.measureText(text).width;
-  });
+  setTextMeasure(measure);
+  // A typeface arriving changes every width measured with its fallback.
+  document.fonts?.addEventListener('loadingdone', () => setTextMeasure(measure));
 }
 
 function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
@@ -101,13 +119,13 @@ function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void 
   const { x, y, width, height } = shapeBounds(el);
   const fontSize = el.fontSize ?? SHAPE_TEXT_SIZE;
   const step = fontSize * TEXT_LINE_HEIGHT;
-  const lines = el.text.split('\n');
+  const lines = labelLines(el, fontSize);
   const cx = x + width / 2;
   const cy = isLineLike(el)
     ? y + height / 2 - (lines.length * step) / 2 - fontSize * 0.4
     : y + height / 2;
 
-  ctx.font = fontFor({ fontSize, bold: false, italic: false });
+  ctx.font = fontFor({ fontSize, bold: false, italic: false, font: el.font });
   ctx.fillStyle = el.stroke;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

@@ -24,6 +24,7 @@ import { useT } from '../../features/i18n';
 import { useBoardStore, type ReorderOp } from '../../features/board-store';
 import {
   DASHES,
+  FONTS,
   LIMITS,
   MARKERS,
   ROUTES,
@@ -45,6 +46,7 @@ import { StepperButton } from '../ui/Button';
 import { ColorPickerSheet } from '../ui/ColorPickerSheet';
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
+import { FONT_FAMILIES } from './renderer';
 
 type LabelKey =
   | 'hand'
@@ -73,6 +75,13 @@ interface ToolEntry {
   labelKey: LabelKey;
   key: string;
 }
+
+const FONT_LABELS = {
+  sans: 'fontSans',
+  serif: 'fontSerif',
+  mono: 'fontMono',
+  hand: 'fontHand',
+} as const;
 
 const SHAPES: ToolEntry[] = [
   { tool: 'shape', shape: 'rectangle', icon: 'rectangle', labelKey: 'shapeRectangle', key: 'r' },
@@ -207,6 +216,9 @@ export function Toolbar({ compact }: { compact: boolean }) {
       first((el) =>
         el.kind === 'text' ? el.fontSize : el.kind === 'shape' ? (el.fontSize ?? SHAPE_TEXT_SIZE) : undefined,
       ) ?? config.fontSize,
+    font:
+      first((el) => (el.kind === 'text' || el.kind === 'shape' ? (el.font ?? 'sans') : undefined)) ??
+      config.font,
     bold: first((el) => (el.kind === 'text' ? !!el.bold : undefined)) ?? config.bold,
     italic: first((el) => (el.kind === 'text' ? !!el.italic : undefined)) ?? config.italic,
     headStart: first((el) => (line(el) ? headsOf(line(el)!)[0] : undefined)) ?? config.headStart,
@@ -424,6 +436,18 @@ export function Toolbar({ compact }: { compact: boolean }) {
                     disabled={fontSize >= LIMITS.maxFontSize}
                     onClick={() => setFontSize(Math.min(LIMITS.maxFontSize, fontSize + 4))}
                   />
+                  {FONTS.map((font) => (
+                    <MiniButton
+                      key={font}
+                      label={t[FONT_LABELS[font]]}
+                      active={cur.font === font}
+                      onClick={() => setConfig({ font })}
+                    >
+                      <span className="text-[14px]" style={{ fontFamily: FONT_FAMILIES[font] }}>
+                        Aa
+                      </span>
+                    </MiniButton>
+                  ))}
                   {showStyle ? (
                     <>
                       <MiniButton
