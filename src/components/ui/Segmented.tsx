@@ -35,8 +35,8 @@ export function Segmented<T extends string>({
             aria-checked={active}
             disabled={disabled}
             onClick={() => onChange(opt.value)}
-            className={`flex-1 rounded-[11px] py-[9px] text-[12.5px] font-extrabold transition ${
-              active ? 'bg-background text-accent shadow-card' : 'text-text-secondary hover:bg-surface-selected'
+            className={`flex-1 rounded-[11px] py-[9px] text-[0.7812rem] font-extrabold transition ${
+              active ? 'bg-background text-accent-text shadow-card' : 'text-text-secondary hover:bg-surface-selected'
             }`}
           >
             {opt.label}

@@ -22,6 +22,9 @@
   /* --- Brand / intent (one accent does active tool, CTA and selection) --- */
   --color-accent: #7a1f2b;
   --color-accent-deep: #5a1420;
+  /* The accent as *text* (tab labels, links): a lighter tint on the dark board,
+     where the fill colour is only 2.5:1 against the background. */
+  --color-accent-text: #7a1f2b;
   --color-accent-soft: rgba(122, 31, 43, 0.11);
   --color-accent-softer: rgba(122, 31, 43, 0.07);
   --color-danger: #d70015;
@@ -68,6 +71,7 @@
   --color-text-tertiary: #8e8e93;
   --color-accent: #a82f3f;
   --color-accent-deep: #82202e;
+  --color-accent-text: #f0808c;
   --color-accent-soft: rgba(168, 47, 63, 0.2);
   --color-accent-softer: rgba(168, 47, 63, 0.11);
   --color-danger-bright: #ff453a;
@@ -95,6 +99,9 @@ body {
   /* The board is a full-bleed surface: the page itself never scrolls. */
   overflow: hidden;
   overscroll-behavior: none;
+  /* Pinch-zoom of the page stays available (low vision); a double-tap on a
+     button must not zoom it. The canvas opts out of both with `touch-none`. */
+  touch-action: manipulation;
 }
 
 * {
@@ -114,6 +121,16 @@ body {
    users get the same visual language as the rest of the app (docs/03-styles
    asks for AA contrast and declared states on every control). */
 :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* A bare field sits inside a rounded glass row: the row wears the focus ring,
+   not a hard rectangle around the text. */
+.sb-bare:focus-visible {
+  outline: none;
+}
+.sb-focus-row:focus-within {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -184,7 +201,7 @@ body {
   backdrop-filter: blur(18px) saturate(1.5);
   -webkit-backdrop-filter: blur(18px) saturate(1.5);
   color: var(--color-text);
-  font-size: 11.5px;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
@@ -219,6 +236,56 @@ body {
 @media (hover: none) {
   [data-tip]::after {
     display: none;
+  }
+}
+
+/* A phone on its side is ~390px tall: the Start card would be cut off, so its
+   two halves (make a board / join one) sit side by side instead of stacked. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sb-dialog {
+    max-width: 780px;
+  }
+  .sb-start {
+    flex-direction: row;
+    gap: 24px;
+  }
+  .sb-start-col {
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 14px;
+  }
+  .sb-import {
+    padding-block: 10px;
+  }
+}
+
+/* On a phone the options strip must not bury what is being edited: it keeps to
+   under half the screen and scrolls (tooltips, which need overflow, are not a
+   thing on touch). */
+@media (pointer: coarse) {
+  .sb-strip {
+    max-height: 45vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Small controls stay small under a mouse and grow to a fingertip on touch
+   screens. 36px, not 44: the top-right control chip has to fit 320px. */
+@media (pointer: coarse) {
+  .touch-36 {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* Shown only where a pointer cannot hover (touch): the stand-in for tooltips. */
+.sb-touch-only {
+  display: none;
+}
+@media (hover: none) {
+  .sb-touch-only {
+    display: block;
   }
 }
 
