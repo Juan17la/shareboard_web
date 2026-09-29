@@ -36,6 +36,7 @@ import {
   translate,
 } from '../src/lib/geometry.ts';
 import { editPatches, useBoardStore } from '../src/features/board-store.ts';
+import { toSvg } from '../src/lib/svg.ts';
 import { fillFor, fillLevelOf } from '../src/lib/theme.ts';
 
 const base = (id, z) => ({ id, createdBy: 'u', createdAt: 0, updatedAt: 0, z });
@@ -459,5 +460,21 @@ assert.equal(ROTATE_HANDLE, 5);
 const LBL = { ...box('lbl', 0, 0, 72, 60), text: 'aaaa bbbb cccc' };
 assert.deepEqual(labelLines(LBL, 10), ['aaaa bbbb', 'cccc'], 'wrapped to the box minus its padding');
 assert.deepEqual(labelLines({ ...LBL, shape: 'line' }, 10), ['aaaa bbbb cccc'], 'a line label is not wrapped');
+
+// --- phase 5: SVG export ------------------------------------------------------
+const svg = toSvg([
+  { ...box('s1', 0, 0, 100, 50), text: 'a < b & c', rotation: Math.PI / 2 },
+  { ...box('s2', 200, 0, 60, 60), shape: 'polygon', sides: 5 },
+  { ...base('s3', 3), kind: 'stroke', points: [0, 100, 50, 120, 90, 100], color: '#123456', width: 3 },
+  { ...box('s4', 100, 25, 100, 0), shape: 'arrow', dash: 'dashed' },
+]);
+assert.match(svg, /^<svg [^>]*viewBox="-25.5 -50 310.5 195.5"/, "framed by the content (strokes included) plus padding");
+assert.match(svg, /rotate\(90 50 25\)/, 'turned about its centre');
+assert.ok(svg.includes('&lt;') && svg.includes('&amp;') && !svg.includes('a < b'), 'label text escaped');
+assert.equal((svg.match(/<polygon points="([^"]*)"/)[1].trim().split(' ')).length, 5, 'a pentagon');
+assert.match(svg, /stroke-dasharray=/, 'dashed line');
+assert.match(svg, /<path d="M 0 100 C/, 'the smoothed stroke');
+assert.equal(toSvg([]), null);
+assert.doesNotMatch(toSvg([box('t', 0, 0, 10, 10)], { background: null }), /<rect x="-24"/, 'transparent: no ground');
 
 console.log('geometry: ok');
