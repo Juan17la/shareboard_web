@@ -20,7 +20,7 @@ export function ConnectionBanner({ top, onRetry }: { top: number; onRetry: () =>
   return (
     <div
       role="status"
-      className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 items-center gap-2.5 rounded-full border px-3.5 py-2 text-[12.5px] font-bold shadow-panel backdrop-blur-md"
+      className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 items-center gap-2.5 rounded-full border px-3.5 py-2 text-[0.7812rem] font-bold shadow-panel backdrop-blur-md"
       style={{
         top,
         borderColor: offline ? 'rgba(196,53,58,0.25)' : Colors.border,
@@ -34,7 +34,7 @@ export function ConnectionBanner({ top, onRetry }: { top: number; onRetry: () =>
         <button
           type="button"
           onClick={onRetry}
-          className="pointer-events-auto rounded-full bg-danger px-3 py-1 text-[12px] font-extrabold text-white transition hover:brightness-110"
+          className="pointer-events-auto rounded-full bg-danger px-3 py-1 text-[0.75rem] font-extrabold text-white transition hover:brightness-110"
         >
           {t.retry}
         </button>

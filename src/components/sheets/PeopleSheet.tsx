@@ -38,7 +38,7 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
     <Sheet open={open} title={t.sheetPeople} onClose={onClose} closeLabel={t.close}>
       <div className="flex flex-col gap-2">
         {participants.length === 0 ? (
-          <p className="text-[12.5px] leading-snug text-text-secondary">{t.aloneHere}</p>
+          <p className="text-[0.7812rem] leading-snug text-text-secondary">{t.aloneHere}</p>
         ) : null}
 
         {participants.map((p) => {
@@ -53,11 +53,11 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
               <div className="flex items-center gap-3 px-3.5 py-3">
                 <Avatar name={p.nickname} color={p.color} avatar={p.avatar} size={36} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13.5px] leading-tight font-bold">
+                  <div className="truncate text-[0.8438rem] leading-tight font-bold">
                     {p.nickname}
                     {isYou && !isOwner ? ` · ${t.roleYou}` : ''}
                   </div>
-                  <div className="text-[11px] font-semibold text-text-secondary">
+                  <div className="text-[0.75rem] font-semibold text-text-secondary">
                     {isOwner ? (isYou ? t.roleOwner : t.roleOwnerOther) : t.roleGuest}
                   </div>
                 </div>
@@ -68,7 +68,7 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
                   aria-pressed={canEdit}
                   disabled={isOwner || !isCreator || busy}
                   onClick={() => toggleEditor(p.userId, listed)}
-                  className="flex-none rounded-full border px-2.5 py-[7px] text-[10.5px] font-extrabold transition disabled:cursor-default"
+                  className="flex-none rounded-full border px-2.5 py-[7px] text-[0.75rem] font-extrabold transition disabled:cursor-default"
                   style={{
                     borderColor: canEdit ? 'transparent' : Colors.borderStrong,
                     background: canEdit ? Colors.accentSoft : Colors.surface,
@@ -83,7 +83,7 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
           );
         })}
 
-        <p className="px-0.5 py-1 text-[11.5px] leading-snug text-text-secondary">
+        <p className="px-0.5 py-1 text-[0.75rem] leading-snug text-text-secondary">
           {isCreator ? t.peopleHint : t.ownerOnlyHint}
         </p>
       </div>
