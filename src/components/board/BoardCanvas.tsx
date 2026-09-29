@@ -110,6 +110,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   /** The cursor tool's rubber band, in board coordinates. */
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  /** What is being typed: painted in place by the renderer, so the editor only holds the caret. */
+  const [draft, setDraft] = useState<string | null>(null);
   const [panning, setPanning] = useState(false);
 
   const pointers = useRef<Pointers>({
@@ -183,13 +185,16 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   // drag preview below only patches the sorted list.
   const sorted = useMemo(() => visibleSorted(elements), [elements]);
   const list = useMemo(() => {
+    if (editingId && draft !== null) {
+      return sorted.map((el) => (el.id === editingId ? ({ ...el, text: draft } as BoardElement) : el));
+    }
     if (!liveEdit) return sorted;
     // The same patches the lift will commit, so the preview is the result.
     const patches = new Map(editPatches(sorted, liveEdit).map((p) => [p.id, p.patch]));
     return sorted.map((el) =>
       patches.has(el.id) ? ({ ...el, ...patches.get(el.id) } as BoardElement) : el,
     );
-  }, [sorted, liveEdit]);
+  }, [sorted, liveEdit, editingId, draft]);
 
   const selecting = tool === 'select' || tool === 'shape';
   const selected = useMemo(
@@ -303,6 +308,13 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     repaint.current = paint;
     paint();
   }, [paint, camera]);
+
+  // A board typeface that finishes loading repaints the text drawn in its fallback.
+  useEffect(() => {
+    const onFonts = () => repaint.current();
+    document.fonts?.addEventListener('loadingdone', onFonts);
+    return () => document.fonts?.removeEventListener('loadingdone', onFonts);
+  }, []);
 
   // Repaint on resize and on a monitor change that alters the pixel ratio.
   useEffect(() => {
@@ -759,7 +771,11 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         <TextEditorOverlay
           element={editing}
           camera={camera}
-          onClose={() => setEditingId(null)}
+          onDraft={setDraft}
+          onClose={() => {
+            setEditingId(null);
+            setDraft(null);
+          }}
         />
       ) : null}
     </div>
