@@ -111,7 +111,7 @@ export function SettingsSheet({
           <GlassPanel level="row" radius={15}>
             <div className="flex items-center gap-2.5 p-3.5">
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] leading-tight font-bold">{t.boardName}</div>
+                <div className="text-[0.8125rem] leading-tight font-bold">{t.boardName}</div>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -122,7 +122,7 @@ export function SettingsSheet({
                   readOnly={!isCreator || renaming}
                   maxLength={LIMITS.maxBoardNameLength}
                   aria-label={t.rename}
-                  className="mt-0.5 w-full bg-transparent p-0 text-[13px] font-semibold outline-none"
+                  className="mt-0.5 w-full bg-transparent p-0 text-[0.8125rem] font-semibold outline-none"
                   style={{ color: isCreator ? Colors.text : Colors.textSecondary }}
                 />
               </div>
@@ -158,12 +158,12 @@ export function SettingsSheet({
 
         <GlassPanel level="row" radius={15}>
           <div className="flex items-center justify-between gap-2.5 p-3.5">
-            <div className="text-[13px] leading-tight font-bold">{t.language}</div>
+            <div className="text-[0.8125rem] leading-tight font-bold">{t.language}</div>
             <button
               type="button"
               aria-label={t.language}
               onClick={toggleLang}
-              className="rounded-[11px] border border-line-strong bg-surface px-3 py-[7px] text-[11.5px] font-extrabold transition hover:bg-surface-selected"
+              className="rounded-[11px] border border-line-strong bg-surface px-3 py-[7px] text-[0.75rem] font-extrabold transition hover:bg-surface-selected"
             >
               {t.langLabel}
             </button>
@@ -177,8 +177,8 @@ export function SettingsSheet({
                 <Icon name="hand" size={18} />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] leading-tight font-bold">{t.gestures}</div>
-                <div className="mt-1 text-[11px] leading-relaxed text-text-secondary">
+                <div className="text-[0.8125rem] leading-tight font-bold">{t.gestures}</div>
+                <div className="mt-1 text-[0.75rem] leading-relaxed text-text-secondary">
                   {t.gesturesDesc}
                 </div>
               </div>
@@ -191,7 +191,7 @@ export function SettingsSheet({
                 <Icon name="keyboard" size={18} />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] leading-tight font-bold">{t.shortcuts}</div>
+                <div className="text-[0.8125rem] leading-tight font-bold">{t.shortcuts}</div>
                 <div className="mt-2 flex flex-col gap-1.5">
                   {[
                     [t.shortcutsTools, t.shortcutsToolsKeys],
@@ -199,8 +199,8 @@ export function SettingsSheet({
                     [t.shortcutsView, t.shortcutsViewKeys],
                   ].map(([label, keys]) => (
                     <div key={label}>
-                      <div className="text-[10.5px] font-bold text-text-tertiary uppercase">{label}</div>
-                      <div className="text-[11px] leading-relaxed text-text-secondary">{keys}</div>
+                      <div className="text-[0.75rem] font-bold text-text-tertiary uppercase">{label}</div>
+                      <div className="text-[0.75rem] leading-relaxed text-text-secondary">{keys}</div>
                     </div>
                   ))}
                 </div>
@@ -216,7 +216,7 @@ export function SettingsSheet({
             type="button"
             aria-label={t.clearBoard}
             onClick={onAskClear}
-            className="flex items-center justify-center gap-2 rounded-[15px] border py-3.5 text-[13px] font-extrabold text-danger transition hover:brightness-95"
+            className="flex items-center justify-center gap-2 rounded-[15px] border py-3.5 text-[0.8125rem] font-extrabold text-danger transition hover:brightness-95"
             style={{ borderColor: 'rgba(229,72,77,0.28)', background: Colors.dangerSoft }}
           >
             <Icon name="trash" size={17} />

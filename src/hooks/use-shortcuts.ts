@@ -55,7 +55,7 @@ const NUDGE: Record<string, [number, number]> = {
  */
 export const keys = { spaceHeld: false, dragging: false, pointer: null as Point | null };
 
-export function useShortcuts(enabled: boolean) {
+export function useShortcuts(enabled: boolean, onHelp?: () => void) {
   useEffect(() => {
     if (!enabled) return;
     const typing = (e: KeyboardEvent) => {
@@ -75,6 +75,9 @@ export function useShortcuts(enabled: boolean) {
         e.preventDefault();
         return;
       }
+
+      // ? lists the shortcuts: for everyone, viewers included.
+      if (e.key === '?' && !mod && onHelp) return act(e, onHelp);
 
       // --- camera: for everyone, viewers included ---
       if (mod && (key === '=' || key === '+')) return act(e, () => s.zoomBy(ZOOM_STEP));
@@ -178,7 +181,7 @@ export function useShortcuts(enabled: boolean) {
       window.removeEventListener('paste', paste);
       keys.spaceHeld = false;
     };
-  }, [enabled]);
+  }, [enabled, onHelp]);
 }
 
 function act(e: KeyboardEvent, run: () => void) {
