@@ -26,6 +26,7 @@ import { useBoardStore } from '../../features/board-store';
 import { contentBounds } from '../../lib/geometry';
 import { visibleSorted } from '../../lib/ops';
 import { toSnapshot } from '../../lib/serialization';
+import { toSvg } from '../../lib/svg';
 import { paintBoard } from '../board/renderer';
 
 import { Button } from '../ui/Button';
@@ -56,19 +57,28 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
   const tf = useTf();
   const elements = useBoardStore((s) => s.elements);
   const meta = useBoardStore((s) => s.meta);
+  const selectedIds = useBoardStore((s) => s.selectedIds);
 
-  const [format, setFormat] = useState<ImageFormat>('png');
+  const [format, setFormat] = useState<ImageFormat | 'svg'>('png');
   const [transparent, setTransparent] = useState(false);
   const [busy, setBusy] = useState(false);
+  // With something selected (the cursor's pick, groups included), that is
+  // what is exported unless the whole board is asked for.
+  const [scope, setScope] = useState<'all' | 'selection'>(selectedIds.length ? 'selection' : 'all');
   const previewRef = useRef<HTMLCanvasElement>(null);
 
-  const list = useMemo(() => visibleSorted(elements), [elements]);
+  const list = useMemo(() => {
+    const all = visibleSorted(elements);
+    if (scope === 'all') return all;
+    const ids = new Set(selectedIds);
+    return all.filter((el) => ids.has(el.id));
+  }, [elements, scope, selectedIds]);
   const bounds = useMemo(() => contentBounds(list), [list]);
   const size = useMemo(() => exportSize(list), [list]);
 
   // A JPEG has no alpha channel, so "transparent" would silently come out
   // black; the switch is disabled rather than lying about what it does.
-  const canBeTransparent = format === 'png';
+  const canBeTransparent = format !== 'jpg';
   const paintBackground = !(transparent && canBeTransparent);
 
   // The preview redraws whenever the frame, the format or the background
@@ -109,9 +119,20 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
     if (!meta) return;
     setBusy(true);
     try {
-      const snapshot = toSnapshot(meta.name, elements);
+      // What is exported is what the file carries back: only the selection's
+      // elements when only the selection is exported.
+      const snapshot = toSnapshot(meta.name, Object.fromEntries(list.map((el) => [el.id, el])));
       if (action === 'json') {
         downloadSnapshot(snapshot);
+        toast(t.toastExport);
+        onClose();
+        return;
+      }
+
+      if (format === 'svg') {
+        const svg = toSvg(list, { background: paintBackground ? '#FFFFFF' : null });
+        if (!svg) throw new Error(t.previewEmpty);
+        downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), fileNameFor(meta.name, 'svg'));
         toast(t.toastExport);
         onClose();
         return;
@@ -182,13 +203,26 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
         </p>
       ) : null}
 
+      {selectedIds.length ? (
+        <Segmented
+          label={t.exportScope}
+          value={scope}
+          onChange={setScope}
+          options={[
+            { value: 'all' as const, label: t.exportAll },
+            { value: 'selection' as const, label: t.exportSelection },
+          ]}
+        />
+      ) : null}
+
       <Segmented
         label={t.sheetExport}
         value={format}
         onChange={setFormat}
         options={[
-          { value: 'png' as ImageFormat, label: 'PNG' },
-          { value: 'jpg' as ImageFormat, label: 'JPG' },
+          { value: 'png' as const, label: 'PNG' },
+          { value: 'jpg' as const, label: 'JPG' },
+          { value: 'svg' as const, label: 'SVG' },
         ]}
       />
 
@@ -218,7 +252,7 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
         icon="copy"
         variant="secondary"
         onClick={() => void run('copy')}
-        disabled={busy || !bounds}
+        disabled={busy || !bounds || format === 'svg'}
         fullWidth
       />
       <Button
