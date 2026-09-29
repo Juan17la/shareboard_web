@@ -4,7 +4,7 @@
  * fill — one click away. On a wide screen the shape kinds are buttons of their
  * own rather than a sub-menu: the old rail needed two clicks and a second
  * column to get to an arrow, and that is the click this layout gives back. On
- * a phone that width is not there, so the five kinds fold into one "shapes"
+ * a phone that width is not there, so the six kinds fold into one "shapes"
  * button and the options strip offers the kind.
  *
  * What is not a tool (colour, stroke size, fill, font size, bold/italic) lives
@@ -54,6 +54,7 @@ type LabelKey =
   | 'shapeRectangle'
   | 'shapeEllipse'
   | 'shapeTriangle'
+  | 'shapePolygon'
   | 'shapeLine'
   | 'shapeArrow'
   | 'shapes'
@@ -77,6 +78,7 @@ const SHAPES: ToolEntry[] = [
   { tool: 'shape', shape: 'rectangle', icon: 'rectangle', labelKey: 'shapeRectangle', key: 'r' },
   { tool: 'shape', shape: 'ellipse', icon: 'ellipse', labelKey: 'shapeEllipse', key: 'o' },
   { tool: 'shape', shape: 'triangle', icon: 'triangle', labelKey: 'shapeTriangle', key: 'y' },
+  { tool: 'shape', shape: 'polygon', icon: 'polygon', labelKey: 'shapePolygon', key: 'g' },
   { tool: 'shape', shape: 'line', icon: 'line', labelKey: 'shapeLine', key: 'l' },
   { tool: 'shape', shape: 'arrow', icon: 'arrow', labelKey: 'shapeArrow', key: 'a' },
 ];
@@ -92,7 +94,7 @@ const TOOLS: ToolEntry[] = [
   { tool: 'fill', icon: 'fill', labelKey: 'fill', key: 'f' },
 ];
 
-/** The phone strip: the five kinds fold into one button (S picks the last kind used). */
+/** The phone strip: the six kinds fold into one button (S picks the last kind used). */
 const COMPACT_TOOLS: ToolEntry[] = [
   ...TOOLS.slice(0, 4),
   { tool: 'shape', icon: 'shapes', labelKey: 'shapes', key: 's' },
@@ -166,6 +168,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
     tool === 'pen' || tool === 'eraser' || shapeTool || has((el) => el.kind === 'stroke') || selShape;
   const showFill = (shapeTool && isFillable(config.shape)) || selBox;
   const showLine = lineTool || selLine;
+  const showSides =
+    (shapeTool && config.shape === 'polygon') || has((el) => el.kind === 'shape' && el.shape === 'polygon');
   // A selected shape borrows the text tool's size stepper for its label.
   const showTextOptions = tool === 'text' || selText || selShape;
   const showStyle = tool === 'text' || selText;
@@ -180,7 +184,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const kinds: ShapeKind[] = selLine
     ? ['line', 'arrow']
     : selShape
-      ? ['rectangle', 'ellipse', 'triangle']
+      ? ['rectangle', 'ellipse', 'triangle', 'polygon']
       : compact && shapeTool
         ? SHAPES.map((e) => e.shape!)
         : [];
@@ -209,6 +213,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
     headEnd: first((el) => (line(el) ? headsOf(line(el)!)[1] : undefined)) ?? config.headEnd,
     route: first((el) => line(el)?.route ?? (line(el) ? 'straight' : undefined)) ?? config.route,
     shape: first((el) => (el.kind === 'shape' ? el.shape : undefined)) ?? config.shape,
+    sides: first((el) => (el.kind === 'shape' && el.shape === 'polygon' ? el.sides : undefined)) ?? config.sides,
     dash: first((el) => line(el)?.dash ?? (line(el) ? 'solid' : undefined)) ?? config.dash,
   };
   const fontSize = cur.fontSize;
@@ -319,6 +324,26 @@ export function Toolbar({ compact }: { compact: boolean }) {
                       <Icon name={kind} size={18} />
                     </MiniButton>
                   ))}
+                </Group>
+              ) : null}
+
+              {showSides ? (
+                <Group>
+                  <StepperButton
+                    icon="minus"
+                    label={t.fewerSides}
+                    disabled={cur.sides <= LIMITS.minSides}
+                    onClick={() => setConfig({ sides: cur.sides - 1 })}
+                  />
+                  <span className="w-12 text-center font-mono text-[11px] font-bold">
+                    {cur.sides} {t.sides}
+                  </span>
+                  <StepperButton
+                    icon="plus"
+                    label={t.moreSides}
+                    disabled={cur.sides >= LIMITS.maxSides}
+                    onClick={() => setConfig({ sides: cur.sides + 1 })}
+                  />
                 </Group>
               ) : null}
 

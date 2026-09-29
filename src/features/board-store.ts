@@ -18,6 +18,7 @@
  * and never synced (mobile/docs/05-model-date).
  */
 import {
+  DEFAULT_SIDES,
   LIMITS,
   canEdit,
   isFillable,
@@ -66,6 +67,8 @@ export interface ToolConfig {
   /** How opaque a newly drawn enclosed shape's fill is; `none` for outline only. */
   fill: FillLevel;
   shape: ShapeKind;
+  /** Corners of a polygon. */
+  sides: number;
   fontSize: number;
   bold: boolean;
   italic: boolean;
@@ -338,6 +341,7 @@ const DEFAULT_CONFIG: ToolConfig = {
   width: StrokeSizes[1],
   fill: 'none',
   shape: 'rectangle',
+  sides: DEFAULT_SIDES,
   fontSize: 28,
   bold: false,
   italic: false,
@@ -579,6 +583,9 @@ export const useBoardStore = create<BoardState>((set, get) => {
             p.fill = isFillable(shape) ? fillFor(patch.color ?? el.stroke, patch.fill) : null;
           }
           if (patch.fontSize !== undefined) p.fontSize = patch.fontSize;
+          if (shape === 'polygon' && (patch.sides !== undefined || shape !== el.shape)) {
+            p.sides = patch.sides ?? get().config.sides;
+          }
           for (const k of ['headStart', 'headEnd', 'route', 'dash'] as const) {
             if (patch[k] !== undefined) p[k] = patch[k];
           }
@@ -731,6 +738,7 @@ export const useBoardStore = create<BoardState>((set, get) => {
         stroke: config.color,
         strokeWidth: clampWidth(config.width),
         fill: isFillable(shape) ? fillFor(config.color, config.fill) : null,
+        ...(shape === 'polygon' ? { sides: config.sides } : null),
         ...(shape === 'line' || shape === 'arrow'
           ? {
               headStart: config.headStart,
