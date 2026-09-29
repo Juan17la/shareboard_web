@@ -4,7 +4,7 @@
  * typed, and never while a sheet or dialog is open (those own the keyboard).
  *
  * Tools:     V cursor · H hand · P pencil · E eraser · S shapes (last kind) ·
- *            R O Y L A one kind each · T text · F fill
+ *            R O Y G L A one kind each · T text · F fill
  * History:   Ctrl/⌘ Z undo · Ctrl/⌘ Shift Z or Ctrl/⌘ Y redo
  * Selection: Delete/Backspace · Escape · Ctrl/⌘ A · Ctrl/⌘ D duplicate ·
  *            Ctrl/⌘ C copy · Ctrl/⌘ X cut · Ctrl/⌘ V paste (under the pointer;
@@ -33,6 +33,7 @@ const TOOL_KEYS: Record<string, { tool: ToolType; shape?: ShapeKind }> = {
   r: { tool: 'shape', shape: 'rectangle' },
   o: { tool: 'shape', shape: 'ellipse' },
   y: { tool: 'shape', shape: 'triangle' },
+  g: { tool: 'shape', shape: 'polygon' },
   l: { tool: 'shape', shape: 'line' },
   a: { tool: 'shape', shape: 'arrow' },
   t: { tool: 'text' },
