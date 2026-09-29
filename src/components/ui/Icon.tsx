@@ -45,6 +45,7 @@ export type IconName =
   | 'rectangle'
   | 'ellipse'
   | 'triangle'
+  | 'polygon'
   | 'line'
   | 'arrow'
   | 'undo'
@@ -396,6 +397,7 @@ const PATHS: Record<IconName, { s?: number; fill?: boolean; body: ReactElement }
   rectangle: { body: <rect x="4" y="5.5" width="16" height="13" rx="2" /> },
   ellipse: { body: <ellipse cx="12" cy="12" rx="8" ry="8" /> },
   triangle: { body: <path d="M12 5l8 14H4z" /> },
+  polygon: { body: <path d="M12 4l7 4v8l-7 4-7-4V8z" /> },
   line: { body: <path d="M5 19L19 5" /> },
   arrow: {
     body: (
