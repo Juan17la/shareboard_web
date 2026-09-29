@@ -26,7 +26,7 @@ import type { Lang } from '../features/strings';
 import { createBoard, importSnapshot, resolveShortCode } from '../lib/api';
 import { LIMITS, type BoardSnapshot } from '../lib/contract';
 import { parseBoardRef } from '../lib/deep-link';
-import { SHORT_CODE_LENGTH, normalizeShortCode } from '../lib/short-code';
+import { SHORT_CODE_LENGTH, formatShortCode, normalizeShortCode } from '../lib/short-code';
 import { Layout, type Theme } from '../lib/theme';
 import { toast } from '../lib/toast';
 
@@ -285,7 +285,7 @@ export default function HomePage() {
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13.5px] leading-tight font-bold">{board.name}</span>
                             <span className="mt-0.5 block truncate font-mono text-[11px] text-text-secondary">
-                              {board.shortCode} · {relativeTime(t, board.lastOpenedAt)}
+                              {formatShortCode(board.shortCode)} · {relativeTime(t, board.lastOpenedAt)}
                             </span>
                           </span>
                         </button>
