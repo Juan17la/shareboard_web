@@ -145,16 +145,16 @@ export function ImportSheet({
           }}
           className={`flex flex-col items-center gap-2 rounded-lg border border-dashed py-8 transition ${
             dragging
-              ? 'border-accent bg-accent-soft text-accent'
+              ? 'border-accent bg-accent-soft text-accent-text'
               : 'border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text'
           } ${busy ? 'opacity-55' : ''}`}
         >
           <Icon name="download" size={22} />
-          <span className="text-[14px] font-extrabold">{t.pickFile}</span>
-          <span className="text-[11.5px] font-semibold">{t.dropHint}</span>
+          <span className="text-[0.875rem] font-extrabold">{t.pickFile}</span>
+          <span className="text-[0.75rem] font-semibold">{t.dropHint}</span>
         </button>
 
-        <p className="text-center text-[11.5px] leading-snug text-text-secondary">
+        <p className="text-center text-[0.75rem] leading-snug text-text-secondary">
           {t.importHint}
         </p>
 

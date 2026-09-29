@@ -84,7 +84,7 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
               <div
                 key={i}
                 className={[
-                  'flex max-w-[85%] flex-col gap-2 rounded-xl px-3 py-2 text-[13px] leading-snug',
+                  'flex max-w-[85%] flex-col gap-2 rounded-xl px-3 py-2 text-[0.8125rem] leading-snug',
                   m.from === 'you'
                     ? 'self-end bg-accent text-white'
                     : m.from === 'error'
@@ -110,7 +110,7 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
               </div>
             ))}
             {busy ? (
-              <p className="self-start text-[12px] text-text-secondary">{t.aiThinking}</p>
+              <p className="self-start text-[0.75rem] text-text-secondary">{t.aiThinking}</p>
             ) : null}
             <div ref={end} />
           </div>
