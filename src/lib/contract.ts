@@ -178,6 +178,12 @@ export interface Participant {
   role: Role;
   /** Latest known position; never persisted. */
   cursor?: Point;
+  /**
+   * Element ids this participant has selected — and so holds: first to select
+   * wins, and nobody else can select or change them until they are let go
+   * (deselected, or the participant leaves).
+   */
+  selection?: string[];
   lastSeen: number;
 }
 
@@ -212,7 +218,7 @@ export const LIMITS = {
   maxFontSize: 400,
   minSides: 3,
   maxSides: 12,
-  maxNicknameLength: 24,
+  maxNicknameLength: 40,
   maxBoardNameLength: 80,
   /** #RRGGBB, or #RRGGBBAA for the translucent fills the shape tool paints. */
   colorPattern: /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/,
@@ -227,6 +233,8 @@ export type ClientMessage =
   /** `seq` is this client's own counter, echoed back for debugging. */
   | { type: 'op'; boardId: string; ops: Op[]; seq: number }
   | { type: 'cursor'; boardId: string; at: Point }
+  /** What this client now has selected: it holds those elements (`Participant.selection`). */
+  | { type: 'select'; boardId: string; ids: ElementId[] }
   | { type: 'leave'; boardId: string }
   | { type: 'ping'; t: number };
 
@@ -239,7 +247,11 @@ export type ServerMessage =
       you: Participant;
       seq: number;
     }
-  /** `seq` is the board-wide monotonic counter; apply in order. */
+  /**
+   * `seq` is the board-wide monotonic counter; apply in order. `from` is
+   * `'server'` for a correction: the current state of elements whose edit was
+   * refused because someone else holds them.
+   */
   | { type: 'op'; ops: Op[]; from: UserId; seq: number }
   | { type: 'participants'; participants: Participant[] }
   | { type: 'cursor'; from: UserId; at: Point }
