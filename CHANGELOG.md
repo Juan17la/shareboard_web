@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.1.0-beta] - 2026-09-29
+
 ### Added
 
 - `vercel.json`: Vite build, `dist` output, every path rewritten to `index.html`
