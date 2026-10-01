@@ -7,7 +7,7 @@
  */
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
-import { Colors } from '../../lib/theme';
+import { Css } from '../../lib/theme';
 
 import { Icon } from '../ui/Icon';
 
@@ -23,9 +23,9 @@ export function ConnectionBanner({ top, onRetry }: { top: number; onRetry: () =>
       className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 items-center gap-2.5 rounded-full border px-3.5 py-2 text-[0.7812rem] font-bold shadow-panel backdrop-blur-md"
       style={{
         top,
-        borderColor: offline ? 'rgba(196,53,58,0.25)' : Colors.border,
+        borderColor: offline ? 'rgba(196,53,58,0.25)' : Css.border,
         background: 'var(--color-glass-row)',
-        color: offline ? Colors.danger : Colors.textSecondary,
+        color: offline ? Css.danger : Css.textSecondary,
       }}
     >
       <Icon name={offline ? 'warning' : 'link'} size={15} />

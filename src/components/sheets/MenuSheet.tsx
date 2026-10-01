@@ -1,10 +1,11 @@
 /**
- * "Board": the overflow menu behind the header's ⋯ button.
+ * "Menu": the way between whiteboards and the rest of what a board can do —
+ * a new one, one of your old ones, one joined with a code, a file brought in —
+ * then export, who may edit, who is here, the assistant.
  *
- * Everything here is reachable some other way too — export from the share
- * sheet, access from the header chip — because the design puts the frequent
- * routes on the surface and keeps this as the complete list for anyone who did
- * not find them.
+ * There is no home page to go back to: the app opens on the last whiteboard,
+ * and this is where the others are reached from. The settings are their own
+ * button on the header.
  */
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
@@ -15,40 +16,43 @@ import { Sheet } from '../ui/Sheet';
 export function MenuSheet({
   open,
   onClose,
+  onNew,
+  onOpenBoards,
+  onOpenJoin,
   onOpenExport,
   onOpenImport,
   onOpenPrivacy,
   onOpenPeople,
-  onOpenSettings,
   onOpenAi,
 }: {
   open: boolean;
   onClose: () => void;
+  onNew: () => void;
+  onOpenBoards: () => void;
+  onOpenJoin: () => void;
   onOpenExport: () => void;
   onOpenImport: () => void;
   onOpenPrivacy: () => void;
   onOpenPeople: () => void;
-  onOpenSettings: () => void;
   onOpenAi: () => void;
 }) {
   const t = useT();
   const canEdit = useBoardStore((s) => s.canEditNow());
   const name = useBoardStore((s) => s.meta?.name);
-  const coarsePointer = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
   const rows: { icon: IconName; label: string; onClick: () => void }[] = [
-    { icon: 'image', label: t.exportImage, onClick: onOpenExport },
-    { icon: 'download', label: t.importBoard, onClick: onOpenImport },
-    { icon: 'lock', label: t.whoEdits, onClick: onOpenPrivacy },
-    { icon: 'people', label: t.sheetPeople, onClick: onOpenPeople },
-    { icon: 'settings', label: t.sheetSettings, onClick: onOpenSettings },
-    // The shortcut list is in Settings; a touch screen has no keyboard to use it with.
-    ...(coarsePointer ? [] : [{ icon: 'keyboard' as const, label: t.shortcuts, onClick: onOpenSettings }]),
-    ...(canEdit ? [{ icon: 'sparkle' as const, label: t.sheetAi, onClick: onOpenAi }] : []),
+      { icon: 'plus', label: t.newWhiteboard, onClick: onNew },
+      { icon: 'board', label: t.myWhiteboards, onClick: onOpenBoards },
+      { icon: 'link', label: t.joinWhiteboard, onClick: onOpenJoin },
+      { icon: 'download', label: t.importBoard, onClick: onOpenImport },
+      { icon: 'image', label: t.exportImage, onClick: onOpenExport },
+      { icon: 'lock', label: t.whoEdits, onClick: onOpenPrivacy },
+      { icon: 'people', label: t.sheetPeople, onClick: onOpenPeople },
+      ...(canEdit ? [{ icon: 'sparkle' as const, label: t.sheetAi, onClick: onOpenAi }] : []),
   ];
 
   return (
-    <Sheet open={open} title={t.sheetMenu} onClose={onClose} closeLabel={t.close}>
+    <Sheet open={open} title={t.boardMenu} onClose={onClose} closeLabel={t.close}>
       {/* A long board name is cut short in the header; here it is whole. */}
       {name ? <p className="mb-1 px-2 text-[0.75rem] font-semibold break-words text-text-secondary">{name}</p> : null}
       <div className="flex flex-col divide-y divide-line-strong">

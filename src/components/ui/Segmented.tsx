@@ -1,4 +1,4 @@
-/** Two-or-three-way choice: visibility, export format. */
+/** Two-to-four-way choice: visibility, export format. */
 export interface SegmentOption<T extends string> {
   value: T;
   label: string;
@@ -21,7 +21,7 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className={`flex gap-[7px] rounded-lg bg-text/5 p-[5px] ${
+      className={`flex gap-0.5 rounded-[11px] bg-text/[0.07] p-[3px] ${
         disabled ? 'opacity-50' : ''
       }`}
     >
@@ -35,8 +35,8 @@ export function Segmented<T extends string>({
             aria-checked={active}
             disabled={disabled}
             onClick={() => onChange(opt.value)}
-            className={`flex-1 rounded-[11px] py-[9px] text-[0.7812rem] font-extrabold transition ${
-              active ? 'bg-background text-accent-text shadow-card' : 'text-text-secondary hover:bg-surface-selected'
+            className={`flex-1 rounded-[9px] px-1 py-[7px] text-[0.7812rem] font-bold transition ${
+              active ? 'bg-background text-accent-text shadow-[0_1px_3px_rgb(0_0_0/0.14),0_0_0_0.5px_rgb(0_0_0/0.05)]' : 'text-text-secondary hover:bg-surface-selected'
             }`}
           >
             {opt.label}
