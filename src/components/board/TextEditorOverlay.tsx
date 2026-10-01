@@ -19,12 +19,13 @@ import {
   boxOf,
   isLineLike,
   labelLines,
+  lineLabelCentre,
   LABEL_PAD,
   rotationOf,
   shapeBounds,
   TEXT_LINE_HEIGHT,
 } from '../../lib/geometry';
-import { Colors, inkFor } from '../../lib/theme';
+import { Css, inkFor } from '../../lib/theme';
 import { FONT_FAMILIES } from './renderer';
 
 export function TextEditorOverlay({
@@ -99,12 +100,12 @@ export function TextEditorOverlay({
     const width = draft.width ? draft.width * s : Math.max(b.width * s + fontSize * 2, 80);
     box = { x: b.x * s + camera.x, y: b.y * s + camera.y, width, height: b.height * s };
   } else if (isLineLike(draft)) {
-    // A line's label floats just above its midpoint (paintShapeLabel).
-    const b = shapeBounds(draft);
-    const lines = labelLines(draft, fontSize / s).length;
-    const cx = (b.x + b.width / 2) * s + camera.x;
-    const cy = (b.y + b.height / 2) * s + camera.y - (lines * step) / 2 - fontSize * 0.4;
-    box = { x: cx - 160, y: cy - (lines * step) / 2, width: 320, height: lines * step };
+    // A line's label is centred where it stands along the line (paintShapeLabel).
+    const lines = labelLines(draft, fontSize / s);
+    const at = lineLabelCentre(draft);
+    const cx = at.x * s + camera.x;
+    const cy = at.y * s + camera.y;
+    box = { x: cx - 160, y: cy - (lines.length * step) / 2, width: 320, height: lines.length * step };
   } else {
     // A box's label is centred in it, wrapped inside its padding.
     const b = shapeBounds(draft);
@@ -167,7 +168,7 @@ export function TextEditorOverlay({
           paddingRight: paddingX,
           transform: angle ? `rotate(${angle}rad)` : undefined,
           transformOrigin: `${(origin.x + origin.width / 2) * s + camera.x - box.x}px ${(origin.y + origin.height / 2) * s + camera.y - box.y}px`,
-          outlineColor: Colors.accent,
+          outlineColor: Css.accent,
           color: 'transparent',
           caretColor: color,
           fontFamily: FONT_FAMILIES[element.font ?? 'sans'],
