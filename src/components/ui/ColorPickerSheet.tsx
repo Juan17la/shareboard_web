@@ -9,7 +9,7 @@
  * at the bottom for anyone who wants an exact value.
  */
 import { useT } from '../../features/i18n';
-import { Colors } from '../../lib/theme';
+import { Css } from '../../lib/theme';
 
 import { Sheet } from './Sheet';
 
@@ -89,7 +89,7 @@ export function ColorPickerSheet({
         className="aspect-square flex-1 rounded-lg transition hover:scale-110"
         style={{
           background: color,
-          border: active ? `2.5px solid ${Colors.accent}` : `1px solid ${Colors.border}`,
+          border: active ? `2.5px solid ${Css.accent}` : `1px solid ${Css.border}`,
         }}
       />
     );
