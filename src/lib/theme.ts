@@ -16,10 +16,10 @@ const Light = {
   textTertiary: '#8E8E93',
 
   /** The single brand accent: active tool, primary CTA, selected state. */
-  accent: '#7A1F2B',
-  accentDeep: '#5A1420',
-  accentSoft: 'rgba(122,31,43,0.11)',
-  accentSofter: 'rgba(122,31,43,0.07)',
+  accent: '#0071E3',
+  accentDeep: '#0058B0',
+  accentSoft: 'rgba(0,113,227,0.11)',
+  accentSofter: 'rgba(0,113,227,0.07)',
 
   danger: '#D70015',
   dangerBright: '#FF3B30',
@@ -67,6 +67,18 @@ export const Colors: Readonly<typeof Light> = new Proxy(Light, {
   },
 });
 
+/**
+ * The same tokens as CSS `var()`s, for JSX styles. `Colors` hands back the
+ * value of the theme at render time, and a component that does not subscribe
+ * to the theme keeps it after a switch (icons and borders stayed the old
+ * colour); a `var()` is resolved by the browser, so it follows `data-theme`.
+ * Canvas and other imperative painting keeps reading `Colors`.
+ */
+const cssVar = (key: string) => `var(--color-${VAR[key as keyof typeof Light] ?? key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())})`;
+export const Css = Object.fromEntries(Object.keys(Light).map((k) => [k, cssVar(k)])) as {
+  readonly [K in keyof typeof Light]: string;
+};
+
 /** Whether the dark board is on — what `inkFor` and the canvas background follow. */
 export const isDark = (): boolean =>
   typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
@@ -108,7 +120,7 @@ export const StrokeSizes = [2, 5, 10, 20] as const;
 
 /** Identity colors offered on the nickname screen (also the presence color). */
 export const NicknameColors = [
-  '#7A1F2B',
+  '#0071E3',
   '#E5484D',
   '#F76808',
   '#30A46C',
@@ -157,21 +169,34 @@ export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 6;
 
 /**
- * Fills are a tinted wash of the stroke colour rather than a solid block, so
- * the dot grid and anything underneath still read through them. `2E` is ~18%.
+ * A fill is any `#RRGGBB` at any opacity, stored as `#RRGGBBAA` (the format
+ * every fill was already in: the old Light/Medium/Solid levels are 18%, 50% and
+ * 100%, so boards drawn with them read back as plain numbers).
  */
-export type FillLevel = 'none' | 'low' | 'medium' | 'full';
+const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
-/** A fill is the stroke colour at one of three alphas: a wash (~18%), a half, or solid. */
-export const FILL_ALPHA: Record<Exclude<FillLevel, 'none'>, string> = { low: '2E', medium: '80', full: 'FF' };
-
-/** `#RRGGBB` -> the `#RRGGBBAA` a fill is painted with, or null for no fill. */
-export const fillFor = (color: string, level: FillLevel): string | null =>
-  level === 'none' ? null : color.slice(0, 7) + FILL_ALPHA[level];
-
-/** The level a painted fill was made with — what the toolbar highlights. */
-export function fillLevelOf(fill: string | null | undefined): FillLevel {
-  if (!fill) return 'none';
-  const a = fill.slice(7).toUpperCase();
-  return a === FILL_ALPHA.low ? 'low' : a === FILL_ALPHA.medium ? 'medium' : 'full';
+/** What someone typed -> `#RRGGBB`, or null when it is not a colour (`f80`, `#FF8800` and `ff8800` all work). */
+export function parseHex(text: string): string | null {
+  const m = HEX.exec(text.trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? [...m[1]].map((c) => c + c).join('') : m[1];
+  return '#' + h.toUpperCase();
 }
+
+/** The `#RRGGBBAA` a fill is painted with, or null at 0% (no fill at all). */
+export function fillWith(color: string, opacity: number): string | null {
+  const pct = Math.min(100, Math.max(0, Math.round(opacity)));
+  if (pct === 0) return null;
+  return color.slice(0, 7).toUpperCase() + Math.round((pct * 255) / 100).toString(16).padStart(2, '0').toUpperCase();
+}
+
+/** The colour of a painted fill, or null when there is none. */
+export const fillColorOf = (fill: string | null | undefined): string | null =>
+  fill ? fill.slice(0, 7).toUpperCase() : null;
+
+/** The opacity of a painted fill, 0 to 100: what the toolbar shows. */
+export const fillOpacityOf = (fill: string | null | undefined): number =>
+  !fill ? 0 : fill.length > 7 ? Math.round((parseInt(fill.slice(7, 9), 16) * 100) / 255) : 100;
+
+/** What the bucket paints with when no opacity was chosen yet: the old "Light" wash. */
+export const FILL_WASH = 18;
