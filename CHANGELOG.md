@@ -7,6 +7,15 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- An elbow arrow bound to a shape leaves it straight out of the side it sits on and
+  goes around that shape instead of through it; dragging the end to another side
+  turns the way it leaves. The elbow's own handle replaces the toolbar's
+  "leaves / arrives" buttons: the diamond in the middle segment slides it, and on
+  a single corner between two free ends the corner itself can be dragged across
+  to the other corner to turn the route over. Same as the mobile app.
+
 ## [1.2.0-beta] - 2026-09-30
 
 ### Added
