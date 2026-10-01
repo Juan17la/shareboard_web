@@ -8,7 +8,7 @@
  * History:   Ctrl/⌘ Z undo · Ctrl/⌘ Shift Z or Ctrl/⌘ Y redo
  * Selection: Delete/Backspace · Escape · Ctrl/⌘ A · Ctrl/⌘ D duplicate ·
  *            Ctrl/⌘ C copy · Ctrl/⌘ X cut · Ctrl/⌘ V paste (under the pointer;
- *            an image on the system clipboard wins over copied elements) ·
+ *            an image on the system clipboard wins, then a Shareboard copy, then text) ·
  *            arrows nudge (Shift ×10)
  * Camera:    Ctrl/⌘ + / − · Ctrl/⌘ 0 home · Shift 1 fit · Shift or Space held: drag pans
  *
@@ -18,6 +18,7 @@
 import { useEffect } from 'react';
 
 import { useBoardStore } from '../features/board-store';
+import { copyToSystem, pasteText } from '../features/board-clipboard';
 import { currentStrings } from '../features/i18n';
 import type { Point, ShapeKind, ToolType } from '../lib/contract';
 import { placementSize, shrinkToElement } from '../features/import';
@@ -100,10 +101,16 @@ export function useShortcuts(enabled: boolean, onHelp?: () => void) {
       if (mod && key === 'c' && s.selectedIds.length) {
         return act(e, () => {
           s.copySelection();
+          copyToSystem();
           toast(currentStrings().toastCopiedSelection);
         });
       }
-      if (mod && key === 'x' && s.selectedIds.length) return act(e, () => s.cutSelection());
+      if (mod && key === 'x' && s.selectedIds.length) {
+        return act(e, () => {
+          s.cutSelection();
+          copyToSystem();
+        });
+      }
       // Ctrl/⌘ V is left to the browser: it fires `paste` below, which can see
       // an image on the system clipboard (a keydown can't).
       if (mod || e.altKey) return;
@@ -166,9 +173,12 @@ export function useShortcuts(enabled: boolean, onHelp?: () => void) {
         );
         return;
       }
-      if (s.clipboard.length) {
+      // A Shareboard copy (from any tab, board or device), other text, or the
+      // store's own clipboard.
+      const text = e.clipboardData?.getData('text/plain');
+      if (text || s.clipboard.length) {
         e.preventDefault();
-        s.paste(keys.pointer ? board : undefined);
+        pasteText(text, keys.pointer ? board : undefined);
       }
     };
 

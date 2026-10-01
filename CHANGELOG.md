@@ -7,6 +7,124 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Copy puts the selection on the system clipboard as well as in the app, so it
+  pastes as the same elements — fills, text, images, arrows still bound to their
+  shapes, groups — in another tab, on another board, or in the mobile app.
+  Pasting copied text from another app adds it as a text element.
+- Right-click (without dragging) opens a menu: copy, cut, paste, duplicate,
+  bring to front / forward / send backward / to back, group, delete; on empty
+  board, paste and select all.
+
+### Changed
+
+- Fill is two options instead of four buttons: a colour (typed as a HEX code such
+  as `#FF8800` or `f80`, or picked) and an opacity from 0 to 100%, in one sheet
+  behind a single chip in the options strip (0% is no fill). A fill still follows
+  the line's colour until it is given a colour of its own. Boards drawn with the
+  old Light / Medium / Solid fills open exactly as before (18%, 50%, 100%).
+- The options strip keeps only the style controls and is capped in width; copy,
+  cut, stacking order and group moved to the right-click menu.
+- Duplicate keeps what is joined: a duplicated arrow follows its copied shapes
+  and a duplicated group is a group of its own.
+- Edits sent in one burst (a paste of several images) are split to fit the
+  server's frame limit instead of closing the connection.
+- New app icon: the tab icon and the touch icon.
+
+### Changed
+
+- Elbow lines choose their ends like a diagramming tool: by default they leave
+  and arrive along the long axis — or straight out of the side of a shape they
+  are bound to; a new row of options picks the direction at each end (across or
+  up and down, in any pairing — two different ones make a single corner), and
+  the middle segment is still dragged.
+- Curved lines are cubic, with a handle on a stem at each end (the direction and
+  pull as the line leaves and arrives) and one in the middle that slides the
+  whole bow. Curves saved before look exactly as they did until they are shaped.
+- A polygon has four sides at least (three is the triangle); a hand-drawn
+  four-sided shape is read as a rectangle, or as a four-sided polygon (a diamond)
+  when it stands on a corner — not as a triangle when one corner was drawn soft.
+- When the pen is held and the stroke is read as a figure (circle, rectangle,
+  polygon, line…), the figure is made on the board at once and stays: the pen,
+  still down, then resizes it (pull out to grow it, in to shrink it; a line's tip
+  follows) instead of turning it back into the stroke. One undo takes it all back.
+
+### Changed
+
+- A line's or arrow's label now sits **in** the line: the line is cut away
+  behind the text (canvas, editor and SVG export alike), and the label is
+  dragged along the line to move it (a dashed frame shows it is held when the
+  line is selected). A touch on the label still picks the line. The place is a
+  new `labelAt` (0..1 along the route).
+- More connection points: an ellipse offers eight on its outline, a triangle and
+  a polygon their corners and the middle of each side, a rectangle its corners
+  and sides' middles, plus the centre (which aims at the other end). Line ends
+  land on the real outline — no longer on the shape's box — and follow when the
+  shape is resized.
+- The pencil reads a hand-drawn polygon of five to eight corners as a polygon,
+  and a held stroke turns into its figure after 700 ms instead of 800.
+- Text fields have a clearly visible edge (accent, with a halo, while typing)
+  instead of a hairline lost on the frosted panels; rows that hold a bare field
+  draw one ring instead of two.
+
+### Fixed
+
+- A line's label no longer has the line through it: it stands beside the line's
+  midpoint on the side facing up (to the right of a vertical line), pushed off
+  just far enough to clear it; a flat line's label stays exactly where it was.
+  The editor, the canvas and the SVG export agree on the place.
+- The Menu is one list again, without the heavy divider between groups.
+
+### Changed
+
+- There is no home page. `/` opens the whiteboard you were last at, or — the
+  first time, or when it is gone — makes a blank one and opens that, so there is
+  always something to draw on at once. A guest name stands in until you pick one
+  in the settings.
+- Two buttons on the whiteboard hold the rest: **Menu** (new whiteboard, my
+  whiteboards, join with a code, import, export, who can edit, who is here, the
+  assistant) and **Settings** (your name and icon, the board's name, the
+  switches, theme, language). The back button and the header's theme toggle are
+  gone; both live in those two.
+- The options strip no longer prints the "Style" and "Arrange" headings, and the
+  polygon's side count is a bare number: the text sat off-centre above the rows.
+
+### Performance
+
+- Hit tests skip a stroke whose bounding box is nowhere near the point.
+
+### Fixed
+
+- Undoing an erase (or a cut, or redoing a draw) puts the element back in its
+  layer instead of on top of everything.
+- A text is one undo step, and one that is left empty leaves none; one eraser
+  scrub is one step, however many figures it crossed.
+- Undo and redo let go of a selected element that is no longer there.
+- An error about a single request (a refused batch, a rate limit) is a toast
+  and a resync, not the "could not open" screen; edits waiting when the
+  connection dropped are kept and sent after the rejoin.
+
+### Changed
+
+- The home card floats over an empty board (just the dot grid) instead of a
+  blurred demo board; the demo board and its test are gone.
+- Home has a fourth tab, *Import*, holding the drop zone that used to sit under
+  the join code; the logo now sits above the name. The card keeps one height
+  on every tab and scrolls inside when a tab has more (many recent boards).
+- All icons are [Phosphor](https://phosphoricons.com) (`@phosphor-icons/react`),
+  mapped in `components/ui/Icon.tsx`.
+- The accent is Apple's blue (`#0071e3`) and filled controls (`.shadow-accent`)
+  are flat with a lit top edge, a hairline ring and a tight shadow, not a glow.
+  Segmented tabs and buttons are set in bold, not extrabold.
+
+### Fixed
+
+- Switching theme left some icons and borders in the old colour: JSX styles read
+  `Colors` at render time, so a component that does not subscribe to the theme
+  kept the previous value. They read `Css` (`var(--color-…)`) now, which the
+  browser re-resolves.
+
 ## [1.1.0-beta] - 2026-09-29
 
 ### Added
