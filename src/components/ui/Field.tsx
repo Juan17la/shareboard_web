@@ -32,8 +32,8 @@ export function Field({
           'w-full min-w-0 text-text outline-none placeholder:text-text/30',
           bare
             ? 'sb-bare bg-transparent p-0'
-            : 'rounded-lg border bg-surface px-[13px] py-3 focus:border-accent',
-          bare ? '' : error ? 'border-danger-bright' : 'border-line-strong',
+            : 'rounded-lg border-[1.5px] bg-surface px-[13px] py-3 transition-shadow focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-soft)]',
+          bare ? '' : error ? 'border-danger-bright' : 'border-field',
           mono ? 'font-mono text-[0.9375rem] font-bold tracking-[1.5px]' : 'text-[1rem] font-semibold',
           className,
         ]
