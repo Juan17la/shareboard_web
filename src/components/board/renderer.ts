@@ -19,6 +19,7 @@ import {
 import {
   anchorsOf,
   bendHandleOf,
+  curveHandlesOf,
   boxOf,
   canRotate,
   dashIntervals,
@@ -27,7 +28,9 @@ import {
   handlesOf,
   headsOf,
   isLineLike,
+  labelBox,
   labelLines,
+  lineLabelCentre,
   markerPaths,
   polygonPoints,
   rotateHandleOf,
@@ -113,10 +116,8 @@ function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void 
   const fontSize = el.fontSize ?? SHAPE_TEXT_SIZE;
   const step = fontSize * TEXT_LINE_HEIGHT;
   const lines = labelLines(el, fontSize);
-  const cx = x + width / 2;
-  const cy = isLineLike(el)
-    ? y + height / 2 - (lines.length * step) / 2 - fontSize * 0.4
-    : y + height / 2;
+  // Centred in a box; on a line, where it stands along it (the line is cut behind it).
+  const { x: cx, y: cy } = isLineLike(el) ? lineLabelCentre(el) : { x: x + width / 2, y: y + height / 2 };
 
   ctx.font = fontFor({ fontSize, bold: false, italic: false, font: el.font });
   ctx.fillStyle = el.stroke;
@@ -194,12 +195,24 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   // line / arrow: the route, dashed if asked, then a marker at each end. A
   // marker is painted after the line so a hollow one hides it.
   const dash = dashIntervals(el.dash, el.strokeWidth);
+  // The line is cut away behind its label, so the text sits in it: clip to
+  // everything but the label's box.
+  const labelSize = el.fontSize ?? SHAPE_TEXT_SIZE;
+  const gap = el.text ? labelBox(el, labelLines(el, labelSize), labelSize) : null;
+  if (gap) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-1e7, -1e7, 2e7, 2e7);
+    ctx.rect(gap.x, gap.y, gap.width, gap.height);
+    ctx.clip('evenodd');
+  }
   if (dash) ctx.setLineDash(dash);
-  ctx.stroke(new Path2D(routePath(el.from, el.to, el.route, el.bend)));
+  ctx.stroke(new Path2D(routePath(el)));
   ctx.setLineDash([]);
+  if (gap) ctx.restore();
 
   const [headStart, headEnd] = headsOf(el);
-  const angles = endAngles(el.from, el.to, el.route, el.bend);
+  const angles = endAngles(el);
   const size = markerSize(el.strokeWidth);
   // Sharp tips, not the line's soft join: a crow's foot or a chevron rounded
   // off at the point reads as a blob rather than an arrowhead.
@@ -414,8 +427,13 @@ export function paintSelection(
     ctx.globalAlpha = 0.28;
     ctx.lineWidth = line.strokeWidth + 8 / camera.scale;
     ctx.lineCap = 'round';
-    ctx.stroke(new Path2D(routePath(line.from, line.to, line.route, line.bend)));
+    ctx.stroke(new Path2D(routePath(line)));
     ctx.restore();
+    // The label is held by its own frame: drag it to move it along the line.
+    if (line.text) {
+      const size = line.fontSize ?? SHAPE_TEXT_SIZE;
+      paintDashedBox(ctx, labelBox(line, labelLines(line, size), size), camera);
+    }
   }
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
@@ -431,7 +449,33 @@ export function paintSelection(
   }
   // A curved or elbow line's fold: a diamond handle, dragged to reshape how
   // far it bows or where it turns.
-  const fold = line ? bendHandleOf(line) : null;
+  const curve = line ? curveHandlesOf(line) : null;
+  // A curve's pull at each end: a round handle on a stem out of the end it
+  // shapes — drag it to change which way the line leaves, and how hard.
+  if (line && curve) {
+    ctx.fillStyle = Colors.background;
+    for (const [end, handle] of [
+      [line.from, curve.start],
+      [line.to, curve.end],
+    ] as const) {
+      const ex = end.x * camera.scale + camera.x;
+      const ey = end.y * camera.scale + camera.y;
+      const hx = handle.x * camera.scale + camera.x;
+      const hy = handle.y * camera.scale + camera.y;
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(hx, hy);
+      ctx.stroke();
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(hx, hy, HANDLE_SIZE / 2 - 1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  const fold = curve ? curve.mid : line ? bendHandleOf(line) : null;
   if (fold) {
     const sx = fold.x * camera.scale + camera.x;
     const sy = fold.y * camera.scale + camera.y;

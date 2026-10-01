@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useT } from '../../features/i18n';
-import { Colors } from '../../lib/theme';
+import { Css } from '../../lib/theme';
 
 import { Backdrop } from '../ui/Backdrop';
 import { GlassPanel } from '../ui/Glass';
@@ -115,8 +115,8 @@ export function PinScreen({
                     key={i}
                     className="h-3.5 w-3.5 rounded-full transition"
                     style={{
-                      background: filled ? Colors.accent : 'transparent',
-                      border: filled ? 'none' : `2px solid ${Colors.borderDashed}`,
+                      background: filled ? Css.accent : 'transparent',
+                      border: filled ? 'none' : `2px solid ${Css.borderDashed}`,
                     }}
                   />
                 );

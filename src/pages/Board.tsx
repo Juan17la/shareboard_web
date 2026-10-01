@@ -7,13 +7,13 @@
  * rail, the bottom controls — and every sheet is a component rendered right
  * here rather than a route, so the board stays visible underneath.
  *
- * `pickName` is a one-shot query param: set when a board was just created or
- * imported, it forces the identity step even for someone whose nickname is
- * already remembered. Creating a board is the moment to choose how you appear
- * on it.
+ * There is no page behind it: the app opens on the last whiteboard, and the
+ * menu is where a new one, an old one, a code or a file is reached from. The
+ * identity step only appears when a name clashes with someone's on the board
+ * (everyone starts with a guest name, changed in the settings).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { BoardCanvas } from '../components/board/BoardCanvas';
 import { ConnectionBanner } from '../components/board/ConnectionBanner';
@@ -23,8 +23,10 @@ import { BoardHeader } from '../components/header/BoardHeader';
 import { NicknameScreen } from '../components/screens/NicknameScreen';
 import { PinScreen } from '../components/screens/PinScreen';
 import { AiSheet } from '../components/sheets/AiSheet';
+import { BoardsSheet } from '../components/sheets/BoardsSheet';
 import { ExportSheet } from '../components/sheets/ExportSheet';
 import { ImportSheet } from '../components/sheets/ImportSheet';
+import { JoinSheet } from '../components/sheets/JoinSheet';
 import { MenuSheet } from '../components/sheets/MenuSheet';
 import { PeopleSheet } from '../components/sheets/PeopleSheet';
 import { PrivacySheet } from '../components/sheets/PrivacySheet';
@@ -40,7 +42,7 @@ import { GlassPanel } from '../components/ui/Glass';
 import { useSessionStore } from '../features/session';
 import { useBoardStore } from '../features/board-store';
 import { useBoardSync } from '../hooks/use-board-sync';
-import { deleteBoard, importSnapshot } from '../lib/api';
+import { createBoard, deleteBoard, importSnapshot } from '../lib/api';
 import type { BoardSnapshot } from '../lib/contract';
 import { copyText } from '../lib/clipboard';
 import { WEB_BASE_URL } from '../lib/config';
@@ -50,12 +52,21 @@ import { Layout } from '../lib/theme';
 import { useViewport } from '../hooks/use-viewport';
 import { useShortcuts } from '../hooks/use-shortcuts';
 
-type SheetName = 'share' | 'people' | 'privacy' | 'export' | 'import' | 'menu' | 'settings' | 'ai';
+type SheetName =
+  | 'share'
+  | 'people'
+  | 'privacy'
+  | 'export'
+  | 'import'
+  | 'menu'
+  | 'settings'
+  | 'ai'
+  | 'join'
+  | 'boards';
 type ConfirmName = 'clear' | 'delete';
 
 export default function BoardPage() {
   const { id = '' } = useParams();
-  const [params] = useSearchParams();
   const navigate = useNavigate();
   const t = useT();
   const { width, height } = useViewport();
@@ -71,16 +82,13 @@ export default function BoardPage() {
   const meta = useBoardStore((s) => s.meta);
   const clearBoard = useBoardStore((s) => s.clearBoard);
 
-  // Satisfied once the identity step has been passed for this board, either by
-  // confirming a name or because there was never a reason to ask.
-  const [identityDone, setIdentityDone] = useState(params.get('pickName') !== '1');
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const [confirm, setConfirm] = useState<ConfirmName | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
 
-  const sync = useBoardSync(id, { paused: !identityDone });
+  const sync = useBoardSync(id);
   const headerBottom = useHeaderBottom(sync.phase);
   // Keys belong to the board only while it is the thing on screen.
   const openShortcuts = useCallback(() => setSheet('settings'), []);
@@ -114,10 +122,38 @@ export default function BoardPage() {
         { ...snapshot, meta: { name: snapshot.meta.name || t.importedBoardName } },
         userId,
       );
-      navigate(`/board/${created.id}?pickName=1`, { replace: true });
+      navigate(`/board/${created.id}`, { replace: true });
     },
     [navigate, t, userId],
   );
+
+  const [creating, setCreating] = useState(false);
+  /** A fresh, empty whiteboard — public, anyone with the code can draw; the access button changes that. */
+  const createNew = useCallback(async () => {
+    setCreating(true);
+    try {
+      const created = await createBoard({
+        name: t.newBoardName,
+        access: 'public',
+        editPolicy: 'everyone',
+        creatorId: userId,
+      });
+      setSheet(null);
+      navigate(`/board/${created.id}`);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : t.errCreate);
+    } finally {
+      setCreating(false);
+    }
+  }, [navigate, t, userId]);
+
+  // A board that is gone (deleted, or its server forgot it) is let go of; the
+  // root then opens the next one, or a new one.
+  useEffect(() => {
+    if (!sync.notFound) return;
+    forgetBoard(id);
+    navigate('/', { replace: true });
+  }, [sync.notFound, id, forgetBoard, navigate]);
 
   async function runConfirm() {
     if (confirm === 'clear') {
@@ -152,10 +188,7 @@ export default function BoardPage() {
     return (
       <NicknameScreen
         error={sync.error}
-        onContinue={(name) => {
-          sync.submitNickname(name);
-          setIdentityDone(true);
-        }}
+        onContinue={(name) => sync.submitNickname(name)}
       />
     );
   }
@@ -176,10 +209,11 @@ export default function BoardPage() {
             <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{sync.error}</p>
           ) : null}
           <Button
-            label={t.back}
-            icon="back"
+            label={t.newWhiteboard}
+            icon="plus"
             variant="secondary"
-            onClick={() => navigate('/', { replace: true })}
+            loading={creating}
+            onClick={() => void createNew()}
           />
         </div>
       </main>
@@ -220,7 +254,7 @@ export default function BoardPage() {
         onOpenMenu={() => setSheet('menu')}
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenShare={() => setSheet('share')}
-        onGoHome={() => navigate('/')}
+        onOpenSettings={() => setSheet('settings')}
       />
 
       <Toolbar compact={compact} />
@@ -254,13 +288,17 @@ export default function BoardPage() {
       <MenuSheet
         open={sheet === 'menu'}
         onClose={() => setSheet(null)}
+        onNew={() => void createNew()}
+        onOpenBoards={() => setSheet('boards')}
+        onOpenJoin={() => setSheet('join')}
         onOpenExport={() => setSheet('export')}
         onOpenImport={() => setSheet('import')}
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenPeople={() => setSheet('people')}
-        onOpenSettings={() => setSheet('settings')}
         onOpenAi={() => setSheet('ai')}
       />
+      <BoardsSheet open={sheet === 'boards'} onClose={() => setSheet(null)} currentId={id} />
+      <JoinSheet open={sheet === 'join'} onClose={() => setSheet(null)} />
       <SettingsSheet
         open={sheet === 'settings'}
         onClose={() => setSheet(null)}

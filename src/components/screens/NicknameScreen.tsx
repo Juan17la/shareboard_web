@@ -60,7 +60,7 @@ export function NicknameScreen({
               <p className="text-[0.8438rem] leading-relaxed text-text-secondary">{t.nickSub}</p>
             </div>
 
-            <GlassPanel level="row" radius={20} className="sb-focus-row">
+            <GlassPanel level="row" radius={20} border={null} className="sb-focus-row">
               <div className="flex items-center gap-3 p-3.5">
                 <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={46} />
                 <div className="min-w-0 flex-1">
