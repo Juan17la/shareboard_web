@@ -1,0 +1,74 @@
+/**
+ * `/`: there is no home page. The app opens on the whiteboard the user was last
+ * at; with none (a first visit, or every remembered one gone) it makes a blank
+ * one and opens that — so there is always something to draw on at once.
+ *
+ * Everything a home page used to offer (a new board, an old one, a code, a
+ * file, the settings) is a button on the whiteboard itself.
+ */
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { Backdrop } from '../components/ui/Backdrop';
+import { Button } from '../components/ui/Button';
+import { useT } from '../features/i18n';
+import { useSessionStore } from '../features/session';
+import { createBoard } from '../lib/api';
+
+export default function StartPage() {
+  const navigate = useNavigate();
+  const t = useT();
+  const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const { recent, userId } = useSessionStore.getState();
+    // The last one opened; if it turns out to be gone the board page lets go
+    // of it and comes back here for the next.
+    if (recent[0]) {
+      navigate(`/board/${recent[0].id}`, { replace: true });
+      return;
+    }
+    let cancelled = false;
+    createBoard({ name: t.newBoardName, access: 'public', editPolicy: 'everyone', creatorId: userId }).then(
+      (meta) => {
+        if (!cancelled) navigate(`/board/${meta.id}`, { replace: true });
+      },
+      (error) => {
+        if (!cancelled) setFailed(error instanceof Error ? error.message : t.errCreate);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+    // `t` is stable per language and only names the board.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt, navigate]);
+
+  if (failed) {
+    return (
+      <main className="relative h-full">
+        <Backdrop variant="home" />
+        <div className="relative flex h-full flex-col items-center justify-center gap-3.5 p-7 text-center">
+          <h1 className="text-[1.25rem] leading-tight font-extrabold tracking-[-0.4px]">{t.errCreate}</h1>
+          <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{failed}</p>
+          <Button
+            label={t.retry}
+            variant="secondary"
+            onClick={() => {
+              setFailed(null);
+              setAttempt((n) => n + 1);
+            }}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="grid h-full place-items-center bg-background">
+      <div className="sb-loading" role="status" aria-label={t.loading} />
+      <p className="sb-late text-[0.8125rem] font-semibold text-text-tertiary">{t.loading}</p>
+    </main>
+  );
+}
