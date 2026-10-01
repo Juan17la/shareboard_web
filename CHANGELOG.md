@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.2.0-beta] - 2026-09-30
+
 ### Added
 
 - Copy puts the selection on the system clipboard as well as in the app, so it
