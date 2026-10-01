@@ -7,6 +7,31 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.3.0-beta] - 2026-10-01
+
+### Fixed
+
+- An elbow's handle is back on every route that has a middle segment, not only
+  the plain three-segment ones: wrapped round a shape, or with an end leaving
+  sideways, the diamond on the middle run still slides it where you want it. It
+  stops where the line would reach a shape or fold back on itself. The paths and
+  directions the elbow takes are as they were.
+
+- An elbow arrow no longer runs through the shape it is bound to. Every link
+  leaves its shape straight out, away from the shape's centre — not only one on a
+  rectangle's side, but any point of an ellipse, a triangle or a polygon's outline —
+  and tries its second-best way out when something stands in the first, even
+  with two shapes a hair apart.
+
+### Changed
+
+- An elbow arrow bound to a shape leaves it straight out of the side it sits on and
+  goes around that shape instead of through it; dragging the end to another side
+  turns the way it leaves. The elbow's own handle replaces the toolbar's
+  "leaves / arrives" buttons: the diamond in the middle segment slides it, and on
+  a single corner between two free ends the corner itself can be dragged across
+  to the other corner to turn the route over. Same as the mobile app.
+
 ## [1.2.0-beta] - 2026-09-30
 
 ### Added

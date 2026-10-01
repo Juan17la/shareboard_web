@@ -45,10 +45,12 @@ import {
 import {
   clampZoom,
   contentBounds,
+  elementBounds,
   followLinks,
   headsOf,
   hitTest,
   isLineLike,
+  setBoxLookup,
   translate,
   zoomAround,
   type Camera,
@@ -422,6 +424,11 @@ const clampWidth = (w: number) =>
   Math.max(LIMITS.minStrokeWidth, Math.min(LIMITS.maxStrokeWidth, w));
 
 export const useBoardStore = create<BoardState>((set, get) => {
+  // An elbow goes around the shapes it is bound to: geometry asks where they are.
+  setBoxLookup((id) => {
+    const el = get().elements[id];
+    return el && !el.deleted ? elementBounds(el) : undefined;
+  });
   /**
    * `how` is what the change does to history: `push` is a step of its own;
    * `merge` folds into the last step (the typing that finishes a text just
