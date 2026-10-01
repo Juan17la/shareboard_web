@@ -14,8 +14,13 @@ import { useBoardStore } from '../features/board-store';
 import { ApiError, getBoard, joinBoard } from '../lib/api';
 import { REALTIME } from '../lib/config';
 import type { Point } from '../lib/contract';
+import { splitOps } from '../lib/ops';
 import { RealtimeClient } from '../lib/socket';
 import { throttle } from '../lib/throttle';
+import { toast } from '../lib/toast';
+
+/** Errors that end the session even once the board is open. */
+const FATAL_AFTER_JOIN = ['BOARD_NOT_FOUND', 'NICKNAME_TAKEN', 'PIN_REQUIRED', 'PIN_INVALID'];
 
 export type SyncPhase = 'loading' | 'need-nickname' | 'need-pin' | 'ready' | 'error';
 
@@ -30,6 +35,8 @@ export interface BoardSync {
   sendCursor(at: Point): void;
   /** Reconnect now, after the socket gave up on its own. */
   retry(): void;
+  /** The board is gone (deleted, or its server forgot it): the caller should let it go. */
+  notFound: boolean;
 }
 
 export interface BoardSyncOptions {
@@ -53,6 +60,7 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
   // attempt itself sends us back to the identity step: a clash.
   const [connectPhase, setPhase] = useState<SyncPhase>('loading');
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const pinRef = useRef<string | undefined>(undefined);
   const connRef = useRef<RealtimeClient | null>(null);
   const attemptRef = useRef(0);
@@ -68,6 +76,7 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
       if (attempt !== attemptRef.current) return;
       setPhase('loading');
       setError(null);
+      setNotFound(false);
 
       const meta = await getBoard(boardId);
       const join = await joinBoard({
@@ -93,7 +102,12 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
       // it has to live somewhere the sheets can reach.
       store.setBoardToken(join.boardToken);
 
+      // Until `joined` an error means the board cannot be opened; after it, one
+      // is about a single request (a refused batch, a rate limit) and the board
+      // on screen stays.
+      let ready = false;
       conn.on('joined', (msg) => {
+        ready = true;
         useBoardStore.getState().hydrate({
           meta: msg.meta,
           elements: msg.elements,
@@ -120,7 +134,13 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
       );
       conn.on('cursor', (msg) => useBoardStore.getState().setRemoteCursor(msg.from, msg.at));
       conn.on('permissions', (msg) => useBoardStore.getState().setMeta(msg.meta, msg.you));
+      conn.on('resync', (msg) => useBoardStore.getState().resync(msg.elements, msg.seq));
       conn.on('error', (msg) => {
+        if (ready && !FATAL_AFTER_JOIN.includes(msg.code)) {
+          toast(msg.message);
+          return;
+        }
+        if (msg.code === 'BOARD_NOT_FOUND') setNotFound(true);
         setError(msg.message);
         if (msg.code === 'PIN_REQUIRED' || msg.code === 'PIN_INVALID') setPhase('need-pin');
         else setPhase('error');
@@ -145,6 +165,7 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
         setPhase('need-nickname');
         return;
       }
+      if (err instanceof ApiError && err.code === 'BOARD_NOT_FOUND') setNotFound(true);
       setError(err instanceof Error ? err.message : t.errOpen);
       setPhase('error');
     }
@@ -175,10 +196,13 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
   // polling means a burst of ops travels as one message a frame or two later.
   useEffect(() => {
     const flush = throttle(() => {
+      // Not before the join has completed: the ops stay in the store, and the
+      // hydrate that follows a join sends them (it hands the outbox over anew).
       const conn = connRef.current;
-      if (!conn) return;
+      if (!conn || conn.getState() !== 'online') return;
       const batch = useBoardStore.getState().drainOutbox();
-      if (batch) conn.send({ type: 'op', boardId, ops: batch.ops, seq: batch.seq });
+      // One frame per chunk: a paste of a few photos would overflow the server's frame cap.
+      if (batch) for (const ops of splitOps(batch.ops)) conn.send({ type: 'op', boardId, ops, seq: batch.seq });
     }, REALTIME.outboxFlushMs);
 
     const unsub = useBoardStore.subscribe((state, prev) => {
@@ -264,5 +288,5 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
 
   const retry = useCallback(() => connRef.current?.retry(), []);
 
-  return { phase, error, submitPin, submitNickname, sendCursor, retry };
+  return { phase, error, submitPin, submitNickname, sendCursor, retry, notFound };
 }
