@@ -30,7 +30,6 @@ import {
   ROUTES,
   SHAPE_TEXT_SIZE,
   isFillable,
-  type Axis,
   type BoardElement,
   type Dash,
   type Marker,
@@ -213,14 +212,6 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const pickKind = (kind: ShapeKind) => (selected.length ? setConfig({ shape: kind }) : pickTool('shape', kind));
 
   const line = (el: BoardElement) => (el.kind === 'shape' && isLineLike(el) ? el : undefined);
-  // A selected line's axis: its own (null when it is automatic), or the tool's when no line is selected.
-  const axisOf = (key: 'startAxis' | 'endAxis'): Axis | null | undefined => {
-    const v = first((el) => {
-      const l = line(el);
-      return l ? (l[key] ?? 'auto') : undefined;
-    });
-    return v === undefined ? undefined : v === 'auto' ? null : v;
-  };
   const cur = {
     width:
       first((el) => (el.kind === 'stroke' ? el.width : el.kind === 'shape' ? el.strokeWidth : undefined)) ??
@@ -250,26 +241,12 @@ export function Toolbar({ compact }: { compact: boolean }) {
     shape: first((el) => (el.kind === 'shape' ? el.shape : undefined)) ?? config.shape,
     sides: first((el) => (el.kind === 'shape' && el.shape === 'polygon' ? el.sides : undefined)) ?? config.sides,
     dash: first((el) => line(el)?.dash ?? (line(el) ? 'solid' : undefined)) ?? config.dash,
-    startAxis: axisOf('startAxis') === undefined ? config.startAxis : axisOf('startAxis')!,
-    endAxis: axisOf('endAxis') === undefined ? config.endAxis : axisOf('endAxis')!,
   };
   const fontSize = cur.fontSize;
   // The board ink flips on the dark theme (`inkFor`); the swatches follow it.
   const ink = inkFor(cur.color, dark);
   const fillInk = inkFor(cur.fillColor ?? cur.color, dark);
   const setFontSize = (next: number) => setConfig({ fontSize: next });
-  // An elbow's ends: automatic, or which way it leaves and arrives.
-  const axisChoices: {
-    start: Axis | null;
-    end: Axis | null;
-    labelKey: 'axisAuto' | 'axisHH' | 'axisVV' | 'axisHV' | 'axisVH';
-  }[] = [
-    { start: null, end: null, labelKey: 'axisAuto' },
-    { start: 'h', end: 'h', labelKey: 'axisHH' },
-    { start: 'v', end: 'v', labelKey: 'axisVV' },
-    { start: 'h', end: 'v', labelKey: 'axisHV' },
-    { start: 'v', end: 'h', labelKey: 'axisVH' },
-  ];
   const routeLabel: Record<Route, 'routeStraight' | 'routeCurved' | 'routeElbow'> = {
     straight: 'routeStraight',
     curved: 'routeCurved',
@@ -438,26 +415,6 @@ export function Toolbar({ compact }: { compact: boolean }) {
                       </MiniButton>
                     ))}
                   </Group>
-                  {cur.route === 'elbow' ? (
-                    <Group>
-                      {axisChoices.map(({ start, end, labelKey }) => (
-                        <MiniButton
-                          key={labelKey}
-                          label={t[labelKey]}
-                          active={cur.startAxis === start && cur.endAxis === end}
-                          onClick={() => setConfig({ startAxis: start, endAxis: end })}
-                        >
-                          {start ? (
-                            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                              <path d={routePath({ from: { x: 4, y: 19 }, to: { x: 20, y: 5 }, route: 'elbow', startAxis: start, endAxis: end })} />
-                            </svg>
-                          ) : (
-                            <span className="text-[0.6875rem] font-extrabold">A</span>
-                          )}
-                        </MiniButton>
-                      ))}
-                    </Group>
-                  ) : null}
                   <Group>
                     {DASHES.map((dash) => (
                       <MiniButton
