@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.3.0-beta] - 2026-10-01
+
 ### Fixed
 
 - An elbow's handle is back on every route that has a middle segment, not only
