@@ -609,7 +609,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
       <FillSheet
         open={filling}
         color={cur.fillColor ?? cur.color}
-        custom={cur.fillColor !== null}
+        custom={cur.fillColor !== null && cur.fillColor.toUpperCase() !== cur.color.slice(0, 7).toUpperCase()}
         opacity={cur.fillOpacity}
         onColor={(fillColor) => setConfig({ fillColor, fillOpacity: cur.fillOpacity || 100 })}
         onOpacity={(fillOpacity) => setConfig({ fillOpacity })}
