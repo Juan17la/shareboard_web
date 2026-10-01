@@ -7,6 +7,11 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Nothing in this project: released alongside the mobile app's pencil fix so
+  the three keep one version.
+
 ## [1.3.0-beta] - 2026-10-01
 
 ### Fixed
