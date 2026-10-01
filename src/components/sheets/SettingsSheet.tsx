@@ -29,12 +29,15 @@ import { useSessionStore, type AppSettings } from '../../features/session';
 import { useBoardStore } from '../../features/board-store';
 import { renameBoard } from '../../lib/api';
 import { LIMITS } from '../../lib/contract';
-import { Colors } from '../../lib/theme';
+import { Css } from '../../lib/theme';
 
+import { AvatarPicker } from '../screens/NicknameScreen';
+import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
+import { Field } from '../ui/Field';
 import { GlassPanel } from '../ui/Glass';
 import { Icon } from '../ui/Icon';
-import { Sheet, SheetRow } from '../ui/Sheet';
+import { Sheet, SheetRow, SectionLabel } from '../ui/Sheet';
 import { Toggle } from '../ui/Toggle';
 import { toast } from '../../lib/toast';
 
@@ -57,6 +60,11 @@ export function SettingsSheet({
   const theme = useSessionStore((s) => s.theme);
   const setTheme = useSessionStore((s) => s.setTheme);
   const userId = useSessionStore((s) => s.userId);
+  const nickname = useSessionStore((s) => s.nickname);
+  const nickColor = useSessionStore((s) => s.nickColor);
+  const avatar = useSessionStore((s) => s.avatar);
+  const setNickname = useSessionStore((s) => s.setNickname);
+  const [nick, setNick] = useState(nickname);
 
   const meta = useBoardStore((s) => s.meta);
   const setMeta = useBoardStore((s) => s.setMeta);
@@ -107,8 +115,34 @@ export function SettingsSheet({
   return (
     <Sheet open={open} title={t.sheetSettings} onClose={onClose} closeLabel={t.close}>
       <div className="flex flex-col gap-2.5">
+        {/* Who you are on a board: the name beside your cursor and its icon. */}
+        <SectionLabel>{t.nickPlaceholder}</SectionLabel>
+        <GlassPanel level="row" radius={18} border={null} className="sb-focus-row">
+          <div className="flex items-center gap-3 p-3">
+            <Avatar name={nick || '?'} color={nickColor} avatar={avatar} size={42} />
+            <div className="min-w-0 flex-1">
+              <Field
+                bare
+                value={nick}
+                onChange={(e) => {
+                  const value = e.target.value.trimStart().slice(0, LIMITS.maxNicknameLength);
+                  setNick(value);
+                  // Never empty: a blank name would send you back to the identity screen.
+                  if (value.trim()) setNickname(value);
+                }}
+                placeholder={t.nickPlaceholder}
+                autoComplete="nickname"
+                aria-label={t.nickPlaceholder}
+                className="!text-[1rem]"
+              />
+            </div>
+          </div>
+        </GlassPanel>
+        <SectionLabel>{t.yourIcon}</SectionLabel>
+        <AvatarPicker name={nick} />
+
         {meta ? (
-          <GlassPanel level="row" radius={15}>
+          <GlassPanel level="row" radius={15} border={null} className={isCreator ? 'sb-focus-row' : undefined}>
             <div className="flex items-center gap-2.5 p-3.5">
               <div className="min-w-0 flex-1">
                 <div className="text-[0.8125rem] leading-tight font-bold">{t.boardName}</div>
@@ -123,7 +157,7 @@ export function SettingsSheet({
                   maxLength={LIMITS.maxBoardNameLength}
                   aria-label={t.rename}
                   className="mt-0.5 w-full bg-transparent p-0 text-[0.8125rem] font-semibold outline-none"
-                  style={{ color: isCreator ? Colors.text : Colors.textSecondary }}
+                  style={{ color: isCreator ? Css.text : Css.textSecondary }}
                 />
               </div>
               {isCreator ? (
@@ -217,7 +251,7 @@ export function SettingsSheet({
             aria-label={t.clearBoard}
             onClick={onAskClear}
             className="flex items-center justify-center gap-2 rounded-[15px] border py-3.5 text-[0.8125rem] font-extrabold text-danger transition hover:brightness-95"
-            style={{ borderColor: 'rgba(229,72,77,0.28)', background: Colors.dangerSoft }}
+            style={{ borderColor: 'rgba(229,72,77,0.28)', background: Css.dangerSoft }}
           >
             <Icon name="trash" size={17} />
             {t.clearBoard}

@@ -1,6 +1,6 @@
 /**
  * The board's header: who you are looking at, how to get others in, and the
- * way out.
+ * two buttons everything else hangs off — the menu and the settings.
  *
  * It floats over the canvas behind a blur with a fade to transparent rather
  * than sitting in a bar above it, so the board really does run edge to edge —
@@ -11,9 +11,8 @@
  */
 import { useT, useTf } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
-import { useSessionStore } from '../../features/session';
 import { formatShortCode } from '../../lib/short-code';
-import { Colors, StatusColors } from '../../lib/theme';
+import { Css, StatusColors } from '../../lib/theme';
 
 import { Avatar, AvatarOverflow } from '../ui/Avatar';
 import { IconButton } from '../ui/Button';
@@ -28,7 +27,7 @@ export function BoardHeader({
   onOpenMenu,
   onOpenPrivacy,
   onOpenShare,
-  onGoHome,
+  onOpenSettings,
 }: {
   compact: boolean;
   landscape: boolean;
@@ -38,11 +37,9 @@ export function BoardHeader({
   onOpenMenu: () => void;
   onOpenPrivacy: () => void;
   onOpenShare: () => void;
-  onGoHome: () => void;
+  onOpenSettings: () => void;
 }) {
   const t = useT();
-  const dark = useSessionStore((s) => s.theme === 'dark');
-  const toggleTheme = useSessionStore((s) => s.toggleTheme);
   const tf = useTf();
   const meta = useBoardStore((s) => s.meta);
   const participants = useBoardStore((s) => s.participants);
@@ -76,7 +73,7 @@ export function BoardHeader({
     // Portrait: may wrap to a second line when the text is large; landscape keeps one row.
     <div className={`pointer-events-auto flex items-center gap-[7px] ${landscape ? 'flex-none' : 'flex-wrap'}`}>
       <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
-      <IconButton icon={dark ? 'sun' : 'moon'} label={t.theme} title={dark ? t.themeLight : t.themeDark} onClick={toggleTheme} />
+      <IconButton icon="settings" label={t.sheetSettings} onClick={onOpenSettings} />
 
       <button
         type="button"
@@ -87,9 +84,9 @@ export function BoardHeader({
         disabled={!meta}
         className="flex items-center gap-1.5 rounded-md border px-[11px] py-[7px] backdrop-blur-md transition"
         style={{
-          borderColor: codeCopied ? 'transparent' : Colors.border,
+          borderColor: codeCopied ? 'transparent' : Css.border,
           background: codeCopied ? 'rgba(15,158,142,0.14)' : 'var(--color-glass-solid)',
-          color: codeCopied ? '#0B7F72' : Colors.text,
+          color: codeCopied ? '#0B7F72' : Css.text,
         }}
       >
         <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
@@ -163,8 +160,6 @@ export function BoardHeader({
         {/* Who and where: back, the board, (the actions, in landscape) and who
             else is here. */}
         <div className="pointer-events-auto flex items-center gap-2">
-          <IconButton icon="back" label={t.back} onClick={onGoHome} />
-
           <div className="min-w-0 flex-1">
             <h1
               title={meta?.name}
