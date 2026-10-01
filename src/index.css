@@ -20,13 +20,14 @@
   --color-text-tertiary: #8e8e93;
 
   /* --- Brand / intent (one accent does active tool, CTA and selection) --- */
-  --color-accent: #7a1f2b;
-  --color-accent-deep: #5a1420;
-  /* The accent as *text* (tab labels, links): a lighter tint on the dark board,
-     where the fill colour is only 2.5:1 against the background. */
-  --color-accent-text: #7a1f2b;
-  --color-accent-soft: rgba(122, 31, 43, 0.11);
-  --color-accent-softer: rgba(122, 31, 43, 0.07);
+  --color-accent: #0071e3;
+  --color-accent-deep: #0058b0;
+  /* Apple's blue, in the shade apple.com paints its buttons (#0071e3): white on
+     it clears AA. As *text* (tab labels, links) a touch deeper on the light
+     board, a lighter tint on the dark one, where the fill is only 3.4:1. */
+  --color-accent-text: #0062cc;
+  --color-accent-soft: rgba(0,113,227, 0.11);
+  --color-accent-softer: rgba(0,113,227, 0.07);
   --color-danger: #d70015;
   --color-danger-bright: #ff3b30;
   --color-danger-soft: rgba(255, 59, 48, 0.08);
@@ -41,6 +42,8 @@
   --color-line: rgba(60, 60, 67, 0.1);
   --color-line-strong: rgba(60, 60, 67, 0.14);
   --color-line-dashed: rgba(60, 60, 67, 0.22);
+  /* The edge of a text field: clearly there on a white or a frosted ground. */
+  --color-field: rgba(60, 60, 67, 0.34);
 
   /* --- Connection status badges (theme-independent) --- */
   --color-online: #0f9e8e;
@@ -69,11 +72,11 @@
   --color-text: #ffffff;
   --color-text-secondary: #aeaeb2;
   --color-text-tertiary: #8e8e93;
-  --color-accent: #a82f3f;
-  --color-accent-deep: #82202e;
-  --color-accent-text: #f0808c;
-  --color-accent-soft: rgba(168, 47, 63, 0.2);
-  --color-accent-softer: rgba(168, 47, 63, 0.11);
+  --color-accent: #0071e3;
+  --color-accent-deep: #0058b0;
+  --color-accent-text: #4DA2FF;
+  --color-accent-soft: rgba(10,132,255, 0.2);
+  --color-accent-softer: rgba(10,132,255, 0.11);
   --color-danger-bright: #ff453a;
   --color-glass: rgba(28, 28, 30, 0.55);
   --color-glass-solid: rgba(44, 44, 46, 0.72);
@@ -82,6 +85,7 @@
   --color-line: rgba(235, 235, 245, 0.1);
   --color-line-strong: rgba(235, 235, 245, 0.16);
   --color-line-dashed: rgba(235, 235, 245, 0.26);
+  --color-field: rgba(235, 235, 245, 0.36);
 }
 
 html,
@@ -130,9 +134,15 @@ body {
 .sb-bare:focus-visible {
   outline: none;
 }
+/* A row that holds a bare field draws the field's edge itself: one ring, in the
+   row's own shape, that turns accent (with a soft halo) while the field has focus. */
+.sb-focus-row {
+  box-shadow: inset 0 0 0 1.5px var(--color-field);
+}
 .sb-focus-row:focus-within {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  box-shadow:
+    inset 0 0 0 1.5px var(--color-accent),
+    0 0 0 3px var(--color-accent-soft);
 }
 
 /* --- The frosted panel recipe --------------------------------------------
@@ -166,18 +176,33 @@ body {
     inset 0 1px 0 var(--color-glass-highlight);
 }
 
-/* Soft elevation. Only the CTA and the destructive buttons are tinted. */
+/* Soft elevation. */
 .shadow-panel {
   box-shadow: 0 12px 34px rgba(21, 26, 45, 0.16);
 }
 .shadow-card {
   box-shadow: 0 8px 20px rgba(21, 26, 45, 0.1);
 }
+
+/* Filled controls, the way macOS (Sonoma) and iOS paint them: the flat system
+   colour — no gradient, no coloured glow — with a lit 1px top edge, a hairline
+   ring and a tight, low shadow. Pressing dims it. `.shadow-accent` goes on
+   anything `bg-accent`; `.shadow-danger` on `bg-danger`. */
 .shadow-accent {
-  box-shadow: 0 8px 16px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 0 0 0.5px rgb(0 55 130 / 0.45),
+    0 1px 2px rgb(0 40 100 / 0.3);
 }
 .shadow-danger {
-  box-shadow: 0 8px 16px rgba(196, 53, 58, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.26),
+    0 0 0 0.5px rgb(150 10 20 / 0.45),
+    0 1px 2px rgb(120 0 10 / 0.28);
+}
+.shadow-accent:active:not(:disabled),
+.shadow-danger:active:not(:disabled) {
+  background-image: linear-gradient(rgb(0 0 0 / 0.14), rgb(0 0 0 / 0.14));
 }
 
 /* --- Tooltips --------------------------------------------------------------
@@ -236,26 +261,6 @@ body {
 @media (hover: none) {
   [data-tip]::after {
     display: none;
-  }
-}
-
-/* A phone on its side is ~390px tall: the Start card would be cut off, so its
-   two halves (make a board / join one) sit side by side instead of stacked. */
-@media (orientation: landscape) and (max-height: 520px) {
-  .sb-dialog {
-    max-width: 780px;
-  }
-  .sb-start {
-    flex-direction: row;
-    gap: 24px;
-  }
-  .sb-start-col {
-    flex: 1 1 0;
-    min-width: 0;
-    gap: 14px;
-  }
-  .sb-import {
-    padding-block: 10px;
   }
 }
 
@@ -352,6 +357,7 @@ body {
 .sb-scrim {
   animation: sb-fade 0.2s ease;
 }
+
 .sb-dialog {
   animation: sb-pop 0.18s cubic-bezier(0.22, 0.9, 0.26, 1);
 }

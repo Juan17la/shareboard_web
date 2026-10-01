@@ -200,6 +200,13 @@ if (saved) {
   });
 }
 
+// Nobody is asked their name before they can draw: until they pick one in
+// Settings, a guest name stands in (the identity screen is left for a clash).
+if (!useSessionStore.getState().nickname) {
+  const word = useSessionStore.getState().lang === 'es' ? 'Invitado' : 'Guest';
+  useSessionStore.setState({ nickname: `${word} ${1000 + Math.floor(Math.random() * 9000)}` });
+}
+
 // The theme is applied as `data-theme` on <html>: the stylesheet switches its
 // variables on it, and everything else reads the variables.
 if (typeof document !== 'undefined') {
