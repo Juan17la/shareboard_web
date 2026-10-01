@@ -36,7 +36,7 @@ import {
 import type { BoardElement, Link, Point, ShapeElement } from '../../lib/contract';
 import { LIMITS, SHAPE_TEXT_SIZE } from '../../lib/contract';
 import {
-  bendFromDrag,
+  elbowDragPatch,
   bendHandleOf,
   curveFromDrag,
   curveHandlesOf,
@@ -442,7 +442,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     if (edit.handle === CURVE_END_HANDLE && el.kind === 'shape') return curveFromDrag(el, 'end', p);
     if (edit.handle === BEND_HANDLE && el.kind === 'shape' && isLineLike(el)) {
       // A curve's middle slides its whole bow; an elbow's, its middle segment.
-      return el.route === 'curved' ? curveFromDrag(el, 'mid', p) : { bend: bendFromDrag(el, p) };
+      return el.route === 'curved' ? curveFromDrag(el, 'mid', p) : elbowDragPatch(el, p);
     }
     if (edit.handle === ROTATE_HANDLE) return { rotation: rotationFromDrag(el, p) };
     const next = resizeElement(el, edit.handle, p) as Partial<ShapeElement>;
