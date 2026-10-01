@@ -16,7 +16,7 @@ import { useT } from '../../features/i18n';
 import { generatePin, useBoardPermissions } from '../../features/permissions';
 import { useBoardStore } from '../../features/board-store';
 import type { BoardAccess, EditPolicy } from '../../lib/contract';
-import { Colors } from '../../lib/theme';
+import { Css } from '../../lib/theme';
 
 import { GlassPanel } from '../ui/Glass';
 import { Icon } from '../ui/Icon';
@@ -120,17 +120,17 @@ export function PrivacySheet({
                   onClick={() => void apply({ editPolicy: mode.id })}
                   className="flex items-center gap-3 rounded-[15px] border px-3.5 py-3 text-left transition disabled:cursor-default"
                   style={{
-                    borderColor: active ? Colors.accent : Colors.border,
-                    background: active ? Colors.accentSofter : 'var(--color-glass-solid)',
+                    borderColor: active ? Css.accent : Css.border,
+                    background: active ? Css.accentSofter : 'var(--color-glass-solid)',
                     opacity: isCreator ? 1 : 0.75,
                   }}
                 >
                   <span
                     className="grid h-[18px] w-[18px] flex-none place-items-center rounded-full"
-                    style={{ border: `1.5px solid ${active ? Colors.accent : Colors.borderDashed}` }}
+                    style={{ border: `1.5px solid ${active ? Css.accent : Css.borderDashed}` }}
                   >
                     {active ? (
-                      <span className="h-2 w-2 rounded-full" style={{ background: Colors.accent }} />
+                      <span className="h-2 w-2 rounded-full" style={{ background: Css.accent }} />
                     ) : null}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -152,11 +152,11 @@ export function PrivacySheet({
               aria-label={t.chooseEditors}
               onClick={onOpenPeople}
               className="flex items-center justify-between gap-2 rounded-[14px] border px-3.5 py-3 transition hover:brightness-95"
-              style={{ borderColor: Colors.accent, background: Colors.accentSofter }}
+              style={{ borderColor: Css.accent, background: Css.accentSofter }}
             >
               <span className="text-[0.7812rem] font-extrabold text-accent-text">{t.chooseEditors}</span>
               <span className="text-accent-text">
-                <Icon name="chevron" size={15} strokeWidth={2.4} />
+                <Icon name="chevron" size={15} />
               </span>
             </button>
           ) : null}

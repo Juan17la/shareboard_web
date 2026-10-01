@@ -11,7 +11,7 @@
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
 import { ZOOM_STEP } from '../../lib/geometry';
-import { Colors } from '../../lib/theme';
+import { Css } from '../../lib/theme';
 
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
@@ -94,10 +94,10 @@ function ControlButton({
       onClick={onClick}
       className={`touch-36 flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition disabled:hover:bg-transparent ${
         accent
-          ? 'bg-accent text-white shadow-[0_0_12px_var(--color-accent-soft)] hover:bg-accent-deep'
+          ? 'bg-accent text-white shadow-accent hover:bg-accent-deep'
           : 'hover:bg-surface-selected'
       }`}
-      style={accent ? undefined : { color: enabled ? Colors.text : Colors.borderDashed }}
+      style={accent ? undefined : { color: enabled ? Css.text : Css.borderDashed }}
     >
       <Icon name={icon} size={15} />
     </button>
