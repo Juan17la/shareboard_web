@@ -34,17 +34,24 @@ import {
   type LiveEdit,
 } from '../../features/board-store';
 import type { BoardElement, Link, Point, ShapeElement } from '../../lib/contract';
-import { LIMITS } from '../../lib/contract';
+import { LIMITS, SHAPE_TEXT_SIZE } from '../../lib/contract';
 import {
   bendFromDrag,
   bendHandleOf,
+  curveFromDrag,
+  curveHandlesOf,
   clampZoom,
   coveringFigure,
   elementsIn,
   handlesOf,
   isLineLike,
+  labelBox,
+  labelFromDrag,
+  labelLines,
+  lineLabelCentre,
   linkEndpoints,
   recognizeSketch,
+  sketchResize,
   resizeElement,
   rotateHandleOf,
   rotationFromDrag,
@@ -55,18 +62,19 @@ import {
   zoomAround,
   type Sketch,
 } from '../../lib/geometry';
-import { Colors, fillFor } from '../../lib/theme';
+import { Colors, Css, fillWith } from '../../lib/theme';
 import { visibleSorted } from '../../lib/ops';
 import { useT } from '../../features/i18n';
 import { keys } from '../../hooks/use-shortcuts';
 
+import { ContextMenu, type MenuSpot } from './ContextMenu';
 import { PeerCursors } from './PeerCursors';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { cursorFor } from './cursors';
 import { paintAnchors, paintBoard, paintDashedBox, paintHeld, paintSelection } from './renderer';
 
 /** How long a pen stroke's end is held before it is read as a figure (`recognizeSketch`). */
-const SKETCH_MS = 800;
+const SKETCH_MS = 700;
 /** Screen pixels the pointer may wander and still count as held still. */
 const STILL_PX = 8;
 
@@ -94,6 +102,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   const tool = useBoardStore((s) => s.tool);
   const config = useBoardStore((s) => s.config);
   const elements = useBoardStore((s) => s.elements);
+  const liveErased = useBoardStore((s) => s.liveErased);
   const canEdit = useBoardStore((s) => s.canEditNow());
   const selectedIds = useBoardStore((s) => s.selectedIds);
   const t = useT();
@@ -114,6 +123,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   /** What is being typed: painted in place by the renderer, so the editor only holds the caret. */
   const [draft, setDraft] = useState<string | null>(null);
   const [panning, setPanning] = useState(false);
+  const [menu, setMenu] = useState<MenuSpot | null>(null);
 
   const pointers = useRef<Pointers>({
     map: new Map(),
@@ -137,6 +147,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     timer: null,
   });
   const editRef = useRef<LiveEdit | null>(null);
+  /** Where a handle sits from the pointer that took hold of it (`beginEdit`). */
+  const grab = useRef({ x: 0, y: 0 });
   const marqueeRef = useRef<Box | null>(null);
   /** Where a line was started, unsnapped: its anchor can change as the end moves. */
   const lineStart = useRef<Point>({ x: 0, y: 0 });
@@ -154,9 +166,19 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setLiveSketch(sketch);
   };
 
-  // A pen stroke held still at its end for 800 ms becomes the figure it was
-  // meant to be (`recognizeSketch`): it turns into it under the pointer, and
-  // lifting draws the figure instead. Moving on keeps drawing the stroke.
+  // A pen stroke held still at its end for 700 ms is made into the figure it
+  // was meant to be (`recognizeSketch`) — at once, on the board, not as a
+  // preview: the stroke gives way to it, and the pointer, still down, then
+  // resizes it (an outward pull grows it, a line's tip follows), so moving on
+  // never loses the figure.
+  const figureRef = useRef<{
+    id: string;
+    sketch: Sketch;
+    p0: Point;
+    patch: { from: Point; to: Point } | null;
+  } | null>(null);
+  /** Where the pen last was, in board space. */
+  const penLast = useRef<Point>({ x: 0, y: 0 });
   const stopSketch = () => {
     if (still.current.timer) clearTimeout(still.current.timer);
     still.current.timer = null;
@@ -168,7 +190,11 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       still.current.timer = null;
       const scale = useBoardStore.getState().camera.scale;
       const sketch = recognizeSketch(livePointsRef.current, 24 / scale);
-      if (sketch) setSketch(sketch);
+      const id = sketch ? useBoardStore.getState().addSketch(sketch) : null;
+      if (sketch && id) {
+        figureRef.current = { id, sketch, p0: penLast.current, patch: null };
+        setPoints([]);
+      }
     }, SKETCH_MS);
   };
   useEffect(() => stopSketch, []);
@@ -184,7 +210,13 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
   // Sorted once per change to the elements, not once per pointer move: the
   // drag preview below only patches the sorted list.
-  const sorted = useMemo(() => visibleSorted(elements), [elements]);
+  const drawn = useMemo(() => visibleSorted(elements), [elements]);
+  // What the eraser has passed over is gone from the screen at once; it is
+  // deleted for real (one step) when the pointer lifts.
+  const sorted = useMemo(
+    () => (liveErased.length ? drawn.filter((el) => !liveErased.includes(el.id)) : drawn),
+    [drawn, liveErased],
+  );
   const list = useMemo(() => {
     if (editingId && draft !== null) {
       return sorted.map((el) => (el.id === editingId ? ({ ...el, text: draft } as BoardElement) : el));
@@ -276,7 +308,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           to: liveShape.to,
           stroke: cfg.color,
           strokeWidth: cfg.width,
-          fill: fillFor(cfg.color, cfg.fill),
+          fill: fillWith(cfg.fillColor ?? cfg.color, cfg.fillOpacity),
           createdBy: 'local',
           createdAt: 0,
           updatedAt: 0,
@@ -373,6 +405,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   /** Abandons an in-progress stroke or shape without committing it. */
   const cancelDraft = () => {
     pointers.current.drawingId = null;
+    figureRef.current = null;
+    useBoardStore.getState().discardErase();
     setEdit(null);
     setBand(null);
     setPoints([]);
@@ -395,11 +429,20 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
    * endpoints (0, 1) `handlesOf` gives a line, so it never collides with them.
    */
   const BEND_HANDLE = 2;
+  /** The label of a line, dragged along it. */
+  const LABEL_HANDLE = 6;
+  /** The pull of a curved line at its start and at its end. */
+  const CURVE_START_HANDLE = 7;
+  const CURVE_END_HANDLE = 8;
 
   /** The patch of an edit dragged to `p`. A line's ends are re-bound after. */
   const dragPatch = (edit: LiveEdit, el: BoardElement, p: Point): Partial<BoardElement> => {
+    if (edit.handle === LABEL_HANDLE && el.kind === 'shape') return { labelAt: labelFromDrag(el, p) };
+    if (edit.handle === CURVE_START_HANDLE && el.kind === 'shape') return curveFromDrag(el, 'start', p);
+    if (edit.handle === CURVE_END_HANDLE && el.kind === 'shape') return curveFromDrag(el, 'end', p);
     if (edit.handle === BEND_HANDLE && el.kind === 'shape' && isLineLike(el)) {
-      return { bend: bendFromDrag(el, p) };
+      // A curve's middle slides its whole bow; an elbow's, its middle segment.
+      return el.route === 'curved' ? curveFromDrag(el, 'mid', p) : { bend: bendFromDrag(el, p) };
     }
     if (edit.handle === ROTATE_HANDLE) return { rotation: rotationFromDrag(el, p) };
     const next = resizeElement(el, edit.handle, p) as Partial<ShapeElement>;
@@ -423,17 +466,50 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     if (coveringFigure(store.visibleElements(), sel, p, 6 / scale)) return false;
     const hitR = 12 / scale;
     const one = sel.length === 1 ? sel[0] : null;
-    const fold = one?.kind === 'shape' ? bendHandleOf(one) : null;
+    const curve = one?.kind === 'shape' ? curveHandlesOf(one) : null;
+    const fold = curve ? curve.mid : one?.kind === 'shape' ? bendHandleOf(one) : null;
     const onFold = fold ? Math.hypot(fold.x - p.x, fold.y - p.y) <= hitR : false;
+    const near = (q: Point | undefined) => (q ? Math.hypot(q.x - p.x, q.y - p.y) <= hitR : false);
     const knob = one ? rotateHandleOf(one, scale) : null;
     const onKnob = knob ? Math.hypot(knob.x - p.x, knob.y - p.y) <= hitR : false;
+    // A line's label is dragged along the line; an end, before it, is still an end.
+    const end = one ? handlesOf(one).findIndex((h) => Math.hypot(h.x - p.x, h.y - p.y) <= hitR) : -1;
+    const label = one?.kind === 'shape' && isLineLike(one) && one.text ? one : null;
+    const size = label?.fontSize ?? SHAPE_TEXT_SIZE;
+    const box = label ? labelBox(label, labelLines(label, size), size) : null;
+    const pad = 6 / scale;
+    const onLabel = box
+      ? p.x >= box.x - pad && p.x <= box.x + box.width + pad && p.y >= box.y - pad && p.y <= box.y + box.height + pad
+      : false;
     const handle = onKnob
       ? ROTATE_HANDLE
-      : onFold
-        ? BEND_HANDLE
-        : one
-          ? handlesOf(one).findIndex((h) => Math.hypot(h.x - p.x, h.y - p.y) <= hitR)
-          : -1;
+      : end >= 0
+        ? end
+        : near(curve?.start)
+          ? CURVE_START_HANDLE
+          : near(curve?.end)
+            ? CURVE_END_HANDLE
+            : onLabel
+              ? LABEL_HANDLE
+              : onFold
+                ? BEND_HANDLE
+                : -1;
+    // The pointer holds a handle where it landed on it: the handle keeps that
+    // distance from the pointer instead of jumping under it.
+    const held = onKnob
+      ? knob
+      : handle === LABEL_HANDLE && label
+        ? lineLabelCentre(label)
+        : handle === CURVE_START_HANDLE
+          ? (curve?.start ?? null)
+          : handle === CURVE_END_HANDLE
+            ? (curve?.end ?? null)
+            : handle === BEND_HANDLE
+              ? fold
+              : one && handle >= 0
+                ? handlesOf(one)[handle]
+                : null;
+    grab.current = held ? { x: held.x - p.x, y: held.y - p.y } : { x: 0, y: 0 };
     const onBody = !!store.elementAt(p, 6 / scale, sel);
     const mode = handle >= 0 ? 'resize' : onBody ? 'move' : null;
     if (!mode) return false;
@@ -496,6 +572,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         store.eraseAt(p, 12 / store.camera.scale);
         break;
       case 'pen':
+        penLast.current = p;
         setPoints([p.x, p.y]);
         awaitSketch(at);
         break;
@@ -584,10 +661,17 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         store.eraseAt(p, 12 / store.camera.scale);
         break;
       case 'pen': {
+        penLast.current = p;
+        const figure = figureRef.current;
+        if (figure) {
+          // A figure has been made from the stroke: the pointer now sizes it.
+          figure.patch = sketchResize(figure.sketch, figure.p0, p);
+          setEdit({ ids: [figure.id], mode: 'resize', handle: -1, start: figure.p0, dx: 0, dy: 0, patch: figure.patch });
+          break;
+        }
         // The stroke is sent as one `add` when the gesture ends, not per point.
         const prev = livePointsRef.current;
         if (Math.hypot(at.x - still.current.at.x, at.y - still.current.at.y) > STILL_PX) {
-          if (liveSketchRef.current) setSketch(null);
           awaitSketch(at);
         }
         if (prev.length / 2 < LIMITS.maxStrokePoints) setPoints([...prev, p.x, p.y]);
@@ -599,7 +683,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         if (edit && edit.mode === 'move') {
           setEdit({ ...edit, dx: p.x - edit.start.x, dy: p.y - edit.start.y });
         } else if (edit) {
-          setEdit({ ...edit, patch: dragPatch(edit, store.elements[edit.ids[0]], p) });
+          const held = { x: p.x + grab.current.x, y: p.y + grab.current.y };
+          setEdit({ ...edit, patch: dragPatch(edit, store.elements[edit.ids[0]], held) });
         } else if (marqueeRef.current) {
           setBand({ from: marqueeRef.current.from, to: p });
         } else if (liveShapeRef.current) {
@@ -623,7 +708,16 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       const at = localPoint(e);
       if (from && Math.hypot(at.x - from.x, at.y - from.y) < 4) {
         const store = useBoardStore.getState();
-        if (store.tool === 'select' && store.selectedIds.length) {
+        if (e.button === 2) {
+          // A right click that never dragged is the menu, over what is under it.
+          const p = screenToBoard(at.x, at.y);
+          const hit = store.elementAt(p, 6 / store.camera.scale);
+          if (hit && !store.selectedIds.includes(hit.id)) {
+            if (store.tool !== 'select') store.setTool('select');
+            store.select(hit.id);
+          } else if (!hit) store.select(null);
+          if (store.canEditNow()) setMenu({ x: e.clientX, y: e.clientY, at: p });
+        } else if (store.tool === 'select' && store.selectedIds.length) {
           store.select(null);
           store.setRailOpen(false);
         }
@@ -634,14 +728,20 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     state.drawingId = null;
     const store = useBoardStore.getState();
 
+    if (store.tool === 'eraser') store.commitErase();
     if (store.tool === 'pen') {
       const points = livePointsRef.current;
-      const sketch = liveSketchRef.current;
+      const figure = figureRef.current;
+      figureRef.current = null;
       setPoints([]);
       stopSketch();
-      setSketch(null);
-      if (sketch) store.addSketch(sketch);
-      else if (points.length >= 4) store.addStroke(simplify(points));
+      if (figure) {
+        // The figure is already on the board; settle its size into the same undo step.
+        setEdit(null);
+        if (figure.patch) store.finishFigure(figure.id, figure.patch);
+      } else if (points.length >= 4) {
+        store.addStroke(simplify(points));
+      }
     }
     const edit = editRef.current;
     if (edit) {
@@ -758,6 +858,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
       <PeerCursors camera={camera} />
 
+      {menu ? <ContextMenu spot={menu} onClose={() => setMenu(null)} /> : null}
+
       {labelAt && selectedShape && !editing ? (
         <button
           type="button"
@@ -768,8 +870,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
             left: labelAt.x,
             top: labelAt.y - 42,
             transform: 'translateX(-50%)',
-            borderColor: Colors.accent,
-            color: Colors.accent,
+            borderColor: Css.accent,
+            color: Css.accent,
           }}
         >
           Aa · {t.addText}
