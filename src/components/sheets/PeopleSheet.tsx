@@ -11,7 +11,7 @@ import { useT } from '../../features/i18n';
 import { useBoardPermissions } from '../../features/permissions';
 import { useSessionStore } from '../../features/session';
 import { useBoardStore } from '../../features/board-store';
-import { Colors } from '../../lib/theme';
+import { Css } from '../../lib/theme';
 
 import { Avatar } from '../ui/Avatar';
 import { GlassPanel } from '../ui/Glass';
@@ -70,9 +70,9 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
                   onClick={() => toggleEditor(p.userId, listed)}
                   className="flex-none rounded-full border px-2.5 py-[7px] text-[0.75rem] font-extrabold transition disabled:cursor-default"
                   style={{
-                    borderColor: canEdit ? 'transparent' : Colors.borderStrong,
-                    background: canEdit ? Colors.accentSoft : Colors.surface,
-                    color: canEdit ? Colors.accent : Colors.textSecondary,
+                    borderColor: canEdit ? 'transparent' : Css.borderStrong,
+                    background: canEdit ? Css.accentSoft : Css.surface,
+                    color: canEdit ? Css.accent : Css.textSecondary,
                     opacity: isCreator || isOwner ? 1 : 0.7,
                   }}
                 >

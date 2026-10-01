@@ -1,8 +1,9 @@
 /**
  * Buttons, in the five variants the design uses.
  *
- * `primary` and `danger` carry a shadow tinted with their own colour — the only
- * two elevations in the app that are not neutral (mobile/docs/03-styles).
+ * `primary` and `danger` are filled the Apple way (`.shadow-accent` /
+ * `.shadow-danger` in index.css): flat system colour, lit top edge, hairline
+ * ring, tight shadow, dimmed while pressed.
  */
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
@@ -11,8 +12,8 @@ import { Icon, type IconName } from './Icon';
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dashed';
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-white shadow-accent hover:brightness-110 active:brightness-95',
-  danger: 'bg-danger text-white shadow-danger hover:brightness-110 active:brightness-95',
+  primary: 'bg-accent text-white shadow-accent hover:bg-[#0077ed]',
+  danger: 'bg-danger text-white shadow-danger hover:brightness-110',
   secondary:
     'bg-glass-solid text-text border border-line-strong backdrop-blur-md hover:bg-surface-selected active:bg-surface-selected',
   ghost: 'text-text-secondary hover:bg-text/[0.04] active:bg-text/[0.07]',
@@ -54,9 +55,9 @@ export function Button({
       aria-busy={loading || undefined}
       disabled={off}
       className={[
-        'flex items-center justify-center gap-2.5 font-extrabold transition',
+        'flex items-center justify-center gap-2.5 font-bold transition',
         stacked ? 'flex-col gap-2' : '',
-        variant === 'dashed' ? 'rounded-lg' : 'rounded-xl',
+        variant === 'dashed' ? 'rounded-lg' : 'rounded-[14px]',
         compact ? 'px-4 py-3 text-[0.8438rem]' : 'px-[18px] py-4 text-[0.9688rem]',
         fullWidth ? 'w-full' : '',
         off ? 'opacity-55' : 'active:scale-[0.985]',
