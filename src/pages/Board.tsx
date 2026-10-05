@@ -247,13 +247,13 @@ export default function BoardPage() {
 
       <BoardHeader
         compact={compact}
-        landscape={landscape}
         codeCopied={codeCopied}
         onCopyCode={() => void copyCode()}
         onOpenPeople={() => setSheet('people')}
         onOpenMenu={() => setSheet('menu')}
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenShare={() => setSheet('share')}
+        onOpenExport={() => setSheet('export')}
         onOpenSettings={() => setSheet('settings')}
       />
 
@@ -291,7 +291,6 @@ export default function BoardPage() {
         onNew={() => void createNew()}
         onOpenBoards={() => setSheet('boards')}
         onOpenJoin={() => setSheet('join')}
-        onOpenExport={() => setSheet('export')}
         onOpenImport={() => setSheet('import')}
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenPeople={() => setSheet('people')}
