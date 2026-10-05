@@ -37,7 +37,10 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
 
   const decide = (i: number, accept: boolean) => {
     const els = log[i].elements ?? [];
-    if (accept) addElements(els);
+    if (accept) {
+      addElements(els);
+      onClose(); // back to the board to see (and edit) what was added
+    }
     setLog((l) =>
       l.map((m, j) =>
         j === i
