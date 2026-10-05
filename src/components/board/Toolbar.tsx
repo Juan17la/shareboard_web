@@ -486,6 +486,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
                     ))}
                     {selShape ? (
                       <>
+                        {/* Three to a row: across, up and down, then the one-tap centre. */}
+                        <span aria-hidden className="h-0 basis-full" />
                         {V_ALIGNS.map((valign) => (
                           <MiniButton key={valign} label={t[V_ALIGN_LABEL[valign]]} active={cur.valign === valign} onClick={() => setConfig({ valign })}>
                             <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -494,6 +496,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                             </svg>
                           </MiniButton>
                         ))}
+                        <span aria-hidden className="h-0 basis-full" />
                         <MiniButton
                           label={t.alignCentered}
                           active={cur.align === 'center' && cur.valign === 'middle'}
