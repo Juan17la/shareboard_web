@@ -43,7 +43,8 @@ import {
   type ShapeKind,
   type ToolType,
 } from '../../lib/contract';
-import { dashIntervals, headsOf, isLineLike, markerPaths, routePath } from '../../lib/geometry';
+import { primaryOptions, subjectsOf, type OptionId } from '../../lib/tool-options';
+import { canRound, dashIntervals, headsOf, isLineLike, markerPaths, routePath } from '../../lib/geometry';
 import { Css, StrokeSizes, fillColorOf, fillOpacityOf, fillWith, inkFor } from '../../lib/theme';
 import { useSessionStore } from '../../features/session';
 import { useViewport } from '../../hooks/use-viewport';
@@ -133,6 +134,22 @@ export function Toolbar({ compact }: { compact: boolean }) {
 
   const [picking, setPicking] = useState(false);
   const [filling, setFilling] = useState(false);
+  // "More" is remembered across visits (a per-browser nicety: it renders fine without storage).
+  const [moreOpen, setMoreOpen] = useState(() => {
+    try {
+      return localStorage.getItem('sb-more-options') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleMore = () => {
+    setMoreOpen(!moreOpen);
+    try {
+      localStorage.setItem('sb-more-options', moreOpen ? '0' : '1');
+    } catch {
+      // not remembered
+    }
+  };
   // On a touch screen the tooltips never show, so picking a tool names it for a
   // moment instead (`.sb-touch-only` hides this where a pointer can hover).
   const [caption, setCaption] = useState<string | null>(null);
@@ -197,6 +214,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const showFill = (shapeTool && isFillable(config.shape)) || selBox;
   const showLine = lineTool || selLine;
   const showDash = shapeTool || selShape;
+  const showAlign = selText || selShape;
+  const showCorners = (shapeTool && canRound(config.shape)) || has((el) => el.kind === 'shape' && canRound(el.shape));
   const showSides =
     (shapeTool && config.shape === 'polygon') || has((el) => el.kind === 'shape' && el.shape === 'polygon');
   // A selected shape borrows the text tool's size stepper for its label.
@@ -205,6 +224,24 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const showColor = tool !== 'hand' && tool !== 'eraser' && (tool !== 'select' || selected.length > 0);
   // The cursor with nothing selected, and the hand, have nothing to offer: an
   // empty strip is noise, whatever asked for it.
+  // Which of them are up front for what is in hand; the rest sit behind "More".
+  const primary = primaryOptions(subjectsOf(tool, config.shape, selected));
+  const at = (id: OptionId, slot: 'main' | 'more') => (primary.has(id) ? 'main' : 'more') === slot;
+  const available: Record<OptionId, boolean> = {
+    kinds: false, // the kinds are up front for every shape, never behind More
+    color: showColor,
+    size: showSizes,
+    fill: showFill,
+    dash: showDash,
+    opacity: showDash,
+    corners: showCorners,
+    sides: showSides,
+    ends: showLine,
+    route: showLine,
+    text: showTextOptions,
+    align: showAlign,
+  };
+  const hasMore = (Object.keys(available) as OptionId[]).some((id) => available[id] && !primary.has(id));
   const hasOptions = showSizes || showFill || showLine || showDash || showTextOptions || showColor;
   // A selected shape can change kind within its family: box to box, line to
   // arrow. With the folded shapes button in hand, the strip is where the kind
@@ -248,6 +285,12 @@ export function Toolbar({ compact }: { compact: boolean }) {
     shape: first((el) => (el.kind === 'shape' ? el.shape : undefined)) ?? config.shape,
     sides: first((el) => (el.kind === 'shape' && el.shape === 'polygon' ? el.sides : undefined)) ?? config.sides,
     dash: first((el) => (el.kind === 'shape' ? (el.dash ?? 'solid') : undefined)) ?? config.dash,
+    align:
+      first((el) => (el.kind === 'text' ? (el.align ?? 'left') : el.kind === 'shape' ? (el.align ?? 'center') : undefined)) ??
+      config.align,
+    valign: first((el) => (el.kind === 'shape' ? (el.valign ?? 'middle') : undefined)) ?? config.valign,
+    rounded: first((el) => (el.kind === 'shape' && canRound(el.shape) ? !!el.rounded : undefined)) ?? config.rounded,
+    opacity: first((el) => (el.kind === 'shape' ? Math.round((el.opacity ?? 1) * 100) : undefined)) ?? config.opacity,
   };
   const fontSize = cur.fontSize;
   // The board ink flips on the dark theme (`inkFor`); the swatches follow it.
@@ -277,46 +320,16 @@ export function Toolbar({ compact }: { compact: boolean }) {
       {caption}
     </div>
   ) : null;
-  const optionsEl = (
+  /** The strip's groups for one slot: up front (`main`), or behind More. */
+  const groups = (slot: 'main' | 'more') => (
     <>
-      {open && hasOptions ? (
-          <GlassPanel level="panel" radius={16} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
-            {pickingHead ? (
-              <div className="flex flex-col gap-1.5 px-2.5 py-2">
-                {(
-                  [
-                    ['markersDefault', MARKERS.default],
-                    ['markersOther', MARKERS.other],
-                    ['markersCardinality', MARKERS.cardinality],
-                  ] as const
-                ).map(([labelKey, kinds]) => (
-                  <div key={labelKey} className="flex items-center gap-1.5">
-                    <span className="w-[76px] text-[0.75rem] font-bold text-text/60">{t[labelKey]}</span>
-                    {kinds.map((kind) => (
-                      <MiniButton
-                        key={kind}
-                        label={kind}
-                        active={cur[pickingHead] === kind}
-                        onClick={() => {
-                          setConfig({ [pickingHead]: kind });
-                          setPickingHead(null);
-                        }}
-                      >
-                        <MarkerIcon kind={kind} end={pickingHead === 'headEnd'} />
-                      </MiniButton>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-            <div className={`sb-strip flex ${compact ? 'max-w-[min(calc(100vw-16px),30rem)] flex-wrap items-center justify-center' : 'max-h-[calc(100vh-14rem)] w-fit flex-col items-stretch divide-y divide-line overflow-y-auto'} gap-3 px-3 py-2.5`}>
-              {showSizes ? (
+              {showSizes && at('size', slot) ? (
                 <Group title={t.size}>
                   <WidthSlider value={cur.width} label={t.size} onChange={(width) => setConfig({ width })} />
                 </Group>
               ) : null}
 
-              {kinds.length ? (
+              {kinds.length && at('kinds', slot) ? (
                 <Group title={t.secShape}>
                   {kinds.map((kind) => (
                     <MiniButton
@@ -331,7 +344,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showSides ? (
+              {showSides && at('sides', slot) ? (
                 <Group title={t.sides}>
                   <StepperButton
                     icon="minus"
@@ -354,7 +367,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showFill ? (
+              {showFill && at('fill', slot) ? (
                 <Group title={t.fillColor}>
                   <ColorSwatch
                     label={`${t.fillColor} ${cur.fillOpacity}%`}
@@ -372,7 +385,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showDash ? (
+              {showDash && at('dash', slot) ? (
                 <Group title={t.secStroke}>
                   {DASHES.map((dash) => (
                     <MiniButton
@@ -389,33 +402,63 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showLine ? (
-                <>
-                  <Group title={t.secEnds}>
-                    {(['headStart', 'headEnd'] as const).map((end) => (
-                      <MiniButton key={end} label={t[end]} active={false} onClick={() => setPickingHead(end)}>
-                        <MarkerIcon kind={cur[end]} end={end === 'headEnd'} />
-                      </MiniButton>
-                    ))}
-                  </Group>
-                  <Group title={t.secRoute}>
-                    {ROUTES.map((route) => (
-                      <MiniButton
-                        key={route}
-                        label={t[routeLabel[route]]}
-                        active={cur.route === route}
-                        onClick={() => setConfig({ route })}
-                      >
-                        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d={routePath({ from: { x: 4, y: 19 }, to: { x: 20, y: 5 }, route })} />
-                        </svg>
-                      </MiniButton>
-                    ))}
-                  </Group>
-                </>
+              {showDash && at('opacity', slot) ? (
+                <Group title={t.secOpacity}>
+                  {OPACITIES.map((pct) => (
+                    <MiniButton key={pct} label={`${t.secOpacity} ${pct}%`} active={cur.opacity === pct} onClick={() => setConfig({ opacity: pct })}>
+                      <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={2}>
+                        <circle cx="12" cy="12" r="8" fillOpacity={pct / 100} />
+                      </svg>
+                    </MiniButton>
+                  ))}
+                </Group>
               ) : null}
 
-              {showTextOptions ? (
+              {showCorners && at('corners', slot) ? (
+                <Group title={t.secCorners}>
+                  {([false, true] as const).map((rounded) => (
+                    <MiniButton
+                      key={String(rounded)}
+                      label={rounded ? t.cornerRounded : t.cornerSharp}
+                      active={cur.rounded === rounded}
+                      onClick={() => setConfig({ rounded })}
+                    >
+                      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+                        <rect x="4" y="4" width="16" height="16" rx={rounded ? 6 : 0} />
+                      </svg>
+                    </MiniButton>
+                  ))}
+                </Group>
+              ) : null}
+
+              {showLine && at('ends', slot) ? (
+                <Group title={t.secEnds}>
+                  {(['headStart', 'headEnd'] as const).map((end) => (
+                    <MiniButton key={end} label={t[end]} active={false} onClick={() => setPickingHead(end)}>
+                      <MarkerIcon kind={cur[end]} end={end === 'headEnd'} />
+                    </MiniButton>
+                  ))}
+                </Group>
+              ) : null}
+
+              {showLine && at('route', slot) ? (
+                <Group title={t.secRoute}>
+                  {ROUTES.map((route) => (
+                    <MiniButton
+                      key={route}
+                      label={t[routeLabel[route]]}
+                      active={cur.route === route}
+                      onClick={() => setConfig({ route })}
+                    >
+                      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d={routePath({ from: { x: 4, y: 19 }, to: { x: 20, y: 5 }, route })} />
+                      </svg>
+                    </MiniButton>
+                  ))}
+                </Group>
+              ) : null}
+
+              {showTextOptions && at('text', slot) ? (
                 <>
                   <Group title={t.secTextSize}>
                   {TEXT_SIZES.map((size) => (
@@ -467,7 +510,41 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </>
               ) : null}
 
-              {showColor ? (
+                {showAlign && at('align', slot) ? (
+                  <Group title={t.secAlign}>
+                    {H_ALIGNS.map((align) => (
+                      <MiniButton key={align} label={t[H_ALIGN_LABEL[align]]} active={cur.align === align} onClick={() => setConfig({ align })}>
+                        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <path d={H_ALIGN_PATH[align]} />
+                        </svg>
+                      </MiniButton>
+                    ))}
+                    {selShape ? (
+                      <>
+                        {V_ALIGNS.map((valign) => (
+                          <MiniButton key={valign} label={t[V_ALIGN_LABEL[valign]]} active={cur.valign === valign} onClick={() => setConfig({ valign })}>
+                            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                              <rect x="4" y="4" width="16" height="16" rx="2" />
+                              <path d={V_ALIGN_PATH[valign]} />
+                            </svg>
+                          </MiniButton>
+                        ))}
+                        <MiniButton
+                          label={t.alignCentered}
+                          active={cur.align === 'center' && cur.valign === 'middle'}
+                          onClick={() => setConfig({ align: 'center', valign: 'middle' })}
+                        >
+                          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <rect x="4" y="4" width="16" height="16" rx="2" />
+                            <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+                          </svg>
+                        </MiniButton>
+                      </>
+                    ) : null}
+                  </Group>
+                ) : null}
+
+              {showColor && at('color', slot) ? (
                 <Group title={showFill ? t.strokeColor : t.color}>
                   <ColorSwatch
                     label={`${t.color} ${cur.color}`}
@@ -477,6 +554,53 @@ export function Toolbar({ compact }: { compact: boolean }) {
                   />
                 </Group>
               ) : null}
+    </>
+  );
+  const optionsEl = (
+    <>
+      {open && hasOptions ? (
+          <GlassPanel level="panel" radius={16} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
+            {pickingHead ? (
+              <div className="flex flex-col gap-1.5 px-2.5 py-2">
+                {(
+                  [
+                    ['markersDefault', MARKERS.default],
+                    ['markersOther', MARKERS.other],
+                    ['markersCardinality', MARKERS.cardinality],
+                  ] as const
+                ).map(([labelKey, kinds]) => (
+                  <div key={labelKey} className="flex items-center gap-1.5">
+                    <span className="w-[76px] text-[0.75rem] font-bold text-text/60">{t[labelKey]}</span>
+                    {kinds.map((kind) => (
+                      <MiniButton
+                        key={kind}
+                        label={kind}
+                        active={cur[pickingHead] === kind}
+                        onClick={() => {
+                          setConfig({ [pickingHead]: kind });
+                          setPickingHead(null);
+                        }}
+                      >
+                        <MarkerIcon kind={kind} end={pickingHead === 'headEnd'} />
+                      </MiniButton>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+            <div className={`sb-strip flex ${compact ? 'max-w-[min(calc(100vw-16px),30rem)] flex-wrap items-center justify-center' : 'max-h-[calc(100vh-14rem)] w-fit flex-col items-stretch divide-y divide-line overflow-y-auto'} gap-3 px-3 py-2.5`}>
+              {groups('main')}
+              {hasMore ? (
+                <button
+                  type="button"
+                  aria-expanded={moreOpen}
+                  onClick={() => toggleMore()}
+                  className="flex cursor-pointer items-center justify-center rounded-md px-2 py-1 text-[0.6875rem] font-bold text-text-secondary transition hover:bg-surface-selected hover:text-text"
+                >
+                  {moreOpen ? t.optionsLess : t.optionsMore}
+                </button>
+              ) : null}
+              {hasMore && moreOpen ? groups('more') : null}
             </div>
             )}
           </GlassPanel>
@@ -568,6 +692,17 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
  * Stroke width as a slider with one stop per size: native range input snapped to
  * the four widths, with a dot under each stop drawn at that width.
  */
+/** Drawn on a 24px grid: text lines against the left, middle or right; a bar at the top, middle or bottom of a frame. */
+const H_ALIGN_PATH = { left: 'M4 6h16M4 12h10M4 18h14', center: 'M4 6h16M7 12h10M5 18h14', right: 'M4 6h16M10 12h10M6 18h14' } as const;
+const V_ALIGN_PATH = { top: 'M8 8h8', middle: 'M8 12h8', bottom: 'M8 16h8' } as const;
+const H_ALIGNS = ['left', 'center', 'right'] as const;
+const V_ALIGNS = ['top', 'middle', 'bottom'] as const;
+const H_ALIGN_LABEL = { left: 'alignLeft', center: 'alignCenter', right: 'alignRight' } as const;
+const V_ALIGN_LABEL = { top: 'alignTop', middle: 'alignMiddle', bottom: 'alignBottom' } as const;
+
+/** The stops of the figure opacity control, in percent. */
+const OPACITIES = [25, 50, 75, 100];
+
 function WidthSlider({ value, label, onChange }: { value: number; label: string; onChange: (width: number) => void }) {
   // The nearest stop, for a selected figure drawn at a width the slider never sets.
   const index = StrokeSizes.reduce((best, size, i) => (Math.abs(size - value) < Math.abs(StrokeSizes[best] - value) ? i : best), 0);

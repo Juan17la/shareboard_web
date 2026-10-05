@@ -26,6 +26,8 @@ import {
   type BoardMeta,
   type Axis,
   type Dash,
+  type HAlign,
+  type VAlign,
   type ElementBase,
   type ElementId,
   type FontKey,
@@ -49,6 +51,7 @@ import {
   followLinks,
   headsOf,
   hitTest,
+  canRound,
   isLineLike,
   setBoxLookup,
   translate,
@@ -85,6 +88,13 @@ export interface ToolConfig {
   headEnd: Marker;
   route: Route;
   dash: Dash;
+  /** Whole-figure opacity of new figures and of the selection, 10 to 100. */
+  opacity: number;
+  /** Corners of new rectangles, triangles and polygons (and of the selection). */
+  rounded: boolean;
+  /** Where the selected text, or the label of the selected figure, sits. */
+  align: HAlign;
+  valign: VAlign;
   /** An elbow's direction leaving its start and arriving at its end; null is automatic. */
   startAxis: Axis | null;
   endAxis: Axis | null;
@@ -420,6 +430,10 @@ const DEFAULT_CONFIG: ToolConfig = {
   headEnd: 'arrow',
   route: 'straight',
   dash: 'solid',
+  opacity: 100,
+  rounded: false,
+  align: 'left',
+  valign: 'middle',
   startAxis: null,
   endAxis: null,
 };
@@ -710,6 +724,7 @@ export const useBoardStore = create<BoardState>((set, get) => {
           if (patch.bold !== undefined) p.bold = patch.bold;
           if (patch.italic !== undefined) p.italic = patch.italic;
           if (patch.font !== undefined) p.font = patch.font;
+          if (patch.align !== undefined) p.align = patch.align;
         } else if (el.kind === 'shape') {
           // A kind change only comes from the strip's kind cluster (the tool
           // buttons let go of the selection first) and stays in the family:
@@ -737,6 +752,10 @@ export const useBoardStore = create<BoardState>((set, get) => {
           if (shape === 'polygon' && (patch.sides !== undefined || shape !== el.shape)) {
             p.sides = patch.sides ?? get().config.sides;
           }
+          if (patch.align !== undefined) p.align = patch.align;
+          if (patch.valign !== undefined) p.valign = patch.valign;
+          if (patch.rounded !== undefined && canRound(shape)) p.rounded = patch.rounded || null;
+          if (patch.opacity !== undefined) p.opacity = patch.opacity >= 100 ? null : patch.opacity / 100;
           for (const k of ['headStart', 'headEnd', 'route', 'dash', 'startAxis', 'endAxis'] as const) {
             if (patch[k] !== undefined) p[k] = patch[k];
           }
@@ -918,6 +937,8 @@ export const useBoardStore = create<BoardState>((set, get) => {
         fill: isFillable(shape) ? fillWith(config.fillColor ?? config.color, config.fillOpacity) : null,
         ...(shape === 'polygon' ? { sides: config.sides } : null),
         dash: config.dash,
+        ...(config.opacity < 100 ? { opacity: config.opacity / 100 } : null),
+        ...(config.rounded && canRound(shape) ? { rounded: true } : null),
         ...(shape === 'line' || shape === 'arrow'
           ? {
               headStart: config.headStart,
