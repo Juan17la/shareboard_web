@@ -19,7 +19,6 @@ export function MenuSheet({
   onNew,
   onOpenBoards,
   onOpenJoin,
-  onOpenExport,
   onOpenImport,
   onOpenPrivacy,
   onOpenPeople,
@@ -30,7 +29,6 @@ export function MenuSheet({
   onNew: () => void;
   onOpenBoards: () => void;
   onOpenJoin: () => void;
-  onOpenExport: () => void;
   onOpenImport: () => void;
   onOpenPrivacy: () => void;
   onOpenPeople: () => void;
@@ -45,7 +43,6 @@ export function MenuSheet({
       { icon: 'board', label: t.myWhiteboards, onClick: onOpenBoards },
       { icon: 'link', label: t.joinWhiteboard, onClick: onOpenJoin },
       { icon: 'download', label: t.importBoard, onClick: onOpenImport },
-      { icon: 'image', label: t.exportImage, onClick: onOpenExport },
       { icon: 'lock', label: t.whoEdits, onClick: onOpenPrivacy },
       { icon: 'people', label: t.sheetPeople, onClick: onOpenPeople },
       ...(canEdit ? [{ icon: 'sparkle' as const, label: t.sheetAi, onClick: onOpenAi }] : []),
