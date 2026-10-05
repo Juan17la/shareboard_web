@@ -74,7 +74,7 @@ import { cursorFor } from './cursors';
 import { paintAnchors, paintBoard, paintDashedBox, paintHeld, paintSelection } from './renderer';
 
 /** How long a pen stroke's end is held before it is read as a figure (`recognizeSketch`). */
-const SKETCH_MS = 700;
+const SKETCH_MS = 500;
 /** Screen pixels the pointer may wander and still count as held still. */
 const STILL_PX = 8;
 
@@ -211,12 +211,9 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   // Sorted once per change to the elements, not once per pointer move: the
   // drag preview below only patches the sorted list.
   const drawn = useMemo(() => visibleSorted(elements), [elements]);
-  // What the eraser has passed over is gone from the screen at once; it is
-  // deleted for real (one step) when the pointer lifts.
-  const sorted = useMemo(
-    () => (liveErased.length ? drawn.filter((el) => !liveErased.includes(el.id)) : drawn),
-    [drawn, liveErased],
-  );
+  // What the eraser has passed over fades (`erasing` below) and is deleted for
+  // real, as one step, when the pointer lifts.
+  const sorted = drawn;
   const list = useMemo(() => {
     if (editingId && draft !== null) {
       return sorted.map((el) => (el.id === editingId ? ({ ...el, text: draft } as BoardElement) : el));
@@ -326,15 +323,16 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         background: Colors.background,
         dark,
         held,
+        erasing: liveErased,
         onImageReady: () => repaint.current(),
       });
       if (held.size) paintHeld(ctx, list, held, cam);
       if (selected.length) paintSelection(ctx, selected, cam);
       if (marquee) paintDashedBox(ctx, shapeBounds(marquee), cam);
-      // Connection points show whenever a line or arrow could land on them.
+      // Connection points show whenever an arrow could land on them.
       if (
-        (activeTool === 'shape' && (cfg.shape === 'line' || cfg.shape === 'arrow')) ||
-        (selectedShape && isLineLike(selectedShape))
+        (activeTool === 'shape' && cfg.shape === 'arrow') ||
+        (selectedShape && selectedShape.shape === 'arrow')
       ) {
         paintAnchors(ctx, list, cam);
       }
@@ -342,7 +340,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     // `config` is in the list because changing the colour or width while a
     // shape is being dragged has to repaint the draft, and no pointer event
     // follows to trigger it.
-  }, [list, livePoints, liveShape, liveSketch, marquee, selected, selectedShape, smooth, grid, config, tool, dark, held]);
+  }, [list, livePoints, liveShape, liveSketch, marquee, selected, selectedShape, smooth, grid, config, tool, dark, held, liveErased]);
 
   useEffect(() => {
     repaint.current = paint;
@@ -415,9 +413,9 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setSketch(null);
   };
 
-  /** A line's ends bind to the shapes they land on; other shapes pass through. */
+  /** An arrow's ends bind to the shapes they land on; a plain line never does. */
   const snapLine = (shape: string, from: Point, to: Point): Ends => {
-    if (shape !== 'line' && shape !== 'arrow') return { from, to };
+    if (shape !== 'arrow') return { from, to };
     const store = useBoardStore.getState();
     // Never to itself: the line being reshaped is not a target.
     const others = store.visibleElements().filter((el) => !store.selectedIds.includes(el.id));
@@ -740,6 +738,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         setEdit(null);
         if (figure.patch) store.finishFigure(figure.id, figure.patch);
       } else if (points.length >= 4) {
+        // The pencil stays in hand: many strokes in a row is what it is for.
         store.addStroke(simplify(points));
       }
     }
@@ -775,7 +774,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         if (dragged * store.camera.scale > 6) {
           // A new shape comes up selected, handles ready, so it can be sized
           // right away.
-          store.select(store.addShape(store.config.shape, shape));
+          const id = store.addShape(store.config.shape, shape);
+          if (id) store.finishCreate([id]);
         } else {
           // A click with the shape tool picks the shape under it (or nothing).
           store.select(shapeAt(store.visibleElements(), shape.from, 6 / store.camera.scale)?.id ?? null);
@@ -884,6 +884,10 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           camera={camera}
           onDraft={setDraft}
           onClose={() => {
+            // A new text that kept its words comes up selected, with the cursor.
+            const { tool, elements, finishCreate } = useBoardStore.getState();
+            const done = elements[editing.id];
+            if (tool === 'text' && done?.kind === 'text' && !done.deleted && done.text) finishCreate([done.id]);
             setEditingId(null);
             setDraft(null);
           }}
