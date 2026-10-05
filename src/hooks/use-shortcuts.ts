@@ -145,9 +145,21 @@ export function useShortcuts(enabled: boolean, onHelp?: () => void) {
       if (e.code === 'Space') keys.spaceHeld = false;
     };
 
+    // On Linux a middle click pastes the highlighted text (the X11 primary
+    // selection) as an ordinary `paste` event; on the board the middle button
+    // only pans, so a paste right after one is dropped. Typing fields keep it.
+    let middleAt = -Infinity;
+    const middle = (e: MouseEvent) => {
+      if (e.button === 1) middleAt = performance.now();
+    };
+
     const paste = (e: ClipboardEvent) => {
       const el = e.target as HTMLElement | null;
       if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return;
+      if (performance.now() - middleAt < 500) {
+        e.preventDefault();
+        return;
+      }
       const s = useBoardStore.getState();
       if (!s.canEditNow()) return;
       const { x, y, scale } = s.camera;
@@ -185,10 +197,14 @@ export function useShortcuts(enabled: boolean, onHelp?: () => void) {
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     window.addEventListener('paste', paste);
+    window.addEventListener('mousedown', middle, true);
+    window.addEventListener('mouseup', middle, true);
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
       window.removeEventListener('paste', paste);
+      window.removeEventListener('mousedown', middle, true);
+      window.removeEventListener('mouseup', middle, true);
       keys.spaceHeld = false;
     };
   }, [enabled, onHelp]);
