@@ -64,6 +64,7 @@ export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () =>
           ) : null}
         </div>
       </GlassPanel>
+
     </div>
   );
 }
