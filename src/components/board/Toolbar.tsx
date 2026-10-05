@@ -43,7 +43,6 @@ import {
   type ShapeKind,
   type ToolType,
 } from '../../lib/contract';
-import { primaryOptions, subjectsOf, type OptionId } from '../../lib/tool-options';
 import { canRound, dashIntervals, headsOf, isLineLike, markerPaths, routePath } from '../../lib/geometry';
 import { Css, StrokeSizes, fillColorOf, fillOpacityOf, fillWith, inkFor } from '../../lib/theme';
 import { useSessionStore } from '../../features/session';
@@ -134,22 +133,6 @@ export function Toolbar({ compact }: { compact: boolean }) {
 
   const [picking, setPicking] = useState(false);
   const [filling, setFilling] = useState(false);
-  // "More" is remembered across visits (a per-browser nicety: it renders fine without storage).
-  const [moreOpen, setMoreOpen] = useState(() => {
-    try {
-      return localStorage.getItem('sb-more-options') === '1';
-    } catch {
-      return false;
-    }
-  });
-  const toggleMore = () => {
-    setMoreOpen(!moreOpen);
-    try {
-      localStorage.setItem('sb-more-options', moreOpen ? '0' : '1');
-    } catch {
-      // not remembered
-    }
-  };
   // On a touch screen the tooltips never show, so picking a tool names it for a
   // moment instead (`.sb-touch-only` hides this where a pointer can hover).
   const [caption, setCaption] = useState<string | null>(null);
@@ -224,24 +207,6 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const showColor = tool !== 'hand' && tool !== 'eraser' && (tool !== 'select' || selected.length > 0);
   // The cursor with nothing selected, and the hand, have nothing to offer: an
   // empty strip is noise, whatever asked for it.
-  // Which of them are up front for what is in hand; the rest sit behind "More".
-  const primary = primaryOptions(subjectsOf(tool, config.shape, selected));
-  const at = (id: OptionId, slot: 'main' | 'more') => (primary.has(id) ? 'main' : 'more') === slot;
-  const available: Record<OptionId, boolean> = {
-    kinds: false, // the kinds are up front for every shape, never behind More
-    color: showColor,
-    size: showSizes,
-    fill: showFill,
-    dash: showDash,
-    opacity: showDash,
-    corners: showCorners,
-    sides: showSides,
-    ends: showLine,
-    route: showLine,
-    text: showTextOptions,
-    align: showAlign,
-  };
-  const hasMore = (Object.keys(available) as OptionId[]).some((id) => available[id] && !primary.has(id));
   const hasOptions = showSizes || showFill || showLine || showDash || showTextOptions || showColor;
   // A selected shape can change kind within its family: box to box, line to
   // arrow. With the folded shapes button in hand, the strip is where the kind
@@ -320,16 +285,16 @@ export function Toolbar({ compact }: { compact: boolean }) {
       {caption}
     </div>
   ) : null;
-  /** The strip's groups for one slot: up front (`main`), or behind More. */
-  const groups = (slot: 'main' | 'more') => (
+  /** Every option the tool in hand offers, grouped; the groups wrap side by side where they fit. */
+  const groups = (
     <>
-              {showSizes && at('size', slot) ? (
+              {showSizes ? (
                 <Group title={t.size}>
                   <WidthSlider value={cur.width} label={t.size} onChange={(width) => setConfig({ width })} />
                 </Group>
               ) : null}
 
-              {kinds.length && at('kinds', slot) ? (
+              {kinds.length ? (
                 <Group title={t.secShape}>
                   {kinds.map((kind) => (
                     <MiniButton
@@ -344,7 +309,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showSides && at('sides', slot) ? (
+              {showSides ? (
                 <Group title={t.sides}>
                   <StepperButton
                     icon="minus"
@@ -367,7 +332,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showFill && at('fill', slot) ? (
+              {showFill ? (
                 <Group title={t.fillColor}>
                   <ColorSwatch
                     label={`${t.fillColor} ${cur.fillOpacity}%`}
@@ -385,7 +350,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showDash && at('dash', slot) ? (
+              {showDash ? (
                 <Group title={t.secStroke}>
                   {DASHES.map((dash) => (
                     <MiniButton
@@ -402,7 +367,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showDash && at('opacity', slot) ? (
+              {showDash ? (
                 <Group title={t.secOpacity}>
                   {OPACITIES.map((pct) => (
                     <MiniButton key={pct} label={`${t.secOpacity} ${pct}%`} active={cur.opacity === pct} onClick={() => setConfig({ opacity: pct })}>
@@ -414,7 +379,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showCorners && at('corners', slot) ? (
+              {showCorners ? (
                 <Group title={t.secCorners}>
                   {([false, true] as const).map((rounded) => (
                     <MiniButton
@@ -431,7 +396,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showLine && at('ends', slot) ? (
+              {showLine ? (
                 <Group title={t.secEnds}>
                   {(['headStart', 'headEnd'] as const).map((end) => (
                     <MiniButton key={end} label={t[end]} active={false} onClick={() => setPickingHead(end)}>
@@ -441,7 +406,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showLine && at('route', slot) ? (
+              {showLine ? (
                 <Group title={t.secRoute}>
                   {ROUTES.map((route) => (
                     <MiniButton
@@ -458,7 +423,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </Group>
               ) : null}
 
-              {showTextOptions && at('text', slot) ? (
+              {showTextOptions ? (
                 <>
                   <Group title={t.secTextSize}>
                   {TEXT_SIZES.map((size) => (
@@ -510,7 +475,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 </>
               ) : null}
 
-                {showAlign && at('align', slot) ? (
+                {showAlign ? (
                   <Group title={t.secAlign}>
                     {H_ALIGNS.map((align) => (
                       <MiniButton key={align} label={t[H_ALIGN_LABEL[align]]} active={cur.align === align} onClick={() => setConfig({ align })}>
@@ -544,7 +509,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
                   </Group>
                 ) : null}
 
-              {showColor && at('color', slot) ? (
+              {showColor ? (
                 <Group title={showFill ? t.strokeColor : t.color}>
                   <ColorSwatch
                     label={`${t.color} ${cur.color}`}
@@ -588,19 +553,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 ))}
               </div>
             ) : (
-            <div className={`sb-strip flex ${compact ? 'max-w-[min(calc(100vw-16px),30rem)] flex-wrap items-center justify-center' : 'max-h-[calc(100vh-14rem)] w-fit flex-col items-stretch divide-y divide-line overflow-y-auto'} gap-3 px-3 py-2.5`}>
-              {groups('main')}
-              {hasMore ? (
-                <button
-                  type="button"
-                  aria-expanded={moreOpen}
-                  onClick={() => toggleMore()}
-                  className="flex cursor-pointer items-center justify-center rounded-md px-2 py-1 text-[0.6875rem] font-bold text-text-secondary transition hover:bg-surface-selected hover:text-text"
-                >
-                  {moreOpen ? t.optionsLess : t.optionsMore}
-                </button>
-              ) : null}
-              {hasMore && moreOpen ? groups('more') : null}
+            <div className={`sb-strip flex ${compact ? 'max-w-[min(calc(100vw-16px),30rem)] flex-wrap items-center justify-center' : 'max-h-[calc(100vh-14rem)] w-[15.5rem] flex-row flex-wrap content-start items-start overflow-y-auto'} gap-x-3 gap-y-3 px-3 py-2.5`}>
+              {groups}
             </div>
             )}
           </GlassPanel>
@@ -675,11 +629,10 @@ export function Toolbar({ compact }: { compact: boolean }) {
 /** Whether the strips are the side columns (wide screens) rather than the bottom rows. */
 const Vertical = createContext(false);
 
-/** One cluster of options, with a small subtitle saying what it is; the panel's `divide-y` separates them. */
+/** One cluster of options, with a small subtitle saying what it is. */
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  const vertical = useContext(Vertical);
   return (
-    <div className={`flex min-w-0 max-w-full flex-col gap-1.5 ${vertical ? 'py-2.5 first:pt-0 last:pb-0' : ''}`}>
+    <div className="flex min-w-0 max-w-full flex-col gap-1.5">
       <span className="text-[0.625rem] leading-none font-extrabold tracking-[0.8px] text-text-secondary uppercase">
         {title}
       </span>
