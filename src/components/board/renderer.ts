@@ -30,14 +30,16 @@ import {
   isLineLike,
   labelBox,
   labelLines,
-  lineLabelCentre,
+  labelPlacement,
+  textAnchor,
   markerPaths,
   polygonPoints,
+  cornerRadius,
+  roundedPolygonPath,
   rotateHandleOf,
   rotationOf,
   routePath,
   setTextMeasure,
-  shapeBounds,
   strokePath,
   textLines,
   toWorld,
@@ -103,28 +105,29 @@ function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   ctx.fillStyle = el.color;
   ctx.textBaseline = 'alphabetic';
   const step = el.fontSize * TEXT_LINE_HEIGHT;
+  const { x, align } = textAnchor(el);
+  ctx.textAlign = align;
   // Its own newlines, then wrapped to its width if it has one.
   textLines(el).forEach((line, i) => {
-    ctx.fillText(line, el.at.x, el.at.y + el.fontSize + i * step);
+    ctx.fillText(line, x, el.at.y + el.fontSize + i * step);
   });
+  ctx.textAlign = 'start';
 }
 
 /** A shape's label: centred in its box, or floating just above a line's midpoint. */
 function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void {
   if (!el.text) return;
-  const { x, y, width, height } = shapeBounds(el);
   const fontSize = el.fontSize ?? SHAPE_TEXT_SIZE;
   const step = fontSize * TEXT_LINE_HEIGHT;
   const lines = labelLines(el, fontSize);
-  // Centred in a box; on a line, where it stands along it (the line is cut behind it).
-  const { x: cx, y: cy } = isLineLike(el) ? lineLabelCentre(el) : { x: x + width / 2, y: y + height / 2 };
+  // Where the figure's alignment puts it; on a line, where it stands along it (the line is cut behind it).
+  const at = labelPlacement(el, fontSize, lines.length);
 
   ctx.font = fontFor({ fontSize, bold: false, italic: false, font: el.font });
   ctx.fillStyle = el.stroke;
-  ctx.textAlign = 'center';
+  ctx.textAlign = at.align;
   ctx.textBaseline = 'middle';
-  const top = cy - ((lines.length - 1) * step) / 2;
-  lines.forEach((line, i) => ctx.fillText(line, cx, top + i * step));
+  lines.forEach((line, i) => ctx.fillText(line, at.x, at.y + i * step));
   ctx.textAlign = 'start';
   ctx.textBaseline = 'alphabetic';
 }
@@ -150,9 +153,7 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   if (outline) ctx.setLineDash(outline);
 
   if (el.shape === 'rectangle') {
-    // The design's rectangles are softly rounded, capped so a thin sliver does
-    // not turn into a lozenge.
-    const r = Math.max(0, Math.min(8, w / 4, h / 4));
+    const r = el.rounded ? cornerRadius(w, h) : 0;
     const path = new Path2D();
     path.roundRect(x, y, w, h, r);
     if (el.fill) {
@@ -187,9 +188,14 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
             { x, y: y + h },
           ]
         : polygonPoints({ x, y, width: w, height: h }, el.sides);
-    const path = new Path2D();
-    pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
-    path.closePath();
+    let path: Path2D;
+    if (el.rounded) {
+      path = new Path2D(roundedPolygonPath(pts, cornerRadius(w, h)));
+    } else {
+      path = new Path2D();
+      pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
+      path.closePath();
+    }
     if (el.fill) {
       ctx.fillStyle = el.fill;
       ctx.fill(path);
@@ -605,9 +611,10 @@ export function paintBoard(ctx: CanvasRenderingContext2D, opts: PaintOptions): v
   for (const el of opts.elements) {
     const fade = opts.erasing?.includes(el.id);
     const dim = fade || opts.held?.has(el.id);
-    if (dim) ctx.globalAlpha = fade ? ERASING_ALPHA : HELD_ALPHA;
+    // The eraser's and the holder's dimming multiply with the element's own opacity.
+    ctx.globalAlpha = (dim ? (fade ? ERASING_ALPHA : HELD_ALPHA) : 1) * (el.opacity ?? 1);
     paintElement(ctx, el, opts.smooth, opts.onImageReady, opts.dark);
-    if (dim) ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
   }
   ctx.restore();
 }
