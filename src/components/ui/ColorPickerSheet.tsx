@@ -9,7 +9,7 @@
  * at the bottom for anyone who wants an exact value.
  */
 import { useT } from '../../features/i18n';
-import { Css } from '../../lib/theme';
+import { Css, DrawingPalette } from '../../lib/theme';
 
 import { Sheet } from './Sheet';
 
@@ -98,6 +98,8 @@ export function ColorPickerSheet({
   return (
     <Sheet open={open} title={t.color} onClose={onClose} closeLabel={t.close}>
       <div className="flex flex-col gap-1.5">
+        <div className="flex gap-1.5">{DrawingPalette.map((c) => swatch(c, `p-${c}`))}</div>
+        <div className="h-1.5" />
         {RAMP.map((step, row) => (
           <div key={row} className="flex gap-1.5">
             {HUES.map((h) => swatch(hsl(h, step.s, step.l), `${h}-${row}`))}
