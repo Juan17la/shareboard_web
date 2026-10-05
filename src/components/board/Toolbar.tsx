@@ -1,6 +1,5 @@
 /**
- * The toolbar: one horizontal strip at the bottom of the board, Excalidraw
- * style, with every tool — cursor, hand, pencil, eraser, each shape kind, text,
+ * The toolbar: Excalidraw style, with every tool — cursor, hand, pencil, eraser, each shape kind, text,
  * fill — one click away. On a wide screen the shape kinds are buttons of their
  * own rather than a sub-menu: the old rail needed two clicks and a second
  * column to get to an arrow, and that is the click this layout gives back. On
@@ -10,15 +9,20 @@
  * What is not a tool (colour, stroke size, fill, font size, bold/italic) lives
  * in an options strip above the bar that only shows the options belonging to
  * the tool in hand. Picking a tool opens it; clicking the tool you already hold
- * toggles it; the colour swatch toggles it too. It closes itself the moment a
+ * toggles it. It closes itself the moment a
  * gesture starts on the canvas and comes back when one ends on a selection
  * (`railOpen` in the store).
+ *
+ * On a wide screen the tools are a rail down the left edge with the options panel
+ * beside it, both centred vertically so they stay clear of the header and the
+ * zoom chip; under `Layout.compactBreakpoint` both fold back into the
+ * strips at the bottom, where a phone's thumb is.
  *
  * Every tool also has a one-key shortcut, which is the browser's own
  * contribution: on a phone the bar is the only way to switch tools, but at a
  * keyboard reaching for the mouse to change pen colour is the slow path.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
@@ -29,6 +33,8 @@ import {
   MARKERS,
   ROUTES,
   SHAPE_TEXT_SIZE,
+  TEXT_SIZES,
+  nearestTextSize,
   isFillable,
   type BoardElement,
   type Dash,
@@ -38,12 +44,13 @@ import {
   type ToolType,
 } from '../../lib/contract';
 import { dashIntervals, headsOf, isLineLike, markerPaths, routePath } from '../../lib/geometry';
-import { Css, DrawingPalette, StrokeSizes, fillColorOf, fillOpacityOf, fillWith, inkFor } from '../../lib/theme';
+import { Css, StrokeSizes, fillColorOf, fillOpacityOf, fillWith, inkFor } from '../../lib/theme';
 import { useSessionStore } from '../../features/session';
 import { useViewport } from '../../hooks/use-viewport';
 
 import { StepperButton } from '../ui/Button';
 import { ColorPickerSheet } from '../ui/ColorPickerSheet';
+import { ColorSwatch } from '../ui/ColorSwatch';
 import { FillSheet } from './FillSheet';
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
@@ -121,7 +128,6 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const elements = useBoardStore((s) => s.elements);
   const canEdit = useBoardStore((s) => s.canEditNow());
   const open = useBoardStore((s) => s.railOpen);
-  const setOpen = useBoardStore((s) => s.setRailOpen);
   const dark = useSessionStore((s) => s.theme === 'dark');
   const narrow = useViewport().width < 360;
 
@@ -190,6 +196,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
     tool === 'pen' || tool === 'eraser' || shapeTool || has((el) => el.kind === 'stroke') || selShape;
   const showFill = (shapeTool && isFillable(config.shape)) || selBox;
   const showLine = lineTool || selLine;
+  const showDash = shapeTool || selShape;
   const showSides =
     (shapeTool && config.shape === 'polygon') || has((el) => el.kind === 'shape' && el.shape === 'polygon');
   // A selected shape borrows the text tool's size stepper for its label.
@@ -198,7 +205,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const showColor = tool !== 'hand' && tool !== 'eraser' && (tool !== 'select' || selected.length > 0);
   // The cursor with nothing selected, and the hand, have nothing to offer: an
   // empty strip is noise, whatever asked for it.
-  const hasOptions = showSizes || showFill || showLine || showTextOptions || showColor;
+  const hasOptions = showSizes || showFill || showLine || showDash || showTextOptions || showColor;
   // A selected shape can change kind within its family: box to box, line to
   // arrow. With the folded shapes button in hand, the strip is where the kind
   // is chosen at all.
@@ -240,7 +247,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
     route: first((el) => line(el)?.route ?? (line(el) ? 'straight' : undefined)) ?? config.route,
     shape: first((el) => (el.kind === 'shape' ? el.shape : undefined)) ?? config.shape,
     sides: first((el) => (el.kind === 'shape' && el.shape === 'polygon' ? el.sides : undefined)) ?? config.sides,
-    dash: first((el) => line(el)?.dash ?? (line(el) ? 'solid' : undefined)) ?? config.dash,
+    dash: first((el) => (el.kind === 'shape' ? (el.dash ?? 'solid') : undefined)) ?? config.dash,
   };
   const fontSize = cur.fontSize;
   // The board ink flips on the dark theme (`inkFor`); the swatches follow it.
@@ -262,18 +269,17 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const button = narrow ? 34 : compact ? 38 : 40;
   const tools = compact ? COMPACT_TOOLS : TOOLS;
 
-  return (
+  const captionEl = caption ? (
+    <div
+      aria-hidden="true"
+      className="sb-touch-only rounded-full bg-text px-3 py-1 text-[0.7812rem] font-bold text-background shadow-panel"
+    >
+      {caption}
+    </div>
+  ) : null;
+  const optionsEl = (
     <>
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex flex-col items-center gap-2 px-2">
-        {caption ? (
-          <div
-            aria-hidden="true"
-            className="sb-touch-only rounded-full bg-text px-3 py-1 text-[0.7812rem] font-bold text-background shadow-panel"
-          >
-            {caption}
-          </div>
-        ) : null}
-        {open && hasOptions ? (
+      {open && hasOptions ? (
           <GlassPanel level="panel" radius={16} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
             {pickingHead ? (
               <div className="flex flex-col gap-1.5 px-2.5 py-2">
@@ -303,41 +309,15 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 ))}
               </div>
             ) : (
-            <div className="sb-strip flex max-w-[min(calc(100vw-16px),30rem)] flex-wrap items-center justify-center gap-2 px-2.5 py-2">
+            <div className={`sb-strip flex ${compact ? 'max-w-[min(calc(100vw-16px),30rem)] flex-wrap items-center justify-center' : 'max-h-[calc(100vh-14rem)] w-fit flex-col items-stretch divide-y divide-line overflow-y-auto'} gap-3 px-3 py-2.5`}>
               {showSizes ? (
-                <Group>
-                  {StrokeSizes.map((value) => {
-                    const active = cur.width === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-label={`${t.size} ${value}`}
-                        aria-pressed={active}
-                        data-tip={`${t.size} ${value}`}
-                        onClick={() => setConfig({ width: value })}
-                        className="touch-36 flex h-8 w-8 items-center justify-center rounded-[9px] border transition"
-                        style={{
-                          borderColor: active ? 'transparent' : Css.border,
-                          background: active ? Css.accentSoft : Css.surface,
-                        }}
-                      >
-                        <span
-                          className="rounded-full"
-                          style={{
-                            width: Math.min(20, value + 3),
-                            height: Math.min(20, value + 3),
-                            background: active ? Css.accent : Css.textSecondary,
-                          }}
-                        />
-                      </button>
-                    );
-                  })}
+                <Group title={t.size}>
+                  <WidthSlider value={cur.width} label={t.size} onChange={(width) => setConfig({ width })} />
                 </Group>
               ) : null}
 
               {kinds.length ? (
-                <Group>
+                <Group title={t.secShape}>
                   {kinds.map((kind) => (
                     <MiniButton
                       key={kind}
@@ -352,7 +332,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
               ) : null}
 
               {showSides ? (
-                <Group>
+                <Group title={t.sides}>
                   <StepperButton
                     icon="minus"
                     label={t.fewerSides}
@@ -375,33 +355,50 @@ export function Toolbar({ compact }: { compact: boolean }) {
               ) : null}
 
               {showFill ? (
-                <Group>
-                  <MiniButton
-                    label={`${t.fill} ${cur.fillOpacity}%`}
+                <Group title={t.fillColor}>
+                  <ColorSwatch
+                    label={`${t.fillColor} ${cur.fillOpacity}%`}
+                    caption={`${t.fillColor} ${cur.fillOpacity}%`}
+                    color={fillWith(fillInk, cur.fillOpacity) ?? 'transparent'}
                     active={filling}
-                    wide
                     onClick={() => setFilling(true)}
-                  >
-                    {/* The swatch is the fill itself: its colour at its opacity, outlined, and the number. */}
-                    <span
-                      className="block h-4 w-4 rounded border-[1.5px]"
-                      style={{ borderColor: ink, background: fillWith(fillInk, cur.fillOpacity) ?? 'transparent' }}
-                    />
-                    <span className="ml-1 font-mono text-[0.6875rem] font-bold">{cur.fillOpacity}%</span>
+                  />
+                  <MiniButton label={t.noFill} active={cur.fillOpacity === 0} onClick={() => setConfig({ fillOpacity: 0 })}>
+                    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                      <rect x="4" y="4" width="16" height="16" rx="3" />
+                      <path d="M4 20L20 4" />
+                    </svg>
                   </MiniButton>
+                </Group>
+              ) : null}
+
+              {showDash ? (
+                <Group title={t.secStroke}>
+                  {DASHES.map((dash) => (
+                    <MiniButton
+                      key={dash}
+                      label={t[dashLabel[dash]]}
+                      active={cur.dash === dash}
+                      onClick={() => setConfig({ dash })}
+                    >
+                      <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                        <path d="M3 12H21" strokeDasharray={dashIntervals(dash, 2.2)?.join(' ')} />
+                      </svg>
+                    </MiniButton>
+                  ))}
                 </Group>
               ) : null}
 
               {showLine ? (
                 <>
-                  <Group>
+                  <Group title={t.secEnds}>
                     {(['headStart', 'headEnd'] as const).map((end) => (
                       <MiniButton key={end} label={t[end]} active={false} onClick={() => setPickingHead(end)}>
                         <MarkerIcon kind={cur[end]} end={end === 'headEnd'} />
                       </MiniButton>
                     ))}
                   </Group>
-                  <Group>
+                  <Group title={t.secRoute}>
                     {ROUTES.map((route) => (
                       <MiniButton
                         key={route}
@@ -415,38 +412,25 @@ export function Toolbar({ compact }: { compact: boolean }) {
                       </MiniButton>
                     ))}
                   </Group>
-                  <Group>
-                    {DASHES.map((dash) => (
-                      <MiniButton
-                        key={dash}
-                        label={t[dashLabel[dash]]}
-                        active={cur.dash === dash}
-                        onClick={() => setConfig({ dash })}
-                      >
-                        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
-                          <path d="M3 12H21" strokeDasharray={dashIntervals(dash, 2.2)?.join(' ')} />
-                        </svg>
-                      </MiniButton>
-                    ))}
-                  </Group>
                 </>
               ) : null}
 
               {showTextOptions ? (
-                <Group>
-                  <StepperButton
-                    icon="minus"
-                    label={t.smaller}
-                    disabled={fontSize <= LIMITS.minFontSize}
-                    onClick={() => setFontSize(Math.max(LIMITS.minFontSize, fontSize - 4))}
-                  />
-                  <span className="w-10 text-center font-mono text-[0.75rem] font-bold">{fontSize}px</span>
-                  <StepperButton
-                    icon="plus"
-                    label={t.bigger}
-                    disabled={fontSize >= LIMITS.maxFontSize}
-                    onClick={() => setFontSize(Math.min(LIMITS.maxFontSize, fontSize + 4))}
-                  />
+                <>
+                  <Group title={t.secTextSize}>
+                  {TEXT_SIZES.map((size) => (
+                    <MiniButton
+                      key={size.key}
+                      glyph={size.glyph}
+                      glyphClass="font-bold"
+                      label={t[SIZE_LABELS[size.key]]}
+                      active={nearestTextSize(fontSize).key === size.key}
+                      wide
+                      onClick={() => setFontSize(size.px)}
+                    />
+                  ))}
+                  </Group>
+                  <Group title={t.secFont}>
                   {FONTS.map((font) => (
                     <MiniButton
                       key={font}
@@ -459,7 +443,9 @@ export function Toolbar({ compact }: { compact: boolean }) {
                       </span>
                     </MiniButton>
                   ))}
+                  </Group>
                   {showStyle ? (
+                    <Group title={t.secStyle}>
                     <>
                       <MiniButton
                         glyph="B"
@@ -476,50 +462,31 @@ export function Toolbar({ compact }: { compact: boolean }) {
                         onClick={() => setConfig({ italic: !cur.italic })}
                       />
                     </>
+                    </Group>
                   ) : null}
-                </Group>
+                </>
               ) : null}
 
               {showColor ? (
-                <Group last>
-                  {DrawingPalette.map((swatch) => {
-                    const active = cur.color.toUpperCase() === swatch.toUpperCase();
-                    return (
-                      <button
-                        key={swatch}
-                        type="button"
-                        aria-label={`${t.color} ${swatch}`}
-                        aria-pressed={active}
-                        data-tip={swatch}
-                        onClick={() => setConfig({ color: swatch })}
-                        className="touch-36 h-[26px] w-[26px] flex-none rounded-lg border-2 transition hover:scale-110"
-                        style={{
-                          background: inkFor(swatch, dark),
-                          borderColor: active ? Css.accent : Css.background,
-                        }}
-                      />
-                    );
-                  })}
-                  <button
-                    type="button"
-                    aria-label={t.custom}
-                    data-tip={t.custom}
+                <Group title={showFill ? t.strokeColor : t.color}>
+                  <ColorSwatch
+                    label={`${t.color} ${cur.color}`}
+                    color={ink}
+                    active={picking}
                     onClick={() => setPicking(true)}
-                    className="touch-36 flex h-[26px] flex-none items-center gap-1.5 rounded-lg border border-dashed border-line-dashed px-2 text-[0.75rem] font-bold text-text-secondary transition hover:bg-surface-selected"
-                  >
-                    <span className="h-3.5 w-3.5 rounded border border-line" style={{ background: ink }} />
-                    {t.custom}
-                  </button>
+                  />
                 </Group>
               ) : null}
             </div>
             )}
           </GlassPanel>
         ) : null}
-
+    </>
+  );
+  const railEl = (
         <GlassPanel level="panel" radius={compact ? 17 : 20} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
           <div
-            className={`flex max-w-[calc(100vw-16px)] flex-wrap items-center justify-center p-1.5 ${narrow ? 'gap-0' : 'gap-1'}`}
+            className={`flex items-center p-1.5 ${compact ? 'max-w-[calc(100vw-16px)] flex-wrap justify-center' : 'max-h-[calc(100vh-15rem)] flex-col flex-wrap justify-center'} ${narrow ? 'gap-0' : 'gap-1'}`}
             role="toolbar"
             aria-label={t.tools}
           >
@@ -537,31 +504,27 @@ export function Toolbar({ compact }: { compact: boolean }) {
                 }}
               />
             ))}
-
-            <span className="mx-1 h-6 w-px flex-none bg-line" />
-
-            {/* The swatch doubles as the options toggle: it is both the current
-                colour and the handle for the strip that changes it. */}
-            <button
-              type="button"
-              aria-label={t.color}
-              aria-expanded={open}
-              data-tip={`${t.color} · ${config.color}`}
-              onClick={() => {
-                setOpen(!open);
-                announce(t.color);
-              }}
-              style={{ width: button, height: button, borderRadius: compact ? 12 : 14 }}
-              className="flex flex-none items-center justify-center border border-line bg-glass-solid transition hover:bg-surface-selected"
-            >
-              <span
-                className="rounded-[7px] border-2 border-white"
-                style={{ width: 22, height: 22, background: inkFor(config.color, dark) }}
-              />
-            </button>
           </div>
         </GlassPanel>
-      </div>
+  );
+
+  return (
+    <Vertical.Provider value={!compact}>
+      {compact ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex flex-col items-center gap-2 px-2">
+          {captionEl}
+          {optionsEl}
+          {railEl}
+        </div>
+      ) : (
+        <>
+          <div className="pointer-events-none absolute top-1/2 left-4 z-30 flex -translate-y-1/2 items-center gap-2">
+            {railEl}
+            {optionsEl}
+          </div>
+          {captionEl ? <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">{captionEl}</div> : null}
+        </>
+      )}
 
       <FillSheet
         open={filling}
@@ -581,19 +544,62 @@ export function Toolbar({ compact }: { compact: boolean }) {
           setPicking(false);
         }}
       />
-    </>
+    </Vertical.Provider>
   );
 }
 
-/** One cluster of options, separated from the next by a hairline. */
-function Group({ children, last }: { children: React.ReactNode; last?: boolean }) {
+/** Whether the strips are the side columns (wide screens) rather than the bottom rows. */
+const Vertical = createContext(false);
+
+/** One cluster of options, with a small subtitle saying what it is; the panel's `divide-y` separates them. */
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  const vertical = useContext(Vertical);
   return (
-    <>
-      {/* Wraps inside itself when it is wider than the screen (the text group is ~340px). */}
-      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">{children}</div>
-      {/* Hairlines only where the groups share a row: wrapped, they would dangle at a row's end. */}
-      {last ? null : <span className="hidden h-6 w-px flex-none bg-line sm:block" />}
-    </>
+    <div className={`flex min-w-0 max-w-full flex-col gap-1.5 ${vertical ? 'py-2.5 first:pt-0 last:pb-0' : ''}`}>
+      <span className="text-[0.625rem] leading-none font-extrabold tracking-[0.8px] text-text-secondary uppercase">
+        {title}
+      </span>
+      <div className="flex flex-wrap items-center gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Stroke width as a slider with one stop per size: native range input snapped to
+ * the four widths, with a dot under each stop drawn at that width.
+ */
+function WidthSlider({ value, label, onChange }: { value: number; label: string; onChange: (width: number) => void }) {
+  // The nearest stop, for a selected figure drawn at a width the slider never sets.
+  const index = StrokeSizes.reduce((best, size, i) => (Math.abs(size - value) < Math.abs(StrokeSizes[best] - value) ? i : best), 0);
+  return (
+    <div className="w-40 max-w-full">
+      <input
+        type="range"
+        min={0}
+        max={StrokeSizes.length - 1}
+        step={1}
+        value={index}
+        aria-label={label}
+        data-tip={`${label} ${StrokeSizes[index]}`}
+        onChange={(e) => onChange(StrokeSizes[Number(e.target.value)])}
+        className="block h-5 w-full cursor-pointer accent-accent"
+      />
+      <div className="flex justify-between px-[7px]">
+        {StrokeSizes.map((size, i) => (
+          <span
+            key={size}
+            aria-hidden
+            className="rounded-full"
+            style={{
+              width: Math.min(14, size + 3),
+              height: Math.min(14, size + 3),
+              background: i === index ? Css.accent : Css.textSecondary,
+              opacity: i === index ? 1 : 0.45,
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -618,6 +624,7 @@ function ToolButton({
       aria-label={label}
       aria-pressed={active}
       data-tip={`${label} · ${shortcut.toUpperCase()}`}
+      data-tip-side={useContext(Vertical) ? 'right' : undefined}
       onClick={onClick}
       style={{
         width: size,
@@ -627,11 +634,18 @@ function ToolButton({
         backgroundColor: active ? Css.accent : 'transparent',
         color: active ? '#FFFFFF' : Css.text,
       }}
-      className={`flex flex-none items-center justify-center border transition ${
+      className={`relative flex flex-none items-center justify-center border transition ${
         active ? 'shadow-accent' : 'hover:bg-surface-selected'
       }`}
     >
       <Icon name={icon} size={21} />
+      {/* The key, as small as Excalidraw's; a touch screen has no keyboard to use it. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-[3px] bottom-[1px] text-[0.5625rem] leading-none font-bold uppercase opacity-55 [@media(hover:none)]:hidden"
+      >
+        {shortcut}
+      </span>
     </button>
   );
 }
@@ -650,6 +664,13 @@ function MarkerIcon({ kind, end }: { kind: Marker; end: boolean }) {
     </svg>
   );
 }
+
+const SIZE_LABELS = {
+  small: 'textSmall',
+  medium: 'textMedium',
+  large: 'textLarge',
+  xlarge: 'textXLarge',
+} as const;
 
 function MiniButton({
   glyph,
