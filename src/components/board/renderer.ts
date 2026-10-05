@@ -145,6 +145,10 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
+  // Closed shapes dash their outline; the line below does it for its own route.
+  const outline = dashIntervals(el.dash, el.strokeWidth);
+  if (outline) ctx.setLineDash(outline);
+
   if (el.shape === 'rectangle') {
     // The design's rectangles are softly rounded, capped so a thin sliver does
     // not turn into a lozenge.
@@ -156,6 +160,7 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
       ctx.fill(path);
     }
     ctx.stroke(path);
+    ctx.setLineDash([]);
     return;
   }
 
@@ -167,6 +172,7 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
       ctx.fill(path);
     }
     ctx.stroke(path);
+    ctx.setLineDash([]);
     return;
   }
 
@@ -189,6 +195,7 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
       ctx.fill(path);
     }
     ctx.stroke(path);
+    ctx.setLineDash([]);
     return;
   }
 
@@ -518,6 +525,8 @@ export function paintAnchors(
 
 /** How opaque an element someone else holds is painted. */
 export const HELD_ALPHA = 0.45;
+/** What the eraser is about to take: faint enough to read as going, visible enough to see what. */
+export const ERASING_ALPHA = 0.25;
 
 /**
  * Who holds what: a dashed frame in the holder's presence colour round each
@@ -573,6 +582,8 @@ export interface PaintOptions {
   dark?: boolean;
   /** Elements someone else holds (has selected): painted dimmed. */
   held?: ReadonlyMap<string, unknown>;
+  /** What the eraser has passed over and will delete on lift: painted faded. */
+  erasing?: readonly string[];
   onImageReady: () => void;
 }
 
@@ -592,8 +603,9 @@ export function paintBoard(ctx: CanvasRenderingContext2D, opts: PaintOptions): v
   ctx.translate(camera.x, camera.y);
   ctx.scale(camera.scale, camera.scale);
   for (const el of opts.elements) {
-    const dim = opts.held?.has(el.id);
-    if (dim) ctx.globalAlpha = HELD_ALPHA;
+    const fade = opts.erasing?.includes(el.id);
+    const dim = fade || opts.held?.has(el.id);
+    if (dim) ctx.globalAlpha = fade ? ERASING_ALPHA : HELD_ALPHA;
     paintElement(ctx, el, opts.smooth, opts.onImageReady, opts.dark);
     if (dim) ctx.globalAlpha = 1;
   }
