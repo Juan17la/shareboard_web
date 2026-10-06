@@ -128,6 +128,14 @@ export function JoinSheet({
           />
         </div>
         <p className="text-[0.75rem] leading-snug text-text-secondary">{t.joinCodeHint}</p>
+        <Button
+          label={t.enter}
+          icon="arrow"
+          loading={busy}
+          disabled={code.length < SHORT_CODE_LENGTH}
+          fullWidth
+          onClick={() => void join(code)}
+        />
       </div>
     </Sheet>
   );
