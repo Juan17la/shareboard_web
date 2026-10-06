@@ -13,11 +13,13 @@
 import {
   SHAPE_TEXT_SIZE,
   type BoardElement,
+  type Point,
   type ShapeElement,
   type TextElement,
 } from '../../lib/contract';
 import {
-  anchorsOf,
+  nearestAnchors,
+  groupHandles,
   bendHandleOf,
   curveHandlesOf,
   boxOf,
@@ -33,7 +35,7 @@ import {
   labelPlacement,
   textAnchor,
   markerPaths,
-  polygonPoints,
+  shapeCorners,
   cornerRadius,
   roundedPolygonPath,
   rotateHandleOf,
@@ -109,7 +111,14 @@ function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   ctx.textAlign = align;
   // Its own newlines, then wrapped to its width if it has one.
   textLines(el).forEach((line, i) => {
-    ctx.fillText(line, x, el.at.y + el.fontSize + i * step);
+    const y = el.at.y + el.fontSize + i * step;
+    ctx.fillText(line, x, y);
+    if (el.underline && line) {
+      // Under the line's own ink, from wherever the alignment started it.
+      const w = ctx.measureText(line).width;
+      const left = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+      ctx.fillRect(left, y + el.fontSize * 0.12, w, Math.max(1, el.fontSize / 16));
+    }
   });
   ctx.textAlign = 'start';
 }
@@ -180,14 +189,7 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   if (el.shape === 'triangle' || el.shape === 'polygon') {
     // A triangle: apex centred on the top edge, base along the bottom — the
     // shape the tool icon promises. A polygon: regular, first corner up.
-    const pts =
-      el.shape === 'triangle'
-        ? [
-            { x: x + w / 2, y },
-            { x: x + w, y: y + h },
-            { x, y: y + h },
-          ]
-        : polygonPoints({ x, y, width: w, height: h }, el.sides);
+    const pts = shapeCorners(el);
     let path: Path2D;
     if (el.rounded) {
       path = new Path2D(roundedPolygonPath(pts, cornerRadius(w, h)));
@@ -408,7 +410,21 @@ export function paintSelection(
     if (one && canRotate(one)) paintDashedBox(ctx, boxOf(one), camera, rotationOf(one));
     else paintDashedBox(ctx, one ? elementBounds(one) : unionBounds(elements), camera);
   }
-  if (!one) return;
+  if (!one) {
+    // Several: the corners of their overall box resize them together.
+    ctx.save();
+    ctx.strokeStyle = Colors.accent;
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = Colors.background;
+    for (const h of groupHandles(elements)) {
+      ctx.beginPath();
+      ctx.rect(h.x * camera.scale + camera.x - HANDLE_SIZE / 2, h.y * camera.scale + camera.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
   ctx.save();
   // The rotate knob: a round handle on a short stem above the top edge.
   const knob = rotateHandleOf(one, camera.scale);
@@ -506,20 +522,22 @@ export function paintSelection(
 }
 
 /**
- * Connection points on every enclosed shape, shown while a line or an arrow is
- * being drawn so the snap targets are visible. Screen-space dots.
+ * Connection points on every enclosed shape, shown while an arrow is being
+ * drawn so the snap targets are visible: on each, the three nearest `near`
+ * (the pointer). Screen-space dots.
  */
 export function paintAnchors(
   ctx: CanvasRenderingContext2D,
   elements: BoardElement[],
   camera: Camera,
+  near: Point,
 ): void {
   ctx.save();
   ctx.fillStyle = Colors.background;
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
   for (const el of elements) {
-    for (const a of anchorsOf(el)) {
+    for (const a of nearestAnchors(el, near)) {
       ctx.beginPath();
       ctx.arc(a.x * camera.scale + camera.x, a.y * camera.scale + camera.y, 4, 0, Math.PI * 2);
       ctx.fill();
