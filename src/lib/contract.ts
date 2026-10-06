@@ -142,6 +142,12 @@ export interface ShapeElement extends ElementBase {
   labelAt?: number;
   /** A polygon's corner count, `LIMITS.minSides`..`maxSides`; `DEFAULT_SIDES` when absent. */
   sides?: number;
+  /**
+   * A polygon of any angles instead of a regular one: its corners as fractions
+   * (0..1) of the box, so resizing and turning carry them along. `sides` is
+   * their count. Absent: the regular polygon of `sides`.
+   */
+  vertices?: Point[];
   // Lines and arrows only. Absent: no start marker, an `arrow` head on an arrow.
   headStart?: Marker;
   headEnd?: Marker;
@@ -183,6 +189,7 @@ export interface TextElement extends ElementBase {
   fontSize: number;
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
   /** Typeface; `sans` when absent. */
   font?: FontKey;
   /** Wrap width in board units; absent, each line is as long as it is typed. */
@@ -278,7 +285,8 @@ export const LIMITS = {
 // WebSocket, one socket per (board, tab). See mobile/docs/07-websockets.
 
 export type ClientMessage =
-  | { type: 'join'; boardId: string; userId: UserId; nickname: string; pin?: string }
+  /** `tab`: which tab (page load) of this user it is, so two tabs keep a socket each. */
+  | { type: 'join'; boardId: string; userId: UserId; nickname: string; pin?: string; tab?: string }
   /** `seq` is this client's own counter, echoed back for debugging. */
   | { type: 'op'; boardId: string; ops: Op[]; seq: number }
   | { type: 'cursor'; boardId: string; at: Point }
@@ -301,7 +309,8 @@ export type ServerMessage =
    * `'server'` for a correction: the current state of elements whose edit was
    * refused because someone else holds them.
    */
-  | { type: 'op'; ops: Op[]; from: UserId; seq: number }
+  /** `tab`: the sending tab (absent from older servers). */
+  | { type: 'op'; ops: Op[]; from: UserId; tab?: string; seq: number }
   | { type: 'participants'; participants: Participant[] }
   | { type: 'cursor'; from: UserId; at: Point }
   | { type: 'permissions'; meta: BoardMeta; you: Participant }
