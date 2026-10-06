@@ -13,11 +13,13 @@
 import {
   SHAPE_TEXT_SIZE,
   type BoardElement,
+  type Point,
   type ShapeElement,
   type TextElement,
 } from '../../lib/contract';
 import {
-  anchorsOf,
+  nearestAnchors,
+  groupHandles,
   bendHandleOf,
   curveHandlesOf,
   boxOf,
@@ -30,14 +32,16 @@ import {
   isLineLike,
   labelBox,
   labelLines,
-  lineLabelCentre,
+  labelPlacement,
+  textAnchor,
   markerPaths,
-  polygonPoints,
+  shapeCorners,
+  cornerRadius,
+  roundedPolygonPath,
   rotateHandleOf,
   rotationOf,
   routePath,
   setTextMeasure,
-  shapeBounds,
   strokePath,
   textLines,
   toWorld,
@@ -103,28 +107,36 @@ function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   ctx.fillStyle = el.color;
   ctx.textBaseline = 'alphabetic';
   const step = el.fontSize * TEXT_LINE_HEIGHT;
+  const { x, align } = textAnchor(el);
+  ctx.textAlign = align;
   // Its own newlines, then wrapped to its width if it has one.
   textLines(el).forEach((line, i) => {
-    ctx.fillText(line, el.at.x, el.at.y + el.fontSize + i * step);
+    const y = el.at.y + el.fontSize + i * step;
+    ctx.fillText(line, x, y);
+    if (el.underline && line) {
+      // Under the line's own ink, from wherever the alignment started it.
+      const w = ctx.measureText(line).width;
+      const left = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+      ctx.fillRect(left, y + el.fontSize * 0.12, w, Math.max(1, el.fontSize / 16));
+    }
   });
+  ctx.textAlign = 'start';
 }
 
 /** A shape's label: centred in its box, or floating just above a line's midpoint. */
 function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void {
   if (!el.text) return;
-  const { x, y, width, height } = shapeBounds(el);
   const fontSize = el.fontSize ?? SHAPE_TEXT_SIZE;
   const step = fontSize * TEXT_LINE_HEIGHT;
   const lines = labelLines(el, fontSize);
-  // Centred in a box; on a line, where it stands along it (the line is cut behind it).
-  const { x: cx, y: cy } = isLineLike(el) ? lineLabelCentre(el) : { x: x + width / 2, y: y + height / 2 };
+  // Where the figure's alignment puts it; on a line, where it stands along it (the line is cut behind it).
+  const at = labelPlacement(el, fontSize, lines.length);
 
   ctx.font = fontFor({ fontSize, bold: false, italic: false, font: el.font });
   ctx.fillStyle = el.stroke;
-  ctx.textAlign = 'center';
+  ctx.textAlign = at.align;
   ctx.textBaseline = 'middle';
-  const top = cy - ((lines.length - 1) * step) / 2;
-  lines.forEach((line, i) => ctx.fillText(line, cx, top + i * step));
+  lines.forEach((line, i) => ctx.fillText(line, at.x, at.y + i * step));
   ctx.textAlign = 'start';
   ctx.textBaseline = 'alphabetic';
 }
@@ -145,10 +157,12 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
+  // Closed shapes dash their outline; the line below does it for its own route.
+  const outline = dashIntervals(el.dash, el.strokeWidth);
+  if (outline) ctx.setLineDash(outline);
+
   if (el.shape === 'rectangle') {
-    // The design's rectangles are softly rounded, capped so a thin sliver does
-    // not turn into a lozenge.
-    const r = Math.max(0, Math.min(8, w / 4, h / 4));
+    const r = el.rounded ? cornerRadius(w, h) : 0;
     const path = new Path2D();
     path.roundRect(x, y, w, h, r);
     if (el.fill) {
@@ -156,6 +170,7 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
       ctx.fill(path);
     }
     ctx.stroke(path);
+    ctx.setLineDash([]);
     return;
   }
 
@@ -167,28 +182,28 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
       ctx.fill(path);
     }
     ctx.stroke(path);
+    ctx.setLineDash([]);
     return;
   }
 
   if (el.shape === 'triangle' || el.shape === 'polygon') {
     // A triangle: apex centred on the top edge, base along the bottom — the
     // shape the tool icon promises. A polygon: regular, first corner up.
-    const pts =
-      el.shape === 'triangle'
-        ? [
-            { x: x + w / 2, y },
-            { x: x + w, y: y + h },
-            { x, y: y + h },
-          ]
-        : polygonPoints({ x, y, width: w, height: h }, el.sides);
-    const path = new Path2D();
-    pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
-    path.closePath();
+    const pts = shapeCorners(el);
+    let path: Path2D;
+    if (el.rounded) {
+      path = new Path2D(roundedPolygonPath(pts, cornerRadius(w, h)));
+    } else {
+      path = new Path2D();
+      pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
+      path.closePath();
+    }
     if (el.fill) {
       ctx.fillStyle = el.fill;
       ctx.fill(path);
     }
     ctx.stroke(path);
+    ctx.setLineDash([]);
     return;
   }
 
@@ -395,7 +410,21 @@ export function paintSelection(
     if (one && canRotate(one)) paintDashedBox(ctx, boxOf(one), camera, rotationOf(one));
     else paintDashedBox(ctx, one ? elementBounds(one) : unionBounds(elements), camera);
   }
-  if (!one) return;
+  if (!one) {
+    // Several: the corners of their overall box resize them together.
+    ctx.save();
+    ctx.strokeStyle = Colors.accent;
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = Colors.background;
+    for (const h of groupHandles(elements)) {
+      ctx.beginPath();
+      ctx.rect(h.x * camera.scale + camera.x - HANDLE_SIZE / 2, h.y * camera.scale + camera.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
   ctx.save();
   // The rotate knob: a round handle on a short stem above the top edge.
   const knob = rotateHandleOf(one, camera.scale);
@@ -493,20 +522,22 @@ export function paintSelection(
 }
 
 /**
- * Connection points on every enclosed shape, shown while a line or an arrow is
- * being drawn so the snap targets are visible. Screen-space dots.
+ * Connection points on every enclosed shape, shown while an arrow is being
+ * drawn so the snap targets are visible: on each, the three nearest `near`
+ * (the pointer). Screen-space dots.
  */
 export function paintAnchors(
   ctx: CanvasRenderingContext2D,
   elements: BoardElement[],
   camera: Camera,
+  near: Point,
 ): void {
   ctx.save();
   ctx.fillStyle = Colors.background;
   ctx.strokeStyle = Colors.accent;
   ctx.lineWidth = 1.5;
   for (const el of elements) {
-    for (const a of anchorsOf(el)) {
+    for (const a of nearestAnchors(el, near)) {
       ctx.beginPath();
       ctx.arc(a.x * camera.scale + camera.x, a.y * camera.scale + camera.y, 4, 0, Math.PI * 2);
       ctx.fill();
@@ -518,6 +549,8 @@ export function paintAnchors(
 
 /** How opaque an element someone else holds is painted. */
 export const HELD_ALPHA = 0.45;
+/** What the eraser is about to take: faint enough to read as going, visible enough to see what. */
+export const ERASING_ALPHA = 0.25;
 
 /**
  * Who holds what: a dashed frame in the holder's presence colour round each
@@ -573,6 +606,8 @@ export interface PaintOptions {
   dark?: boolean;
   /** Elements someone else holds (has selected): painted dimmed. */
   held?: ReadonlyMap<string, unknown>;
+  /** What the eraser has passed over and will delete on lift: painted faded. */
+  erasing?: readonly string[];
   onImageReady: () => void;
 }
 
@@ -592,10 +627,12 @@ export function paintBoard(ctx: CanvasRenderingContext2D, opts: PaintOptions): v
   ctx.translate(camera.x, camera.y);
   ctx.scale(camera.scale, camera.scale);
   for (const el of opts.elements) {
-    const dim = opts.held?.has(el.id);
-    if (dim) ctx.globalAlpha = HELD_ALPHA;
+    const fade = opts.erasing?.includes(el.id);
+    const dim = fade || opts.held?.has(el.id);
+    // The eraser's and the holder's dimming multiply with the element's own opacity.
+    ctx.globalAlpha = (dim ? (fade ? ERASING_ALPHA : HELD_ALPHA) : 1) * (el.opacity ?? 1);
     paintElement(ctx, el, opts.smooth, opts.onImageReady, opts.dark);
-    if (dim) ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1;
   }
   ctx.restore();
 }

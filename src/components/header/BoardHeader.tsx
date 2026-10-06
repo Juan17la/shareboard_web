@@ -2,9 +2,10 @@
  * The board's header: who you are looking at, how to get others in, and the
  * two buttons everything else hangs off — the menu and the settings.
  *
- * It floats over the canvas behind a blur with a fade to transparent rather
- * than sitting in a bar above it, so the board really does run edge to edge —
- * "enfocada en la pizarra y no en la interfaz" (mobile/docs/01). Everything in
+ * It floats over the canvas with nothing behind the row — no bar, no glass, no
+ * fade — only each button on its own small solid chip, so the board really
+ * does run edge to edge — "enfocada en la pizarra y no en la interfaz"
+ * (mobile/docs/01). Everything in
  * it is a shortcut into a sheet, except the code chip, which the design makes
  * directly clickable to copy because that is the single most repeated action in
  * a class.
@@ -20,23 +21,26 @@ import { Icon } from '../ui/Icon';
 
 export function BoardHeader({
   compact,
-  landscape,
   codeCopied,
   onCopyCode,
   onOpenPeople,
   onOpenMenu,
+  onOpenNew,
   onOpenPrivacy,
   onOpenShare,
+  onOpenExport,
   onOpenSettings,
 }: {
   compact: boolean;
-  landscape: boolean;
   codeCopied: boolean;
   onCopyCode: () => void;
   onOpenPeople: () => void;
   onOpenMenu: () => void;
+  /** Another whiteboard: a blank one, or one joined with a code. */
+  onOpenNew: () => void;
   onOpenPrivacy: () => void;
   onOpenShare: () => void;
+  onOpenExport: () => void;
   onOpenSettings: () => void;
 }) {
   const t = useT();
@@ -47,16 +51,22 @@ export function BoardHeader({
   const canEdit = useBoardStore((s) => s.canEditNow());
 
   const online = connection === 'online';
+  // The offline board (plans/34): nobody else is on it, and there is no code yet — Share makes one.
+  const local = connection === 'local';
   const statusColor = online
     ? StatusColors.online
-    : connection === 'offline'
+    : local
+      ? Css.textSecondary
+      : connection === 'offline'
       ? StatusColors.offline
       : StatusColors.connecting;
   const statusLabel = online
     ? participants.length === 1
       ? t.onlineOne
       : tf('onlineMany', { N: participants.length })
-    : connection === 'offline'
+    : local
+      ? t.localStatus
+      : connection === 'offline'
       ? t.offline
       : t.connecting;
 
@@ -66,156 +76,136 @@ export function BoardHeader({
   const overflow = participants.length - shown.length;
   const isPrivate = meta?.access === 'private';
 
-  // Everything you can *do* with the board, as one strip: the menu, the code
-  // (click to copy), who may edit, share. In portrait it is the second row; in
-  // landscape there is room for it beside the title, so the header is one row.
-  const actions = (
-    // Portrait: may wrap to a second line when the text is large; landscape keeps one row.
-    <div className={`pointer-events-auto flex items-center gap-[7px] ${landscape ? 'flex-none' : 'flex-wrap'}`}>
-      <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
-      <IconButton icon="settings" label={t.sheetSettings} onClick={onOpenSettings} />
-
-      <button
-        type="button"
-        aria-label={`${t.code} ${meta?.shortCode ?? ''}`}
-        data-tip={t.code}
-        data-tip-side="bottom"
-        onClick={onCopyCode}
-        disabled={!meta}
-        className="flex items-center gap-1.5 rounded-md border px-[11px] py-[7px] backdrop-blur-md transition"
-        style={{
-          borderColor: codeCopied ? 'transparent' : Css.border,
-          background: codeCopied ? 'rgba(15,158,142,0.14)' : 'var(--color-glass-solid)',
-          color: codeCopied ? '#0B7F72' : Css.text,
-        }}
-      >
-        <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
-        <span className="text-[0.8125rem] font-extrabold tracking-[1px]">
-          {meta ? formatShortCode(meta.shortCode) : '———·———'}
-        </span>
-      </button>
-
-      <button
-        type="button"
-        aria-label={t.privacyShort}
-        data-tip={t.privacyShort}
-        data-tip-side="bottom"
-        onClick={onOpenPrivacy}
-        className="touch-36 flex items-center justify-center gap-1.5 rounded-md border border-line bg-glass-solid px-2.5 py-[7px] backdrop-blur-md transition hover:bg-surface-selected"
-      >
-        <Icon name={isPrivate ? 'lock' : 'lock-open'} size={14} />
-        {/* Below 360px the strip has no room for the word; the icon and its label stay. */}
-        <span className="text-[0.75rem] font-bold max-[359px]:hidden">{t.privacyShort}</span>
-      </button>
-
-      {/* The primary action says what it is once there is room for the word. */}
-      <button
-        type="button"
-        aria-label={t.share}
-        data-tip={t.share}
-        data-tip-side="bottom"
-        onClick={onOpenShare}
-        className="touch-36 flex h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-[12px] bg-accent px-2.5 text-white shadow-accent transition hover:bg-accent-deep sm:px-3.5"
-      >
-        <Icon name="share" size={18} />
-        <span className="hidden text-[0.8125rem] font-extrabold sm:inline">{t.share}</span>
-      </button>
-    </div>
-  );
-
+  // The header is two clusters: on the left the board (its name, the menu,
+  // settings, export), on the right who is here and who may edit (people,
+  // permissions, the code to copy) and share.
   return (
     <>
-      {/*
-        The soft white-to-transparent wash the header sits on.
-
-        A gradient rather than a blurred panel because a panel has an edge, and
-        an edge across the top of an infinite canvas looks like a bar. It is
-        separate from the header so it can be non-interactive: it covers the top
-        of the board, and a pointer-catching layer there would eat the first
-        stroke of anyone drawing near the top. In landscape the header is a
-        single row, so the wash is shorter.
-      */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-20"
-        style={{
-          height: landscape ? (compact ? 100 : 112) : compact ? 150 : 168,
-          background:
-            'linear-gradient(180deg, color-mix(in srgb, var(--color-background) 92%, transparent) 0%, color-mix(in srgb, var(--color-background) 72%, transparent) 62%, transparent 100%)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          maskImage: 'linear-gradient(180deg, #000 0%, #000 55%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(180deg, #000 0%, #000 55%, transparent 100%)',
-        }}
-      />
-
       <header
         data-board-header
-        className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-3 sm:px-4 sm:pt-4"
-        // In landscape the rail starts below the header, so the header runs
-        // flush to the rail's right edge (ToolRail's `right-2.5` / `sm:right-4`);
-        // otherwise it stops short so the strip never runs underneath.
-        style={{ paddingRight: landscape ? (compact ? 10 : 16) : compact ? 12 : 16 }}
+        className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-2 sm:px-4 sm:pt-3"
       >
-        {/* Who and where: back, the board, (the actions, in landscape) and who
-            else is here. */}
-        <div className="pointer-events-auto flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <h1
-              title={meta?.name}
-              className="truncate text-[0.9375rem] leading-tight font-extrabold tracking-[-0.2px]"
-            >
-              {meta?.name ?? t.appName}
-            </h1>
-            <div className="mt-px flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-secondary">
-              <span
-                className={`h-1.5 w-1.5 flex-none rounded-full ${online ? 'sb-pulse' : ''}`}
-                style={{ background: statusColor }}
-              />
-              <span>{statusLabel}</span>
-              {!canEdit && meta ? (
-                <>
-                  <span className="text-text-tertiary">·</span>
-                  <span className="font-bold text-text-tertiary">{t.viewOnly}</span>
-                </>
-              ) : null}
+        <div className="flex items-start justify-between gap-2">
+          <div className="pointer-events-auto flex min-w-0 flex-wrap items-center gap-[7px]">
+            {/* On a phone the name gets a row of its own, the buttons and their words go under it. */}
+            <div className="min-w-0 max-w-fit flex-1 px-1 py-0.5 max-sm:max-w-full max-sm:basis-full">
+              <h1
+                title={meta?.name}
+                className="truncate text-[0.9375rem] leading-tight font-extrabold tracking-[-0.2px]"
+              >
+                {meta?.name ?? t.appName}
+              </h1>
+              <div className="mt-px flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-secondary">
+                <span
+                  className={`h-1.5 w-1.5 flex-none rounded-full ${online ? 'sb-pulse' : ''}`}
+                  style={{ background: statusColor }}
+                />
+                <span>{statusLabel}</span>
+                {!canEdit && meta ? (
+                  <>
+                    <span className="text-text-tertiary">·</span>
+                    <span className="font-bold text-text-tertiary">{t.viewOnly}</span>
+                  </>
+                ) : null}
+              </div>
             </div>
+
+            <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
+            {/* Says what it does: the "+" alone read as "add something to this board". */}
+            <button
+              type="button"
+              aria-label={t.anotherWhiteboard}
+              data-tip={t.anotherWhiteboard}
+              data-tip-side="bottom"
+              onClick={onOpenNew}
+              className="flex h-9 flex-none items-center gap-1.5 rounded-[12px] border border-line bg-surface px-2.5 text-text transition hover:bg-surface-selected"
+            >
+              <Icon name="plus" size={16} />
+              <span className="text-[0.75rem] font-bold whitespace-nowrap">{t.createOrJoin}</span>
+            </button>
+            <IconButton icon="settings" label={t.sheetSettings} onClick={onOpenSettings} />
+            <IconButton icon="download" label={t.exportImage} onClick={onOpenExport} />
           </div>
 
-          {/* The strip keeps its natural width; a long board name is what gives
-              way (one line, ellipsised) rather than the controls. */}
-          {landscape ? actions : null}
+          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-[7px]">
+            {local ? null : (
+            <>
+            <button
+              type="button"
+              aria-label={t.connectedPeople}
+              data-tip={participants.map((p) => p.nickname).join(', ') || t.connectedPeople}
+              data-tip-side="left"
+              onClick={onOpenPeople}
+              className="flex flex-none items-center rounded-full border border-line bg-surface p-[3px] transition hover:bg-surface-selected"
+            >
+              {shown.length === 0 ? (
+                <span className="grid h-[26px] w-[26px] place-items-center text-text-secondary">
+                  <Icon name="people" size={18} />
+                </span>
+              ) : (
+                shown.map((p, i) => (
+                  <Avatar
+                    key={p.userId}
+                    name={p.nickname}
+                    color={p.color}
+                    avatar={p.avatar}
+                    size={26}
+                    overlap={i > 0}
+                    title={`${p.nickname} · ${p.role}`}
+                  />
+                ))
+              )}
+              {overflow > 0 ? <AvatarOverflow count={overflow} /> : null}
+            </button>
+            <button
+              type="button"
+              aria-label={t.privacyShort}
+              data-tip={t.privacyShort}
+              data-tip-side="bottom"
+              onClick={onOpenPrivacy}
+              className="touch-36 flex items-center justify-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-[7px] transition hover:bg-surface-selected"
+            >
+              <Icon name={isPrivate ? 'lock' : 'lock-open'} size={14} />
+              {/* Below 360px the strip has no room for the word; the icon and its label stay. */}
+              <span className="text-[0.75rem] font-bold max-[359px]:hidden">{t.privacyShort}</span>
+            </button>
 
-          <button
-            type="button"
-            aria-label={t.connectedPeople}
-            data-tip={participants.map((p) => p.nickname).join(', ') || t.connectedPeople}
-            data-tip-side="left"
-            onClick={onOpenPeople}
-            className="flex flex-none items-center rounded-full border border-line bg-glass-solid p-[3px] backdrop-blur-md transition hover:bg-surface-selected"
-          >
-            {shown.length === 0 ? (
-              <span className="grid h-[26px] w-[26px] place-items-center text-text-secondary">
-                <Icon name="people" size={18} />
+            <button
+              type="button"
+              aria-label={`${t.code} ${meta?.shortCode ?? ''}`}
+              data-tip={t.code}
+              data-tip-side="bottom"
+              onClick={onCopyCode}
+              disabled={!meta}
+              className="flex items-center gap-1.5 rounded-md border px-[11px] py-[7px] transition"
+              style={{
+                borderColor: codeCopied ? 'transparent' : Css.border,
+                background: codeCopied ? 'rgba(15,158,142,0.14)' : 'var(--color-surface)',
+                color: codeCopied ? '#0B7F72' : Css.text,
+              }}
+            >
+              <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
+              <span className="text-[0.8125rem] font-extrabold tracking-[1px]">
+                {meta ? formatShortCode(meta.shortCode) : '———·———'}
               </span>
-            ) : (
-              shown.map((p, i) => (
-                <Avatar
-                  key={p.userId}
-                  name={p.nickname}
-                  color={p.color}
-                  avatar={p.avatar}
-                  size={26}
-                  overlap={i > 0}
-                  title={`${p.nickname} · ${p.role}`}
-                />
-              ))
+            </button>
+            </>
             )}
-            {overflow > 0 ? <AvatarOverflow count={overflow} /> : null}
-          </button>
-        </div>
 
-        {landscape ? null : <div className="mt-2">{actions}</div>}
+            {/* The primary action says what it is once there is room for the word. */}
+            <button
+              type="button"
+              aria-label={t.share}
+              data-tip={t.share}
+              data-tip-side="bottom"
+              onClick={onOpenShare}
+              className="touch-36 flex h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-[12px] bg-accent px-2.5 text-white shadow-accent transition hover:bg-accent-deep sm:px-3.5"
+            >
+              <Icon name="share" size={18} />
+              <span className="hidden text-[0.8125rem] font-extrabold sm:inline">{t.share}</span>
+            </button>
+          </div>
+        </div>
       </header>
     </>
   );

@@ -14,7 +14,7 @@ import { Icon } from '../ui/Icon';
 export function ConnectionBanner({ top, onRetry }: { top: number; onRetry: () => void }) {
   const t = useT();
   const connection = useBoardStore((s) => s.connection);
-  if (connection === 'online' || connection === 'idle') return null;
+  if (connection === 'online' || connection === 'idle' || connection === 'local') return null;
   const offline = connection === 'offline';
 
   return (

@@ -28,6 +28,7 @@ import { useT, useToggleLang } from '../../features/i18n';
 import { useSessionStore, type AppSettings } from '../../features/session';
 import { useBoardStore } from '../../features/board-store';
 import { renameBoard } from '../../lib/api';
+import { isLocalId, updateLocal } from '../../features/board-local';
 import { LIMITS } from '../../lib/contract';
 import { Css } from '../../lib/theme';
 
@@ -101,6 +102,13 @@ export function SettingsSheet({
     }
     setRenaming(true);
     try {
+      if (isLocalId(meta.id)) {
+        // The offline board is renamed where it lives.
+        await updateLocal(meta.id, { name: next });
+        setMeta({ ...meta, name: next });
+        toast(t.toastRenamed);
+        return;
+      }
       const updated = await renameBoard(meta.id, next, { userId, token: boardToken ?? '' });
       setMeta(updated);
       toast(t.toastRenamed);
@@ -185,6 +193,16 @@ export function SettingsSheet({
         ))}
 
         <SheetRow
+          title={t.tourReplay}
+          description={t.tourReplayDesc}
+          onClick={() => {
+            useSessionStore.getState().setTutorialDone(false);
+            onClose();
+          }}
+          right={<Icon name="chevron" size={14} />}
+        />
+
+        <SheetRow
           title={t.settingTheme}
           description={t.settingThemeDesc}
           right={<Toggle value={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label={t.settingTheme} />}
@@ -258,7 +276,8 @@ export function SettingsSheet({
           </button>
         ) : null}
 
-        {isCreator ? (
+        {/* The offline board is never deleted, only cleared: the app always opens on it. */}
+        {isCreator && !isLocalId(meta.id) ? (
           <Button
             label={t.deleteBoard}
             icon="x-circle"

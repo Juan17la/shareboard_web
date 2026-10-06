@@ -37,6 +37,22 @@ export const isFillable = (shape: ShapeKind): boolean => FILLABLE_SHAPES.include
 /** Default size of a label inside a shape. Smaller than the text tool's: it has to fit. */
 export const SHAPE_TEXT_SIZE = 18;
 
+/**
+ * The four text sizes the UI offers. `fontSize` stays a plain number on the
+ * wire, so older boards (any size) still load; the buttons light the nearest.
+ */
+export const TEXT_SIZES = [
+  { key: 'small', px: 18, glyph: 'S' },
+  { key: 'medium', px: 28, glyph: 'M' },
+  { key: 'large', px: 44, glyph: 'L' },
+  { key: 'xlarge', px: 72, glyph: 'XL' },
+] as const;
+
+/** The preset whose size is closest to `px`. */
+export function nearestTextSize(px: number): (typeof TEXT_SIZES)[number] {
+  return TEXT_SIZES.reduce((a, b) => (Math.abs(b.px - px) < Math.abs(a.px - px) ? b : a));
+}
+
 /** Corners of a new polygon. */
 export const DEFAULT_SIDES = 5;
 
@@ -60,6 +76,8 @@ export interface ElementBase {
    * their points already say which way they go.
    */
   rotation?: number;
+  /** Whole-element opacity, 0.1..1; absent is opaque. */
+  opacity?: number;
 }
 
 /** What a line or arrow ends in. Grouped as the toolbar shows them. */
@@ -82,6 +100,11 @@ export type Dash = (typeof DASHES)[number];
 /** Typefaces a text or a figure's label can be set in; absent is `sans` (Nunito). */
 export const FONTS = ['sans', 'serif', 'mono', 'hand'] as const;
 export type FontKey = (typeof FONTS)[number];
+/** Where text sits in its figure or its box: across, then up and down. */
+export const ALIGNS = ['left', 'center', 'right'] as const;
+export type HAlign = (typeof ALIGNS)[number];
+export const VALIGNS = ['top', 'middle', 'bottom'] as const;
+export type VAlign = (typeof VALIGNS)[number];
 
 /** A line end bound to a shape: the point is (u, v) ∈ [0,1]² of that shape's box. */
 export interface Link {
@@ -112,10 +135,19 @@ export interface ShapeElement extends ElementBase {
   fontSize?: number;
   /** Label typeface; `sans` when absent. */
   font?: FontKey;
+  /** The label's place in the figure; centre and middle when absent. */
+  align?: HAlign;
+  valign?: VAlign;
   /** A line's label: how far along its route it stands, 0..1; the middle when absent. */
   labelAt?: number;
   /** A polygon's corner count, `LIMITS.minSides`..`maxSides`; `DEFAULT_SIDES` when absent. */
   sides?: number;
+  /**
+   * A polygon of any angles instead of a regular one: its corners as fractions
+   * (0..1) of the box, so resizing and turning carry them along. `sides` is
+   * their count. Absent: the regular polygon of `sides`.
+   */
+  vertices?: Point[];
   // Lines and arrows only. Absent: no start marker, an `arrow` head on an arrow.
   headStart?: Marker;
   headEnd?: Marker;
@@ -128,6 +160,8 @@ export interface ShapeElement extends ElementBase {
    */
   bend?: number;
   dash?: Dash;
+  /** Enclosed shapes but the ellipse: corners rounded instead of sharp. */
+  rounded?: boolean;
   /**
    * Elbow only: the direction the line leaves its start / arrives at its end
    * along. Absent: the long axis — or, at an end bound to a side of a shape,
@@ -155,10 +189,13 @@ export interface TextElement extends ElementBase {
   fontSize: number;
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
   /** Typeface; `sans` when absent. */
   font?: FontKey;
   /** Wrap width in board units; absent, each line is as long as it is typed. */
   width?: number;
+  /** Lines against the text's box; left when absent. */
+  align?: HAlign;
 }
 
 export interface ImageElement extends ElementBase {
@@ -248,7 +285,8 @@ export const LIMITS = {
 // WebSocket, one socket per (board, tab). See mobile/docs/07-websockets.
 
 export type ClientMessage =
-  | { type: 'join'; boardId: string; userId: UserId; nickname: string; pin?: string }
+  /** `tab`: which tab (page load) of this user it is, so two tabs keep a socket each. */
+  | { type: 'join'; boardId: string; userId: UserId; nickname: string; pin?: string; tab?: string }
   /** `seq` is this client's own counter, echoed back for debugging. */
   | { type: 'op'; boardId: string; ops: Op[]; seq: number }
   | { type: 'cursor'; boardId: string; at: Point }
@@ -271,7 +309,8 @@ export type ServerMessage =
    * `'server'` for a correction: the current state of elements whose edit was
    * refused because someone else holds them.
    */
-  | { type: 'op'; ops: Op[]; from: UserId; seq: number }
+  /** `tab`: the sending tab (absent from older servers). */
+  | { type: 'op'; ops: Op[]; from: UserId; tab?: string; seq: number }
   | { type: 'participants'; participants: Participant[] }
   | { type: 'cursor'; from: UserId; at: Point }
   | { type: 'permissions'; meta: BoardMeta; you: Participant }

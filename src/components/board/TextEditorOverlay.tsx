@@ -19,6 +19,7 @@ import {
   boxOf,
   isLineLike,
   labelLines,
+  labelPlacement,
   lineLabelCentre,
   LABEL_PAD,
   rotationOf,
@@ -93,12 +94,16 @@ export function TextEditorOverlay({
   let box: { x: number; y: number; width: number; height: number };
   let paddingTop = 0;
   let paddingX = 0;
+  let textAlign: 'left' | 'center' | 'right' = draft.kind === 'text' ? (draft.align ?? 'left') : 'center';
   if (draft.kind === 'text') {
     const b = boxOf(draft);
     // Unwrapped text grows to the right as it is typed: leave the textarea
     // room so the browser never wraps a line the board does not.
     const width = draft.width ? draft.width * s : Math.max(b.width * s + fontSize * 2, 80);
-    box = { x: b.x * s + camera.x, y: b.y * s + camera.y, width, height: b.height * s };
+    // The extra room is split by the alignment, so a centred or right-aligned line stays under its caret.
+    const slack = draft.width ? 0 : width - b.width * s;
+    const lean = textAlign === 'right' ? 1 : textAlign === 'center' ? 0.5 : 0;
+    box = { x: b.x * s + camera.x - slack * lean, y: b.y * s + camera.y, width, height: b.height * s };
   } else if (isLineLike(draft)) {
     // A line's label is centred where it stands along the line (paintShapeLabel).
     const lines = labelLines(draft, fontSize / s);
@@ -116,7 +121,9 @@ export function TextEditorOverlay({
       width: b.width * s,
       height: b.height * s,
     };
-    paddingTop = Math.max(0, (box.height - lines * step) / 2);
+    const at = labelPlacement(draft, fontSize / s, lines);
+    paddingTop = Math.max(0, (at.y - fontSize / s / 2 * TEXT_LINE_HEIGHT) * s + camera.y - box.y);
+    textAlign = at.align;
     paddingX = LABEL_PAD * s;
   }
   const angle = rotationOf(element);
@@ -155,9 +162,7 @@ export function TextEditorOverlay({
         placeholder={t.typeHere}
         aria-label={t.text}
         wrap={draft.kind === 'text' && !draft.width ? 'off' : 'soft'}
-        className={`absolute resize-none overflow-hidden border-0 bg-transparent p-0 outline-none placeholder:text-text/35 ${
-          element.kind === 'shape' ? 'text-center' : ''
-        } ${element.kind === 'text' ? 'rounded-sm outline-1 outline-offset-4 outline-dashed' : ''}`}
+        className={`absolute resize-none overflow-hidden border-0 bg-transparent p-0 outline-none placeholder:text-text/35 ${element.kind === 'text' ? 'rounded-sm outline-1 outline-offset-4 outline-dashed' : ''}`}
         style={{
           left: box.x,
           top: box.y,
@@ -166,6 +171,7 @@ export function TextEditorOverlay({
           paddingTop,
           paddingLeft: paddingX,
           paddingRight: paddingX,
+          textAlign,
           transform: angle ? `rotate(${angle}rad)` : undefined,
           transformOrigin: `${(origin.x + origin.width / 2) * s + camera.x - box.x}px ${(origin.y + origin.height / 2) * s + camera.y - box.y}px`,
           outlineColor: Css.accent,

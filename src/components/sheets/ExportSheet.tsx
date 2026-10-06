@@ -76,10 +76,8 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
   const bounds = useMemo(() => contentBounds(list), [list]);
   const size = useMemo(() => exportSize(list), [list]);
 
-  // A JPEG has no alpha channel, so "transparent" would silently come out
-  // black; the switch is disabled rather than lying about what it does.
-  const canBeTransparent = format !== 'jpg';
-  const paintBackground = !(transparent && canBeTransparent);
+  // A JPEG has no alpha channel, so it is not offered while "transparent" is on.
+  const paintBackground = !transparent;
 
   // The preview redraws whenever the frame, the format or the background
   // changes, at whatever scale fits the card.
@@ -221,20 +219,21 @@ function ExportSheetBody({ onClose }: { onClose: () => void }) {
         onChange={setFormat}
         options={[
           { value: 'png' as const, label: 'PNG' },
-          { value: 'jpg' as const, label: 'JPG' },
+          ...(transparent ? [] : [{ value: 'jpg' as const, label: 'JPG' }]),
           { value: 'svg' as const, label: 'SVG' },
         ]}
       />
 
       <SheetRow
         title={t.transparentBg}
-        description={canBeTransparent ? undefined : 'JPG'}
         right={
           <Toggle
-            value={transparent && canBeTransparent}
-            onChange={setTransparent}
+            value={transparent}
+            onChange={(on) => {
+              setTransparent(on);
+              if (on && format === 'jpg') setFormat('png');
+            }}
             label={t.transparentBg}
-            disabled={!canBeTransparent}
           />
         }
       />

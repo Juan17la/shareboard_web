@@ -7,10 +7,19 @@
  * laptop — which is also how a class gets from a projected board to thirty
  * devices without anyone typing a URL.
  */
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
+import { loadLocal, updateLocal } from '../../features/board-local';
+import { useSessionStore } from '../../features/session';
+import { ApiError, importSnapshot } from '../../lib/api';
 import { copyText } from '../../lib/clipboard';
+import { SNAPSHOT_FORMAT, SNAPSHOT_VERSION } from '../../lib/contract';
 import { formatShortCode } from '../../lib/short-code';
+
+import { Button } from '../ui/Button';
 
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
@@ -33,6 +42,7 @@ export function ShareSheet({
 }) {
   const t = useT();
   const meta = useBoardStore((s) => s.meta);
+  const local = useBoardStore((s) => s.connection === 'local');
   const code = meta?.shortCode ?? '';
 
   const copy = async (value: string, message: string) => {
@@ -43,6 +53,8 @@ export function ShareSheet({
       toast(t.errClipboard);
     }
   };
+
+  if (local) return <LocalShare open={open} onClose={onClose} onOpenExport={onOpenExport} />;
 
   return (
     <Sheet open={open} title={t.sheetShare} onClose={onClose} closeLabel={t.close}>
@@ -87,6 +99,53 @@ export function ShareSheet({
           <ShortcutTile icon="image" label={t.exportImage} onClick={onOpenExport} />
           <ShortcutTile icon="lock" label={t.permissions} onClick={onOpenPrivacy} />
         </div>
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * The offline board has no code yet (plans/34): sharing makes a live copy of
+ * it and opens that, this sheet staying up to show the new code and link. The
+ * offline board stays as it is — a private copy, never merged with the live one.
+ */
+function LocalShare({ open, onClose, onOpenExport }: { open: boolean; onClose: () => void; onOpenExport: () => void }) {
+  const t = useT();
+  const navigate = useNavigate();
+  const userId = useSessionStore((s) => s.userId);
+  const [busy, setBusy] = useState(false);
+  const [sharedAs, setSharedAs] = useState<string | undefined>();
+  useEffect(() => {
+    if (open) void loadLocal().then((board) => setSharedAs(board?.sharedAs));
+  }, [open]);
+
+  async function promote() {
+    const { meta, visibleElements } = useBoardStore.getState();
+    if (!meta) return;
+    setBusy(true);
+    try {
+      const created = await importSnapshot(
+        { format: SNAPSHOT_FORMAT, version: SNAPSHOT_VERSION, meta: { name: meta.name }, elements: visibleElements(), exportedAt: Date.now() },
+        userId,
+      );
+      await updateLocal(meta.id, { sharedAs: created.id });
+      navigate(`/board/${created.id}`);
+    } catch (error) {
+      toast(error instanceof ApiError && error.code !== 'NETWORK' ? error.message : t.needOnline);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} title={t.sheetShare} onClose={onClose} closeLabel={t.close}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{t.shareLocalBody}</p>
+        <Button label={t.shareLocalCta} icon="share" loading={busy} fullWidth onClick={() => void promote()} />
+        {sharedAs ? (
+          <Button label={t.openShared} icon="link" variant="secondary" fullWidth onClick={() => navigate(`/board/${sharedAs}`)} />
+        ) : null}
+        <ShortcutTile icon="image" label={t.exportImage} onClick={onOpenExport} />
       </div>
     </Sheet>
   );

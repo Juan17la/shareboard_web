@@ -1,11 +1,18 @@
 /**
- * "My whiteboards": the boards this browser has opened, newest first. Picking
- * one goes there; the cross takes it off the list (it does not delete it).
+ * "My whiteboards": the offline board first, then the live boards this browser
+ * has opened, newest first. Picking one goes there; the cross takes it off the
+ * list (it does not delete it).
+ *
+ * The live ones are only offered while they can be reached (plans/34): hidden
+ * once the server has not been heard from in five hours, back as soon as it
+ * answers again.
  */
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { relativeTime, useT } from '../../features/i18n';
 import { useSessionStore } from '../../features/session';
+import { checkOnline, isLocalId, recentlyOnline } from '../../features/board-local';
 import { formatShortCode } from '../../lib/short-code';
 import { toast } from '../../lib/toast';
 
@@ -29,11 +36,42 @@ export function BoardsSheet({
   const recent = useSessionStore((s) => s.recent);
   const nickColor = useSessionStore((s) => s.nickColor);
   const forgetBoard = useSessionStore((s) => s.forgetBoard);
+  const [live, setLive] = useState(recentlyOnline);
+  useEffect(() => {
+    if (open) void checkOnline().then((ok) => setLive(ok || recentlyOnline()));
+  }, [open]);
 
   return (
     <Sheet open={open} title={t.myWhiteboards} onClose={onClose} closeLabel={t.close}>
       <div className="flex flex-col gap-2 pb-1">
-        {recent.length === 0 ? (
+        <GlassPanel level="row" radius={16}>
+          <button
+            type="button"
+            aria-label={t.localBoardName}
+            aria-current={isLocalId(currentId) ? 'true' : undefined}
+            onClick={() => {
+              onClose();
+              if (!isLocalId(currentId)) navigate('/');
+            }}
+            className="flex w-full min-w-0 items-center gap-3 px-3.5 py-3 text-left transition hover:bg-surface-selected"
+          >
+            <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-full bg-surface-selected">
+              <Icon name="pencil" size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[0.8438rem] leading-tight font-bold">{t.localBoardName}</span>
+              <span className="mt-0.5 block truncate text-[0.75rem] text-text-secondary">{t.localRow}</span>
+            </span>
+            {isLocalId(currentId) ? (
+              <span className="flex-none text-accent">
+                <Icon name="check" size={16} />
+              </span>
+            ) : null}
+          </button>
+        </GlassPanel>
+        {!live ? (
+          <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">{t.liveHidden}</p>
+        ) : recent.length === 0 ? (
           <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">{t.noRecent}</p>
         ) : (
           recent.map((board) => (

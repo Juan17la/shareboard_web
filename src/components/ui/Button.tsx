@@ -120,8 +120,8 @@ export function IconButton({
       onClick={onClick}
       style={{ width: size, height: size, borderRadius: radius }}
       className={[
-        'flex flex-none items-center justify-center border border-line backdrop-blur-md transition',
-        active ? 'bg-accent text-white shadow-accent' : 'bg-glass-solid text-text hover:bg-surface-selected',
+        'flex flex-none items-center justify-center border border-line transition',
+        active ? 'bg-accent text-white shadow-accent' : 'bg-surface text-text hover:bg-surface-selected',
         disabled ? 'pointer-events-none opacity-40' : '',
         className,
       ]

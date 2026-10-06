@@ -1,6 +1,8 @@
 /**
- * "Join with a code": the six characters of a board's code, or a link to it.
+ * The header's "+": another whiteboard — a blank one, named here, or one
+ * someone else made, joined with its code.
  *
+ * The code is six characters of a board's code, or a link to it.
  * The code is six boxes over one invisible input, so the keyboard, paste and
  * autofill all work as they do on any input while the boxes show the code
  * character by character. A pasted link goes straight through `parseBoardRef`;
@@ -10,16 +12,31 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useT } from '../../features/i18n';
+import { LIMITS } from '../../lib/contract';
 import { resolveShortCode } from '../../lib/api';
 import { parseBoardRef } from '../../lib/deep-link';
 import { SHORT_CODE_LENGTH, normalizeShortCode } from '../../lib/short-code';
 import { toast } from '../../lib/toast';
 
-import { Sheet } from '../ui/Sheet';
+import { Button } from '../ui/Button';
+import { Field } from '../ui/Field';
+import { SectionLabel, Sheet } from '../ui/Sheet';
 
-export function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function JoinSheet({
+  open,
+  onClose,
+  onCreate,
+  creating,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** Makes a blank whiteboard with this name (empty: the default name) and opens it. */
+  onCreate: (name: string) => void;
+  creating: boolean;
+}) {
   const t = useT();
   const navigate = useNavigate();
+  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -57,8 +74,28 @@ export function JoinSheet({ open, onClose }: { open: boolean; onClose: () => voi
   }
 
   return (
-    <Sheet open={open} title={t.joinWhiteboard} onClose={onClose} closeLabel={t.close}>
-      <div className="flex flex-col gap-2 pb-1">
+    <Sheet open={open} title={t.anotherWhiteboard} onClose={onClose} closeLabel={t.close}>
+      <form
+        className="flex flex-col gap-2.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onCreate(name.trim());
+          setName('');
+        }}
+      >
+        <SectionLabel>{t.newWhiteboard}</SectionLabel>
+        <Field
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value.slice(0, LIMITS.maxBoardNameLength))}
+          placeholder={t.boardNamePlaceholder}
+          aria-label={t.boardName}
+        />
+        <Button type="submit" label={t.createBoard} icon="plus" loading={creating} fullWidth />
+      </form>
+
+      <div className="mt-5 flex flex-col gap-2 pb-1">
+        <SectionLabel>{t.joinWhiteboard}</SectionLabel>
         {/* The boxes are a picture of the input; the input itself is the thing
             with focus, so paste and autofill just work. */}
         <div
@@ -78,7 +115,6 @@ export function JoinSheet({ open, onClose }: { open: boolean; onClose: () => voi
           ))}
           <input
             ref={input}
-            autoFocus
             value={code}
             onChange={(e) => onChange(e.target.value)}
             aria-label={t.joinCode}
