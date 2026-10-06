@@ -19,6 +19,7 @@ import { BoardCanvas } from '../components/board/BoardCanvas';
 import { ConnectionBanner } from '../components/board/ConnectionBanner';
 import { BottomControls } from '../components/board/BottomControls';
 import { Toolbar } from '../components/board/Toolbar';
+import { Tutorial } from '../components/board/Tutorial';
 import { BoardHeader } from '../components/header/BoardHeader';
 import { NicknameScreen } from '../components/screens/NicknameScreen';
 import { PinScreen } from '../components/screens/PinScreen';
@@ -129,11 +130,11 @@ export default function BoardPage() {
 
   const [creating, setCreating] = useState(false);
   /** A fresh, empty whiteboard — public, anyone with the code can draw; the access button changes that. */
-  const createNew = useCallback(async () => {
+  const createNew = useCallback(async (name = '') => {
     setCreating(true);
     try {
       const created = await createBoard({
-        name: t.newBoardName,
+        name: name || t.newBoardName,
         access: 'public',
         editPolicy: 'everyone',
         creatorId: userId,
@@ -251,6 +252,7 @@ export default function BoardPage() {
         onCopyCode={() => void copyCode()}
         onOpenPeople={() => setSheet('people')}
         onOpenMenu={() => setSheet('menu')}
+        onOpenNew={() => setSheet('join')}
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenShare={() => setSheet('share')}
         onOpenExport={() => setSheet('export')}
@@ -261,6 +263,7 @@ export default function BoardPage() {
       <BottomControls top={controlsTop} onOpenAi={() => setSheet('ai')} />
       <ConnectionBanner top={controlsTop + 44} onRetry={sync.retry} />
       <FirstRunHint top={controlsTop + 52} />
+      <Tutorial compact={compact} />
 
       <ToastHost bottom={compact ? 140 : 132} enabled={!anyOverlay} />
 
@@ -288,16 +291,19 @@ export default function BoardPage() {
       <MenuSheet
         open={sheet === 'menu'}
         onClose={() => setSheet(null)}
-        onNew={() => void createNew()}
         onOpenBoards={() => setSheet('boards')}
-        onOpenJoin={() => setSheet('join')}
         onOpenImport={() => setSheet('import')}
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenPeople={() => setSheet('people')}
         onOpenAi={() => setSheet('ai')}
       />
       <BoardsSheet open={sheet === 'boards'} onClose={() => setSheet(null)} currentId={id} />
-      <JoinSheet open={sheet === 'join'} onClose={() => setSheet(null)} />
+      <JoinSheet
+        open={sheet === 'join'}
+        onClose={() => setSheet(null)}
+        onCreate={(name) => void createNew(name)}
+        creating={creating}
+      />
       <SettingsSheet
         open={sheet === 'settings'}
         onClose={() => setSheet(null)}
@@ -329,7 +335,8 @@ export default function BoardPage() {
  */
 function FirstRunHint({ top }: { top: number }) {
   const t = useT();
-  const dismissed = useSessionStore((s) => s.hintDismissed);
+  // While the tutorial runs it does the telling.
+  const dismissed = useSessionStore((s) => s.hintDismissed || !s.tutorialDone);
   const dismiss = useSessionStore((s) => s.dismissHint);
   const canEdit = useBoardStore((s) => s.canEditNow());
   const empty = useBoardStore((s) => !Object.values(s.elements).some((el) => !el.deleted));
