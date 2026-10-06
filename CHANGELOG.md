@@ -7,11 +7,23 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.4.1-beta] - 2026-10-06
+
+### Changed
+
+- "Crear / Unirse" has a Join button under the code boxes.
+
 ### Fixed
 
 - Glass panels are frosted again in the deployed app: the production build kept
   only the `-webkit-` blur, which Chrome and Firefox ignore, so panels were
   just translucent.
+- Typing a new name in Settings no longer reloads the board on every
+  character: the name is saved when you leave the field, press Enter or close
+  the sheet.
+- The figure being drawn looks like the one that lands: rounded corners, the
+  dash, the opacity, an arrow's heads and its route (an elbow shows its turns
+  while you drag) — the preview used to be a plain sharp-cornered outline.
 
 ## [1.4.0-beta] - 2026-10-05
 
