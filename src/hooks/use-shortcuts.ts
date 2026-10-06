@@ -115,7 +115,8 @@ export function useShortcuts(enabled: boolean, onHelp?: () => void) {
       // an image on the system clipboard (a keydown can't).
       if (mod || e.altKey) return;
       if (e.key === 'Delete' || e.key === 'Backspace') return act(e, () => s.deleteSelection());
-      if (e.key === 'Escape') {
+      // An open dropdown takes its own Escape; the selection stays.
+      if (e.key === 'Escape' && !document.querySelector(':popover-open')) {
         return act(e, () => {
           s.select(null);
           s.setRailOpen(false);

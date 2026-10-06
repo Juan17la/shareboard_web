@@ -152,6 +152,10 @@ export const drawWithAi = (id: string, prompt: string, at: Point, auth: Auth) =>
     ...auth,
   });
 
+/** The same for the offline board, which the server has never seen: always a preview. */
+export const drawWithAiLocal = (prompt: string, at: Point, userId: UserId) =>
+  request<{ reply: string; elements: BoardElement[] }>('/ai', { method: 'POST', body: { prompt, at }, userId });
+
 export const importSnapshot = (snapshot: BoardSnapshot, creatorId: UserId) =>
   request<BoardMeta>('/boards/import', {
     method: 'POST',
