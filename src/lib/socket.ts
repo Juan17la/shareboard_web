@@ -4,10 +4,12 @@
  *
  * Every socket must send `join` first — including after a reconnect, since that
  * is a new socket — so `connect()` does it in `onopen` every time. A second
- * socket for the same `(userId, boardId)` closes the first with code 4001; that
- * code, like 4000/4003/4004/4009, must not be retried.
+ * socket from the same tab (`TAB_ID`) closes the first with code 4001; that
+ * code, like 4000/4003/4004/4009, must not be retried. Another tab of the same
+ * user keeps a socket of its own.
  */
 import { REALTIME, WS_URL } from './config';
+import { shortId } from './id';
 import {
   CloseCode,
   type ClientMessage,
@@ -16,6 +18,9 @@ import {
 } from './contract';
 
 export type ConnectionState = 'idle' | 'connecting' | 'online' | 'offline';
+
+/** This page load. Two tabs share the user id; this tells their sockets, and their echoes, apart. */
+export const TAB_ID = shortId();
 
 interface Options {
   boardId: string;
@@ -95,6 +100,7 @@ export class RealtimeClient {
         boardId: this.opts.boardId,
         userId: this.opts.userId,
         nickname: this.opts.nickname,
+        tab: TAB_ID,
         ...(this.opts.pin ? { pin: this.opts.pin } : {}),
       });
       this.heartbeat = window.setInterval(() => {
