@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.4.1-beta] - 2026-10-06
+
 ### Changed
 
 - "Crear / Unirse" has a Join button under the code boxes.
