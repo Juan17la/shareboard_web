@@ -29,6 +29,7 @@ import {
   heldByOthers,
   screenToBoard,
   sketchElement,
+  shapeElement,
   useBoardStore,
   writable,
   type Camera,
@@ -67,7 +68,7 @@ import {
   zoomAround,
   type Sketch,
 } from '../../lib/geometry';
-import { Colors, Css, fillWith } from '../../lib/theme';
+import { Colors, Css } from '../../lib/theme';
 import { visibleSorted } from '../../lib/ops';
 import { useT } from '../../features/i18n';
 import { keys } from '../../hooks/use-shortcuts';
@@ -325,20 +326,15 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         });
       }
       if (liveShape && activeTool === 'shape') {
-        drafts.push({
-          id: 'live-shape',
-          kind: 'shape',
-          shape: cfg.shape,
-          from: liveShape.from,
-          to: liveShape.to,
-          stroke: cfg.color,
-          strokeWidth: cfg.width,
-          fill: fillWith(cfg.fillColor ?? cfg.color, cfg.fillOpacity),
-          createdBy: 'local',
-          createdAt: 0,
-          updatedAt: 0,
-          z: Number.MAX_SAFE_INTEGER,
-        });
+        drafts.push(
+          shapeElement(cfg.shape, liveShape, cfg, {
+            id: 'live-shape',
+            createdBy: 'local',
+            createdAt: 0,
+            updatedAt: 0,
+            z: Number.MAX_SAFE_INTEGER,
+          }),
+        );
       }
 
       paintBoard(ctx, {
