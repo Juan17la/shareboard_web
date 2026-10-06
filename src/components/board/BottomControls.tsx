@@ -8,6 +8,8 @@
  * camera home, which is the only way back after a long pan on an infinite
  * canvas. The keyboard shortcuts live in `hooks/use-shortcuts.ts`.
  */
+import { useSyncExternalStore } from 'react';
+
 import { useT } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
 import { ZOOM_STEP } from '../../lib/geometry';
@@ -29,6 +31,9 @@ export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () =>
   const undoDepth = useBoardStore((s) => s.undoStack.length);
   const redoDepth = useBoardStore((s) => s.redoStack.length);
   const canEdit = useBoardStore((s) => s.canEditNow());
+  // AI runs on the server: without a connection the button says so instead of failing.
+  const connected = useSyncExternalStore(subscribeOnline, () => navigator.onLine);
+  const aiReady = useBoardStore((s) => connected && (s.connection === 'online' || s.connection === 'local'));
 
   const zoom = `${Math.round(camera.scale * 100)}%`;
   const at = homeCamera();
@@ -59,7 +64,7 @@ export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () =>
               <ControlButton icon="undo" label={t.undo} hint="Ctrl Z" enabled={undoDepth > 0} onClick={undo} />
               <ControlButton icon="redo" label={t.redo} hint="Ctrl Y" enabled={redoDepth > 0} onClick={redo} />
               <span className="mx-1 h-5 w-px bg-line" />
-              <ControlButton icon="sparkle" label={t.sheetAi} hint="AI" enabled accent onClick={onOpenAi} />
+              <ControlButton icon="sparkle" label={aiReady ? t.sheetAi : t.aiOffline} hint="AI" enabled={aiReady} accent onClick={onOpenAi} />
             </>
           ) : null}
         </div>
@@ -67,6 +72,15 @@ export function BottomControls({ top, onOpenAi }: { top: number; onOpenAi: () =>
 
     </div>
   );
+}
+
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
 }
 
 function ControlButton({
@@ -93,7 +107,7 @@ function ControlButton({
       data-tip-side="bottom"
       disabled={!enabled}
       onClick={onClick}
-      className={`touch-36 flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition disabled:hover:bg-transparent ${
+      className={`touch-36 flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition disabled:hover:bg-transparent ${accent ? 'disabled:opacity-40' : ''} ${
         accent
           ? 'bg-accent text-white shadow-accent hover:bg-accent-deep'
           : 'hover:bg-surface-selected'

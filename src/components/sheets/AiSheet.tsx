@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { fill, useT } from '../../features/i18n';
 import { screenToBoard, useBoardStore } from '../../features/board-store';
 import { useSessionStore } from '../../features/session';
-import { drawWithAi } from '../../lib/api';
+import { drawWithAi, drawWithAiLocal } from '../../lib/api';
 import type { BoardElement } from '../../lib/contract';
 import { contentBounds } from '../../lib/geometry';
 import { paintBoard } from '../board/renderer';
@@ -69,7 +69,10 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
     setBusy(true);
     try {
       const at = screenToBoard(viewport.width / 2, viewport.height / 2);
-      const res = await drawWithAi(meta.id, text, at, { userId, token: boardToken ?? '' });
+      const res =
+        useBoardStore.getState().connection === 'local'
+          ? await drawWithAiLocal(text, at, userId)
+          : await drawWithAi(meta.id, text, at, { userId, token: boardToken ?? '' });
       push({ from: 'ai', text: res.reply, elements: res.elements.length ? res.elements : undefined });
     } catch (err) {
       push({ from: 'error', text: err instanceof Error ? err.message : String(err) });

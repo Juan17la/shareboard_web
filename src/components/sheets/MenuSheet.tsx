@@ -16,9 +16,7 @@ import { Sheet } from '../ui/Sheet';
 export function MenuSheet({
   open,
   onClose,
-  onNew,
   onOpenBoards,
-  onOpenJoin,
   onOpenImport,
   onOpenPrivacy,
   onOpenPeople,
@@ -26,9 +24,7 @@ export function MenuSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  onNew: () => void;
   onOpenBoards: () => void;
-  onOpenJoin: () => void;
   onOpenImport: () => void;
   onOpenPrivacy: () => void;
   onOpenPeople: () => void;
@@ -37,14 +33,18 @@ export function MenuSheet({
   const t = useT();
   const canEdit = useBoardStore((s) => s.canEditNow());
   const name = useBoardStore((s) => s.meta?.name);
+  const local = useBoardStore((s) => s.connection === 'local');
 
   const rows: { icon: IconName; label: string; onClick: () => void }[] = [
-      { icon: 'plus', label: t.newWhiteboard, onClick: onNew },
       { icon: 'board', label: t.myWhiteboards, onClick: onOpenBoards },
-      { icon: 'link', label: t.joinWhiteboard, onClick: onOpenJoin },
       { icon: 'download', label: t.importBoard, onClick: onOpenImport },
-      { icon: 'lock', label: t.whoEdits, onClick: onOpenPrivacy },
-      { icon: 'people', label: t.sheetPeople, onClick: onOpenPeople },
+      // The offline board has nobody else on it and no access to set.
+      ...(local
+        ? []
+        : [
+            { icon: 'lock' as const, label: t.whoEdits, onClick: onOpenPrivacy },
+            { icon: 'people' as const, label: t.sheetPeople, onClick: onOpenPeople },
+          ]),
       ...(canEdit ? [{ icon: 'sparkle' as const, label: t.sheetAi, onClick: onOpenAi }] : []),
   ];
 

@@ -2,6 +2,9 @@
  * Wires one board screen to the backend:
  *   REST getBoard + join  ->  WebSocket connect + join  ->  live ops
  *
+ * The offline board (`loc_…`, plans/34) skips all of that: it is read from
+ * this browser and its edits are written back there.
+ *
  * Returns a `phase` the screen uses to gate UI (identity prompt, PIN prompt,
  * loading, ready, error) plus `sendCursor` for the canvas. Full sequence in
  * mobile/docs/06-loading-exporting and mobile/docs/07-websockets.
@@ -9,13 +12,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { currentStrings } from '../features/i18n';
+import { isLocalId, loadLocal, localMeta, markOnline, updateLocal } from '../features/board-local';
 import { useSessionStore } from '../features/session';
 import { useBoardStore } from '../features/board-store';
 import { ApiError, getBoard, joinBoard } from '../lib/api';
 import { REALTIME } from '../lib/config';
-import type { Point } from '../lib/contract';
+import type { BoardElement, Participant, Point } from '../lib/contract';
 import { splitOps } from '../lib/ops';
-import { RealtimeClient } from '../lib/socket';
+import { RealtimeClient, TAB_ID } from '../lib/socket';
 import { throttle } from '../lib/throttle';
 import { toast } from '../lib/toast';
 
@@ -78,6 +82,24 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
       setError(null);
       setNotFound(false);
 
+      if (isLocalId(boardId)) {
+        const board = await loadLocal();
+        if (attempt !== attemptRef.current) return;
+        // Not this browser's board (an old link to one since replaced): the root opens the right one.
+        if (board?.id !== boardId) {
+          setNotFound(true);
+          setPhase('error');
+          return;
+        }
+        const { nickColor, avatar } = useSessionStore.getState();
+        const you: Participant = { userId, nickname, color: nickColor, ...(avatar ? { avatar } : null), role: 'creator', lastSeen: Date.now() };
+        const store = useBoardStore.getState();
+        store.hydrate({ meta: localMeta(board, userId), elements: board.elements, participants: [you], you, seq: 0 });
+        store.setConnection('local');
+        setPhase('ready');
+        return;
+      }
+
       const meta = await getBoard(boardId);
       const join = await joinBoard({
         boardId,
@@ -126,9 +148,12 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
         });
         setPhase('ready');
       });
-      conn.on('op', (msg) =>
-        useBoardStore.getState().applyRemote(msg.ops, msg.seq, msg.from === userId),
-      );
+      conn.on('op', (msg) => {
+        markOnline();
+        // Its own echo: this tab's ops coming back. The same user's other tabs are anyone else.
+        const own = msg.from === userId && (msg.tab === undefined || msg.tab === TAB_ID);
+        useBoardStore.getState().applyRemote(msg.ops, msg.seq, own);
+      });
       conn.on('participants', (msg) =>
         useBoardStore.getState().setParticipants(msg.participants),
       );
@@ -145,7 +170,10 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
         if (msg.code === 'PIN_REQUIRED' || msg.code === 'PIN_INVALID') setPhase('need-pin');
         else setPhase('error');
       });
-      conn.onStateChange((s) => useBoardStore.getState().setConnection(s));
+      conn.onStateChange((s) => {
+        if (s === 'online') markOnline();
+        useBoardStore.getState().setConnection(s);
+      });
 
       // Fall back to the REST metadata until `joined` arrives, so the header
       // has a name and a code to show while the socket opens.
@@ -195,6 +223,31 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
   // Drain the store outbox onto the wire. Subscribing to the store rather than
   // polling means a burst of ops travels as one message a frame or two later.
   useEffect(() => {
+    if (isLocalId(boardId)) {
+      // The offline board's wire is this browser: the ops are dropped and the
+      // board written, half a second after the last edit (and when the tab goes).
+      // What is written is taken at the edit, so a reset on the way out never empties it.
+      let pending: BoardElement[] | null = null;
+      let timer = 0;
+      const write = () => {
+        clearTimeout(timer);
+        if (pending) void updateLocal(boardId, { elements: pending });
+        pending = null;
+      };
+      const unsub = useBoardStore.subscribe((state, prev) => {
+        if (state.outbox === prev.outbox || !state.outbox.length || state.boardId !== boardId) return;
+        state.drainOutbox();
+        pending = Object.values(useBoardStore.getState().elements).filter((el) => !el.deleted);
+        clearTimeout(timer);
+        timer = window.setTimeout(write, 500);
+      });
+      window.addEventListener('pagehide', write);
+      return () => {
+        unsub();
+        window.removeEventListener('pagehide', write);
+        write();
+      };
+    }
     const flush = throttle(() => {
       // Not before the join has completed: the ops stay in the store, and the
       // hydrate that follows a join sends them (it hands the outbox over anew).
@@ -213,6 +266,15 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
       unsub();
     };
   }, [boardId]);
+
+  // The five-hour rule counts from the last time the server was heard: an
+  // open, quiet board still is, once a minute.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (connRef.current?.getState() === 'online') markOnline();
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   // A tab that comes back to the foreground after the socket dropped should
   // reconnect at once rather than waiting out the backoff.

@@ -25,6 +25,7 @@ export function BoardHeader({
   onCopyCode,
   onOpenPeople,
   onOpenMenu,
+  onOpenNew,
   onOpenPrivacy,
   onOpenShare,
   onOpenExport,
@@ -35,6 +36,8 @@ export function BoardHeader({
   onCopyCode: () => void;
   onOpenPeople: () => void;
   onOpenMenu: () => void;
+  /** Another whiteboard: a blank one, or one joined with a code. */
+  onOpenNew: () => void;
   onOpenPrivacy: () => void;
   onOpenShare: () => void;
   onOpenExport: () => void;
@@ -48,16 +51,22 @@ export function BoardHeader({
   const canEdit = useBoardStore((s) => s.canEditNow());
 
   const online = connection === 'online';
+  // The offline board (plans/34): nobody else is on it, and there is no code yet — Share makes one.
+  const local = connection === 'local';
   const statusColor = online
     ? StatusColors.online
-    : connection === 'offline'
+    : local
+      ? Css.textSecondary
+      : connection === 'offline'
       ? StatusColors.offline
       : StatusColors.connecting;
   const statusLabel = online
     ? participants.length === 1
       ? t.onlineOne
       : tf('onlineMany', { N: participants.length })
-    : connection === 'offline'
+    : local
+      ? t.localStatus
+      : connection === 'offline'
       ? t.offline
       : t.connecting;
 
@@ -78,7 +87,8 @@ export function BoardHeader({
       >
         <div className="flex items-start justify-between gap-2">
           <div className="pointer-events-auto flex min-w-0 flex-wrap items-center gap-[7px]">
-            <div className="min-w-0 max-w-fit flex-1 px-1 py-0.5">
+            {/* On a phone the name gets a row of its own, the buttons and their words go under it. */}
+            <div className="min-w-0 max-w-fit flex-1 px-1 py-0.5 max-sm:max-w-full max-sm:basis-full">
               <h1
                 title={meta?.name}
                 className="truncate text-[0.9375rem] leading-tight font-extrabold tracking-[-0.2px]"
@@ -101,11 +111,25 @@ export function BoardHeader({
             </div>
 
             <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
+            {/* Says what it does: the "+" alone read as "add something to this board". */}
+            <button
+              type="button"
+              aria-label={t.anotherWhiteboard}
+              data-tip={t.anotherWhiteboard}
+              data-tip-side="bottom"
+              onClick={onOpenNew}
+              className="flex h-9 flex-none items-center gap-1.5 rounded-[12px] border border-line bg-surface px-2.5 text-text transition hover:bg-surface-selected"
+            >
+              <Icon name="plus" size={16} />
+              <span className="text-[0.75rem] font-bold whitespace-nowrap">{t.createOrJoin}</span>
+            </button>
             <IconButton icon="settings" label={t.sheetSettings} onClick={onOpenSettings} />
             <IconButton icon="download" label={t.exportImage} onClick={onOpenExport} />
           </div>
 
           <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-[7px]">
+            {local ? null : (
+            <>
             <button
               type="button"
               aria-label={t.connectedPeople}
@@ -165,6 +189,8 @@ export function BoardHeader({
                 {meta ? formatShortCode(meta.shortCode) : '———·———'}
               </span>
             </button>
+            </>
+            )}
 
             {/* The primary action says what it is once there is room for the word. */}
             <button
