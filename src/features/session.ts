@@ -40,6 +40,8 @@ export interface AppSettings {
   peers: boolean;
   /** Curve-fit freehand strokes instead of joining raw points. */
   smooth: boolean;
+  /** The pencil turns what is drawn into the figure it was meant to be ("draw to shape"). */
+  drawToShape: boolean;
 }
 
 interface SessionState {
@@ -58,9 +60,12 @@ interface SessionState {
   pins: Record<string, string>;
   /** The first-run hint on an empty board has been dismissed (or acted on). */
   hintDismissed: boolean;
+  /** The first-run walkthrough has been finished or skipped (plans/33). */
+  tutorialDone: boolean;
 
   setNickname(nickname: string): void;
   dismissHint(): void;
+  setTutorialDone(done: boolean): void;
   setAvatar(avatar: string): void;
   setLang(lang: Lang): void;
   toggleLang(): void;
@@ -72,7 +77,7 @@ interface SessionState {
   rememberPin(boardId: string, pin: string | null): void;
 }
 
-export const DEFAULT_SETTINGS: AppSettings = { grid: true, peers: true, smooth: true };
+export const DEFAULT_SETTINGS: AppSettings = { grid: true, peers: true, smooth: true, drawToShape: false };
 
 const STORAGE_KEY = 'shareboard.session';
 
@@ -87,6 +92,7 @@ interface Persisted {
   recent: RecentBoard[];
   pins: Record<string, string>;
   hintDismissed?: boolean;
+  tutorialDone?: boolean;
 }
 
 /**
@@ -115,6 +121,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   recent: [],
   pins: {},
   hintDismissed: false,
+  tutorialDone: false,
 
   setNickname(nickname) {
     set({ nickname: nickname.trim().slice(0, LIMITS.maxNicknameLength) });
@@ -122,6 +129,10 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   dismissHint() {
     set({ hintDismissed: true });
+  },
+
+  setTutorialDone(tutorialDone) {
+    set({ tutorialDone });
   },
 
   /** The icon brings its colour along: one choice, not two. */
@@ -187,6 +198,7 @@ const saved = persisted<SessionState, Persisted>(useSessionStore, STORAGE_KEY, (
   recent: s.recent,
   pins: s.pins,
   hintDismissed: s.hintDismissed,
+  tutorialDone: s.tutorialDone,
 }));
 
 if (saved) {
@@ -197,6 +209,8 @@ if (saved) {
     theme: saved.theme === 'dark' ? 'dark' : 'light',
     settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
     hintDismissed: saved.hintDismissed === true,
+    // Saved before the walkthrough existed: someone who has used the app already, not to be walked through it.
+    tutorialDone: saved.tutorialDone ?? true,
   });
 }
 
