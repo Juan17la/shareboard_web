@@ -7,6 +7,12 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Glass panels are frosted again in the deployed app: the production build kept
+  only the `-webkit-` blur, which Chrome and Firefox ignore, so panels were
+  just translucent.
+
 ## [1.4.0-beta] - 2026-10-05
 
 ### Added
