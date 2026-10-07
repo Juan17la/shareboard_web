@@ -7,6 +7,23 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.4.2-beta] - 2026-10-07
+
+### Fixed
+
+- "Delete the board" works: the server now allows the browser's `DELETE`
+  request.
+
+### Changed
+
+- A click or tap inside an empty figure (no fill, no label) selects what is
+  drawn inside or under it instead of the frame. With nothing beneath, the
+  smallest of nested empty frames is picked; its outline still selects it.
+- A new README about the app itself (what it does, how to use it), with the
+  technical material moved to the project documentation.
+- Licensed under the PolyForm Noncommercial License 1.0.0 (free for any
+  noncommercial use).
+
 ## [1.4.1-beta] - 2026-10-06
 
 ### Changed
