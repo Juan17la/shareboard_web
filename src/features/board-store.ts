@@ -53,6 +53,7 @@ import {
   hitTest,
   canRound,
   isLineLike,
+  pickHit,
   setBoxLookup,
   translate,
   zoomAround,
@@ -1005,8 +1006,8 @@ export const useBoardStore = create<BoardState>((set, get) => {
     },
 
     elementAt(at, radius, among = get().visibleElements()) {
-      const hits = hitTest(among, at, radius);
-      return hits.length ? (among.find((el) => el.id === hits[hits.length - 1]) ?? null) : null;
+      const id = pickHit(among, hitTest(among, at, radius), at, radius);
+      return id ? (among.find((el) => el.id === id) ?? null) : null;
     },
 
     updateShape(id, patch) {
