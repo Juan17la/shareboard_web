@@ -7,6 +7,13 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Vercel builds only `main` (production) and `develop` (preview). Feature, fix,
+  docs, chore and release branches no longer get preview deployments: their
+  tips are partial steps that never build on their own, and every push of them
+  showed a failed check.
+
 ## [1.4.2-beta] - 2026-10-07
 
 ### Fixed
