@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.5.0-beta] - 2026-10-09
+
 ### Fixed
 
 - A very wide line of text no longer scrolls the board sideways and leaves part
