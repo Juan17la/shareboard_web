@@ -207,7 +207,7 @@ if (saved) {
     avatar: saved.avatar || Avatars[0].icon,
     nickColor: avatarColor(saved.avatar || Avatars[0].icon),
     theme: saved.theme === 'dark' ? 'dark' : 'light',
-    settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
+    settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}), drawToShape: false },
     hintDismissed: saved.hintDismissed === true,
     // Saved before the walkthrough existed: someone who has used the app already, not to be walked through it.
     tutorialDone: saved.tutorialDone ?? true,
