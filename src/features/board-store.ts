@@ -923,8 +923,10 @@ export const useBoardStore = create<BoardState>((set, get) => {
         set({ camera: get().homeCamera() });
         return;
       }
-      const pad = 48;
-      const scale = clampZoom(Math.min((width - pad * 2) / b.width, (height - pad * 2) / b.height, 1));
+      // Clear of the header on top and the tool bars below / beside, not just of the screen's edge.
+      const padX = 72;
+      const padY = 112;
+      const scale = clampZoom(Math.min((width - padX * 2) / b.width, (height - padY * 2) / b.height, 1));
       set({
         camera: {
           scale,

@@ -243,7 +243,7 @@ export default function BoardPage() {
   );
 
   return (
-    <div className="relative h-full overflow-hidden bg-background">
+    <div className="relative h-full overflow-clip bg-background">
       <BoardCanvas onCursorMove={sync.sendCursor} />
 
       <BoardHeader

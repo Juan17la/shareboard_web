@@ -878,7 +878,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   };
 
   return (
-    <div ref={hostRef} className="absolute inset-0 bg-background">
+    <div ref={hostRef} className="absolute inset-0 overflow-clip bg-background">
       <canvas
         ref={canvasRef}
         className="block h-full w-full touch-none select-none"

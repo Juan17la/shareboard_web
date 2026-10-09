@@ -131,8 +131,6 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const canEdit = useBoardStore((s) => s.canEditNow());
   const open = useBoardStore((s) => s.railOpen);
   const dark = useSessionStore((s) => s.theme === 'dark');
-  const drawToShape = useSessionStore((s) => s.settings.drawToShape);
-  const setSetting = useSessionStore((s) => s.setSetting);
   const narrow = useViewport().width < 360;
 
   const [picking, setPicking] = useState(false);
@@ -289,8 +287,8 @@ export function Toolbar({ compact }: { compact: boolean }) {
           ['markersCardinality', MARKERS.cardinality],
         ] as const
       ).map(([labelKey, markers]) => (
-        <div key={labelKey} className="flex items-center gap-1.5">
-          <span className="w-[76px] text-[0.75rem] font-bold text-text/60">{t[labelKey]}</span>
+        <div key={labelKey} className="flex flex-wrap items-center gap-1.5">
+          <span className="w-full text-[0.75rem] font-bold text-text/60">{t[labelKey]}</span>
           {markers.map((kind) => (
             <MiniButton key={kind} label={kind} active={cur[end] === kind} onClick={() => setConfig({ [end]: kind })}>
               <MarkerIcon kind={kind} end={end === 'headEnd'} />
@@ -339,52 +337,20 @@ export function Toolbar({ compact }: { compact: boolean }) {
 
       {show('color') ? <Group title={show('fill') ? t.strokeColor : t.color}>{swatch}</Group> : null}
 
-      {show('border') ? (
-        <Group title={t.strokeColor}>
-          <Menu label={t.strokeColor} compact={compact} trigger={
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={ink} strokeWidth={Math.min(5, 1 + cur.width / 2)}>
-              <circle cx="12" cy="12" r="8" />
-            </svg>
-          }>
-            <Group title={t.color}>{swatch}</Group>
-            <Group title={t.size}>{widthSlider}</Group>
-          </Menu>
-        </Group>
-      ) : null}
-
       {show('width') ? <Group title={t.size}>{widthSlider}</Group> : null}
-
-      {show('drawToShape') ? (
-        <Group title={t.pencil}>
-          {([false, true] as const).map((on) => (
-            <MiniButton
-              key={String(on)}
-              label={on ? t.penShape : t.penFree}
-              active={drawToShape === on}
-              onClick={() => setSetting('drawToShape', on)}
-            >
-              <Icon name={on ? 'pencil-shape' : 'pencil'} size={18} />
-            </MiniButton>
-          ))}
-        </Group>
-      ) : null}
 
       {show('corners') ? (
         <Group title={t.secCorners}>
-          <Menu label={t.secCorners} compact={compact} trigger={<CornerIcon rounded={cur.rounded} />}>
-            <div className="flex gap-1.5">
-              {([false, true] as const).map((rounded) => (
-                <MiniButton
-                  key={String(rounded)}
-                  label={rounded ? t.cornerRounded : t.cornerSharp}
-                  active={cur.rounded === rounded}
-                  onClick={() => setConfig({ rounded })}
-                >
-                  <CornerIcon rounded={rounded} />
-                </MiniButton>
-              ))}
-            </div>
-          </Menu>
+          {([false, true] as const).map((rounded) => (
+            <MiniButton
+              key={String(rounded)}
+              label={rounded ? t.cornerRounded : t.cornerSharp}
+              active={cur.rounded === rounded}
+              onClick={() => setConfig({ rounded })}
+            >
+              <CornerIcon rounded={rounded} />
+            </MiniButton>
+          ))}
         </Group>
       ) : null}
 
@@ -432,15 +398,11 @@ export function Toolbar({ compact }: { compact: boolean }) {
 
       {show('route') ? (
         <Group title={t.route}>
-          <Menu label={t.route} compact={compact} trigger={<RouteIcon route={cur.route} />}>
-            <div className="flex gap-1.5">
-              {ROUTES.map((route) => (
-                <MiniButton key={route} label={t[routeLabel[route]]} active={cur.route === route} onClick={() => setConfig({ route })}>
-                  <RouteIcon route={route} />
-                </MiniButton>
-              ))}
-            </div>
-          </Menu>
+          {ROUTES.map((route) => (
+            <MiniButton key={route} label={t[routeLabel[route]]} active={cur.route === route} onClick={() => setConfig({ route })}>
+              <RouteIcon route={route} />
+            </MiniButton>
+          ))}
         </Group>
       ) : null}
 
@@ -453,21 +415,9 @@ export function Toolbar({ compact }: { compact: boolean }) {
         </Group>
       ) : null}
 
-      {show('textSize') ? (
-        <Group title={t.secTextSize}>
-          <Menu label={t.secTextSize} compact={compact} trigger={<span className="text-[0.8125rem] font-bold">{nearestTextSize(fontSize).glyph}</span>}>
-            <div className="flex gap-1.5">{sizeChoices}</div>
-          </Menu>
-        </Group>
-      ) : null}
+      {show('textSize') ? <Group title={t.secTextSize}>{sizeChoices}</Group> : null}
 
-      {show('font') ? (
-        <Group title={t.secFont}>
-          <Menu label={t.secFont} compact={compact} trigger={<span className="text-[0.875rem]" style={{ fontFamily: FONT_FAMILIES[cur.font] }}>Aa</span>}>
-            <div className="flex gap-1.5">{fontChoices}</div>
-          </Menu>
-        </Group>
-      ) : null}
+      {show('font') ? <Group title={t.secFont}>{fontChoices}</Group> : null}
 
       {show('style') ? (
         <Group title={t.secStyle}>
@@ -539,8 +489,7 @@ export function Toolbar({ compact }: { compact: boolean }) {
             {tools.map((entry) => (
               <ToolButton
                 key={entry.labelKey}
-                // The pencil shows which pencil it is: freehand, or draw to shape.
-                icon={entry.tool === 'pen' && drawToShape ? 'pencil-shape' : entry.icon}
+                icon={entry.icon}
                 label={t[entry.labelKey]}
                 shortcut={entry.key}
                 active={isActive(entry)}
@@ -602,9 +551,7 @@ const Vertical = createContext(false);
 type Opt =
   | 'fill'
   | 'color'
-  | 'border'
   | 'width'
-  | 'drawToShape'
   | 'corners'
   | 'dash'
   | 'sides'
@@ -623,15 +570,15 @@ type Opt =
  * and `stroke` (a selected pencil line). Mobile keeps the same table.
  */
 const OPTIONS: Partial<Record<string, Opt[]>> = {
-  pen: ['color', 'width', 'drawToShape'],
+  pen: ['color', 'width'],
   stroke: ['color', 'width'],
   eraser: ['width'],
   fill: ['color'],
-  rectangle: ['fill', 'color', 'width', 'corners', 'dash', 'align'],
-  ellipse: ['fill', 'border', 'dash'],
-  triangle: ['fill', 'color', 'width', 'corners', 'dash'],
-  polygon: ['fill', 'color', 'width', 'corners', 'dash', 'sides'],
-  line: ['color', 'width', 'dash'],
+  rectangle: ['fill', 'color', 'width', 'corners', 'dash', 'label', 'align'],
+  ellipse: ['fill', 'color', 'width', 'dash', 'label', 'align'],
+  triangle: ['fill', 'color', 'width', 'corners', 'dash', 'label', 'align'],
+  polygon: ['fill', 'color', 'width', 'corners', 'dash', 'sides', 'label', 'align'],
+  line: ['color', 'width', 'dash', 'label'],
   arrow: ['color', 'dash', 'tail', 'head', 'route', 'label'],
   text: ['color', 'textSize', 'font', 'style', 'align'],
 };
@@ -656,7 +603,8 @@ function Menu({
   const id = useId();
   const anchor = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
-  // Above the bottom strip on a phone, beside the rail on a wide screen; kept on screen.
+  // To the right of the strip (wide) or of its button (phone), flipping left when
+  // the screen ends there; kept on screen either way.
   const place = () => {
     const a = anchor.current?.getBoundingClientRect();
     const p = pop.current;
@@ -664,10 +612,10 @@ function Menu({
     const { width, height } = p.getBoundingClientRect();
     const fit = (v: number, size: number, room: number) => Math.max(8, Math.min(v, room - size - 8));
     const strip = anchor.current!.closest('.sb-strip')?.getBoundingClientRect() ?? a;
-    const left = compact ? a.left + a.width / 2 - width / 2 : strip.right + 10;
-    const top = compact ? (a.top - height - 8 >= 8 ? a.top - height - 8 : a.bottom + 8) : a.top + a.height / 2 - height / 2;
+    const right = (compact ? a.right : strip.right) + 8;
+    const left = right + width <= innerWidth - 8 ? right : a.left - width - 8;
     p.style.left = `${fit(left, width, innerWidth)}px`;
-    p.style.top = `${fit(top, height, innerHeight)}px`;
+    p.style.top = `${fit(a.top + a.height / 2 - height / 2, height, innerHeight)}px`;
   };
   return (
     <>
@@ -692,7 +640,7 @@ function Menu({
         // Measured once it lays out, placed before it paints.
         onBeforeToggle={(e) => e.newState === 'open' && requestAnimationFrame(place)}
         onClick={(e) => (e.target as Element).closest('button') && pop.current?.hidePopover()}
-        className="glass fixed m-0 max-h-[calc(100vh-16px)] max-w-[calc(100vw-16px)] flex-col gap-3 overflow-auto rounded-2xl p-2.5 text-text shadow-panel [&:popover-open]:flex"
+        className="glass fixed m-0 max-h-[calc(100vh-16px)] max-w-[min(calc(100vw-16px),16rem)] flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl p-2.5 text-text shadow-panel [&:popover-open]:flex"
         style={{ inset: 'auto', border: '1px solid var(--color-line)' }}
       >
         {children}
