@@ -4,10 +4,11 @@
  * What is typed is painted by the board itself, in place — a figure's label
  * centred and wrapped inside the figure, a text in its own font and turn — so
  * it looks exactly as it will once committed. The textarea over it only holds
- * the caret and the selection: same box, font and line height, glyphs clear. Committing on blur (and on
- * Enter) is what makes clicking elsewhere on the board finish the text
- * naturally; an empty value deletes the element the click created, so nothing
- * is left behind. No confirm button: Enter or a click outside is the finish.
+ * the caret and the selection: same box, font and line height, glyphs clear. Committing on blur is
+ * what makes clicking elsewhere on the board finish the text naturally; an
+ * empty value deletes the element the click created, so nothing is left
+ * behind. No confirm button: Enter breaks the line, a click outside (or
+ * Ctrl/Cmd+Enter) is the finish.
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -67,7 +68,7 @@ export function TextEditorOverlay({
   }, []);
 
   const commit = () => {
-    // Blur fires after Enter has already committed; without the guard the
+    // Blur fires after Ctrl+Enter has already committed; without the guard the
     // second call would delete the element it just created.
     if (committed.current) return;
     committed.current = true;
@@ -136,7 +137,7 @@ export function TextEditorOverlay({
   const italic = element.kind === 'text' && element.italic;
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 overflow-clip">
       {/* Clicking anywhere else finishes the text rather than leaving a stray
           editor open behind the next stroke. */}
       <div aria-hidden="true" onPointerDown={commit} className="absolute inset-0" />
@@ -147,9 +148,9 @@ export function TextEditorOverlay({
         onChange={(e) => setValue(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
-          // Enter commits; shift+Enter is a newline. Escape throws the text
-          // away, which for a brand-new empty element removes it.
-          if (e.key === 'Enter' && !e.shiftKey) {
+          // Enter is a newline (the textarea's own); Ctrl/Cmd+Enter commits.
+          // Escape throws the text away, which for a brand-new empty element removes it.
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             commit();
           }
