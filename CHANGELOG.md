@@ -7,8 +7,24 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A very wide line of text no longer scrolls the board sideways and leaves part
+  of it white: the page and canvas clip instead of hiding their overflow.
+- A figure's label that stands outside its figure (a line's label, a long word)
+  is no longer cut by fit-to-content or by exports.
+
 ### Changed
 
+- Every figure offers text options (size, font, and alignment on the closed
+  shapes) in the options strip.
+- Corners, route, text size and font are small inline buttons; only line ends,
+  a figure's text and alignment stay dropdowns, which open to the right of
+  their button and never scroll sideways. An ellipse's border is plain colour
+  and size.
+- Enter in the text editor breaks the line; Ctrl/Cmd+Enter or a click outside
+  finishes. Draw-to-shape is no longer an option of the pencil.
+- Fit-to-content leaves room for the header and the toolbars.
 - Vercel builds only `main` (production) and `develop` (preview). Feature, fix,
   docs, chore and release branches no longer get preview deployments: their
   tips are partial steps that never build on their own, and every push of them
