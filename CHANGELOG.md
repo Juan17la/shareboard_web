@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.6.0-beta] - 2026-10-13
+
 ### Added
 
 - Welcome screens on the first visit: what Shareboard does, your name and
