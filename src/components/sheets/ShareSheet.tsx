@@ -31,13 +31,11 @@ export function ShareSheet({
   open,
   onClose,
   link,
-  onOpenExport,
   onOpenPrivacy,
 }: {
   open: boolean;
   onClose: () => void;
   link: string;
-  onOpenExport: () => void;
   onOpenPrivacy: () => void;
 }) {
   const t = useT();
@@ -54,50 +52,51 @@ export function ShareSheet({
     }
   };
 
-  if (local) return <LocalShare open={open} onClose={onClose} onOpenExport={onOpenExport} />;
+  if (local) return <LocalShare open={open} onClose={onClose} />;
 
   return (
-    <Sheet open={open} title={t.sheetShare} onClose={onClose} closeLabel={t.close}>
-      <div className="flex flex-col gap-3">
-        <GlassPanel level="row" radius={18}>
-          <div className="flex items-center gap-3.5 p-4">
-            <QRCode value={link} size={104} />
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <SectionLabel>{t.code}</SectionLabel>
-              <button
-                type="button"
-                aria-label={`${t.code} ${code}`}
-                onClick={() => copy(code, t.toastCopied)}
-                className="flex items-center gap-2 self-start rounded-[13px] border border-line-strong bg-surface px-[11px] py-2.5 transition hover:bg-surface-selected"
-              >
-                <span className="text-[1.0625rem] font-extrabold tracking-[1.6px]">
-                  {formatShortCode(code)}
-                </span>
-                <Icon name="copy" size={15} />
-              </button>
-              <p className="text-[0.75rem] leading-snug text-text-secondary">{t.qrHint}</p>
-            </div>
+    <Sheet open={open} title={t.sheetShare} onClose={onClose} closeLabel={t.close} wide>
+      {/* Left: the thing to scan. Right: the things to read out or send. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-5">
+        <div className="flex flex-col items-center justify-center gap-2 sm:w-[240px] sm:flex-none">
+          <QRCode value={link} size={176} />
+          <p className="text-center text-[0.75rem] leading-snug text-text-secondary">{t.qrHint}</p>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <SectionLabel>{t.code}</SectionLabel>
+            <button
+              type="button"
+              aria-label={`${t.code} ${code}`}
+              onClick={() => copy(code, t.toastCopied)}
+              className="flex items-center justify-between gap-2 rounded-[13px] border border-line-strong bg-surface px-3.5 py-3 transition hover:bg-surface-selected"
+            >
+              <span className="text-[1.25rem] font-extrabold tracking-[1.6px]">
+                {formatShortCode(code)}
+              </span>
+              <Icon name="copy" size={16} />
+            </button>
           </div>
-        </GlassPanel>
 
-        <GlassPanel level="row" radius={16}>
-          <button
-            type="button"
-            aria-label={t.copyLink}
-            onClick={() => copy(link, t.toastLink)}
-            className="flex w-full items-center gap-2.5 p-3.5 text-left transition hover:bg-surface-selected"
-          >
-            <Icon name="link" size={18} />
-            <div className="min-w-0 flex-1">
-              <div className="text-[0.8438rem] leading-tight font-bold">{t.copyLink}</div>
-              <div className="truncate font-mono text-[0.75rem] text-text-secondary">{link}</div>
-            </div>
-          </button>
-        </GlassPanel>
+          <GlassPanel level="row" radius={16}>
+            <button
+              type="button"
+              aria-label={t.copyLink}
+              onClick={() => copy(link, t.toastLink)}
+              className="flex w-full items-center gap-2.5 p-3.5 text-left transition hover:bg-surface-selected"
+            >
+              <Icon name="link" size={18} />
+              <div className="min-w-0 flex-1">
+                <div className="text-[0.8438rem] leading-tight font-bold">{t.copyLink}</div>
+                <div className="truncate font-mono text-[0.75rem] text-text-secondary">{link}</div>
+              </div>
+            </button>
+          </GlassPanel>
 
-        <div className="flex gap-2.5">
-          <ShortcutTile icon="image" label={t.exportImage} onClick={onOpenExport} />
-          <ShortcutTile icon="lock" label={t.permissions} onClick={onOpenPrivacy} />
+          <div className="mt-auto flex">
+            <ShortcutTile icon="lock" label={t.permissions} onClick={onOpenPrivacy} />
+          </div>
         </div>
       </div>
     </Sheet>
@@ -109,7 +108,7 @@ export function ShareSheet({
  * it and opens that, this sheet staying up to show the new code and link. The
  * offline board stays as it is — a private copy, never merged with the live one.
  */
-function LocalShare({ open, onClose, onOpenExport }: { open: boolean; onClose: () => void; onOpenExport: () => void }) {
+function LocalShare({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
   const navigate = useNavigate();
   const userId = useSessionStore((s) => s.userId);
@@ -145,7 +144,6 @@ function LocalShare({ open, onClose, onOpenExport }: { open: boolean; onClose: (
         {sharedAs ? (
           <Button label={t.openShared} icon="link" variant="secondary" fullWidth onClick={() => navigate(`/board/${sharedAs}`)} />
         ) : null}
-        <ShortcutTile icon="image" label={t.exportImage} onClick={onOpenExport} />
       </div>
     </Sheet>
   );
