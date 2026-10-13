@@ -2,11 +2,13 @@
  * REST client. One function per endpoint in mobile/docs/02-backend-connection;
  * every failure surfaces as an `ApiError` carrying the server's error code.
  *
- * Auth model: no accounts. The browser generates a persistent `userId` and
- * sends it as `X-User-Id`; `POST /boards/:id/join` returns a short-lived
- * `boardToken` that owner-only calls (rename, permissions, snapshot, delete)
- * send as `Authorization: Bearer`.
+ * Auth model: every request carries the user's id as `X-User-Id` — a guest
+ * id this browser made up, or the account's. Signed in, the session token goes
+ * along as `Authorization: Bearer` (it is what lets the server believe an
+ * account id). `POST /boards/:id/join` returns a short-lived `boardToken` that
+ * owner-only calls (rename, permissions, snapshot, delete) send instead.
  */
+import { useSessionStore } from '../features/session';
 import { API_BASE_URL } from './config';
 import type {
   BoardAccess,
@@ -42,7 +44,8 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
   if (opts.userId) headers['X-User-Id'] = opts.userId;
-  if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+  const token = opts.token ?? useSessionStore.getState().account?.token;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   let res: Response;
   try {
@@ -66,6 +69,29 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     );
   }
   return data as T;
+}
+
+export interface AccountProfile {
+  id: UserId;
+  username: string;
+  nickname: string;
+  avatar?: string;
+}
+
+export interface SignedIn {
+  token: string;
+  account: AccountProfile;
+}
+
+/** One row of "My whiteboards". */
+export interface MyBoard {
+  id: string;
+  shortCode: string;
+  name: string;
+  access: BoardAccess;
+  hasPin: boolean;
+  role: 'creator' | 'member';
+  updatedAt: number;
 }
 
 export interface CreateBoardRequest {
@@ -162,3 +188,21 @@ export const importSnapshot = (snapshot: BoardSnapshot, creatorId: UserId) =>
     body: { snapshot, creatorId },
     userId: creatorId,
   });
+
+/** `deviceId`: the guest id used until now, whose boards the account takes over. */
+export const register = (body: {
+  username: string;
+  password: string;
+  nickname: string;
+  avatar?: string;
+  deviceId: UserId;
+}) => request<SignedIn>('/auth/register', { method: 'POST', body });
+
+export const login = (body: { username: string; password: string; deviceId: UserId }) =>
+  request<SignedIn>('/auth/login', { method: 'POST', body });
+
+/** Every board the signed-in account made or has got into, newest first. */
+export const getMyBoards = async () => (await request<{ boards: MyBoard[] }>('/me/boards')).boards;
+
+/** Takes a board off the account's list (not the creator's own). */
+export const forgetMyBoard = (id: string) => request<void>(`/me/boards/${id}`, { method: 'DELETE' });
