@@ -188,6 +188,13 @@ export function useBoardSync(boardId: string, options: BoardSyncOptions = {}): B
         setPhase('need-pin');
         return;
       }
+      // The account's session ran out: carry on as this browser's guest (the
+      // user id changes, so the effect connects again by itself).
+      if (err instanceof ApiError && err.code === 'AUTH_REQUIRED' && useSessionStore.getState().account) {
+        useSessionStore.getState().signOut();
+        toast(t.sessionExpired);
+        return;
+      }
       if (err instanceof ApiError && err.code === 'NICKNAME_TAKEN') {
         setError(t.errNicknameTaken);
         setPhase('need-nickname');

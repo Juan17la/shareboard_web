@@ -30,6 +30,8 @@ import {
   DownloadSimpleIcon,
   EraserIcon,
   ExportIcon,
+  EyeIcon,
+  EyeSlashIcon,
   GearSixIcon,
   HandIcon,
   HexagonIcon,
@@ -57,6 +59,7 @@ import {
   TrashIcon,
   TriangleIcon,
   UploadSimpleIcon,
+  UserCircleIcon,
   UsersIcon,
   WarningIcon,
   XCircleIcon,
@@ -119,7 +122,10 @@ export type IconName =
   | 'sun'
   | 'json'
   | 'sparkle'
-  | 'fit';
+  | 'fit'
+  | 'user'
+  | 'eye'
+  | 'eye-slash';
 
 /** `bold` for the small marks (chevrons, the cross) so they hold up at 15px. */
 const GLYPHS: Record<IconName, [PhosphorIcon, IconWeight?]> = {
@@ -176,6 +182,9 @@ const GLYPHS: Record<IconName, [PhosphorIcon, IconWeight?]> = {
   json: [BracketsCurlyIcon],
   sparkle: [SparkleIcon],
   fit: [CornersOutIcon],
+  user: [UserCircleIcon],
+  eye: [EyeIcon],
+  'eye-slash': [EyeSlashIcon],
 };
 
 export interface IconProps {
