@@ -19,6 +19,10 @@ import { Avatar, AvatarOverflow } from '../ui/Avatar';
 import { IconButton } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 
+/** Every labelled header chip: same height, radius, padding and type as the icon buttons. */
+const CHIP =
+  'flex h-9 flex-none items-center justify-center gap-1.5 rounded-[12px] border border-line bg-surface px-3 text-[0.8125rem] font-bold whitespace-nowrap text-text transition hover:bg-surface-selected';
+
 export function BoardHeader({
   compact,
   codeCopied,
@@ -85,8 +89,8 @@ export function BoardHeader({
         data-board-header
         className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-2 sm:px-4 sm:pt-3"
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="pointer-events-auto flex min-w-0 flex-wrap items-center gap-[7px]">
+        <div className="flex items-start justify-between gap-2 sm:items-center">
+          <div className="pointer-events-auto flex min-w-0 flex-wrap items-center gap-2">
             {/* On a phone the name gets a row of its own, the buttons and their words go under it. */}
             <div className="min-w-0 max-w-fit flex-1 px-1 py-0.5 max-sm:max-w-full max-sm:basis-full">
               <h1
@@ -110,7 +114,7 @@ export function BoardHeader({
               </div>
             </div>
 
-            <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
+            <IconButton icon="settings" label={t.sheetSettings} onClick={onOpenSettings} />
             {/* Says what it does: the "+" alone read as "add something to this board". */}
             <button
               type="button"
@@ -118,16 +122,14 @@ export function BoardHeader({
               data-tip={t.anotherWhiteboard}
               data-tip-side="bottom"
               onClick={onOpenNew}
-              className="flex h-9 flex-none items-center gap-1.5 rounded-[12px] border border-line bg-surface px-2.5 text-text transition hover:bg-surface-selected"
+              className={CHIP}
             >
-              <Icon name="plus" size={16} />
-              <span className="text-[0.75rem] font-bold whitespace-nowrap">{t.createOrJoin}</span>
+              <Icon name="plus" size={18} />
+              <span>{t.createOrJoin}</span>
             </button>
-            <IconButton icon="settings" label={t.sheetSettings} onClick={onOpenSettings} />
-            <IconButton icon="download" label={t.exportImage} onClick={onOpenExport} />
           </div>
 
-          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-[7px]">
+          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
             {local ? null : (
             <>
             <button
@@ -136,7 +138,7 @@ export function BoardHeader({
               data-tip={participants.map((p) => p.nickname).join(', ') || t.connectedPeople}
               data-tip-side="left"
               onClick={onOpenPeople}
-              className="flex flex-none items-center rounded-full border border-line bg-surface p-[3px] transition hover:bg-surface-selected"
+              className="flex h-9 flex-none items-center rounded-[12px] border border-line bg-surface px-[4px] transition hover:bg-surface-selected"
             >
               {shown.length === 0 ? (
                 <span className="grid h-[26px] w-[26px] place-items-center text-text-secondary">
@@ -163,11 +165,11 @@ export function BoardHeader({
               data-tip={t.privacyShort}
               data-tip-side="bottom"
               onClick={onOpenPrivacy}
-              className="touch-36 flex items-center justify-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-[7px] transition hover:bg-surface-selected"
+              className={CHIP}
             >
-              <Icon name={isPrivate ? 'lock' : 'lock-open'} size={14} />
+              <Icon name={isPrivate ? 'lock' : 'lock-open'} size={18} />
               {/* Below 360px the strip has no room for the word; the icon and its label stay. */}
-              <span className="text-[0.75rem] font-bold max-[359px]:hidden">{t.privacyShort}</span>
+              <span className="max-[359px]:hidden">{t.privacyShort}</span>
             </button>
 
             <button
@@ -177,20 +179,33 @@ export function BoardHeader({
               data-tip-side="bottom"
               onClick={onCopyCode}
               disabled={!meta}
-              className="flex items-center gap-1.5 rounded-md border px-[11px] py-[7px] transition"
+              className={CHIP}
               style={{
                 borderColor: codeCopied ? 'transparent' : Css.border,
                 background: codeCopied ? 'rgba(15,158,142,0.14)' : 'var(--color-surface)',
                 color: codeCopied ? '#0B7F72' : Css.text,
               }}
             >
-              <Icon name={codeCopied ? 'check' : 'copy'} size={14} />
-              <span className="text-[0.8125rem] font-extrabold tracking-[1px]">
+              <Icon name={codeCopied ? 'check' : 'copy'} size={18} />
+              <span className="font-extrabold tracking-[1px]">
                 {meta ? formatShortCode(meta.shortCode) : '———·———'}
               </span>
             </button>
             </>
             )}
+
+            <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
+            <button
+              type="button"
+              aria-label={t.exportImage}
+              data-tip={t.exportImage}
+              data-tip-side="bottom"
+              onClick={onOpenExport}
+              className={CHIP}
+            >
+              <Icon name="download" size={18} />
+              <span className="hidden sm:inline">{t.exportImage}</span>
+            </button>
 
             {/* The primary action says what it is once there is room for the word. */}
             <button
@@ -199,10 +214,10 @@ export function BoardHeader({
               data-tip={t.share}
               data-tip-side="bottom"
               onClick={onOpenShare}
-              className="touch-36 flex h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-[12px] bg-accent px-2.5 text-white shadow-accent transition hover:bg-accent-deep sm:px-3.5"
+              className="flex h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-[12px] border border-transparent bg-accent px-3 text-white shadow-accent transition hover:bg-accent-deep"
             >
               <Icon name="share" size={18} />
-              <span className="hidden text-[0.8125rem] font-extrabold sm:inline">{t.share}</span>
+              <span className="hidden text-[0.8125rem] font-bold sm:inline">{t.share}</span>
             </button>
           </div>
         </div>
