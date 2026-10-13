@@ -866,7 +866,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     return boardToScreen(b.x + b.width / 2, b.y, camera);
   }, [selectedShape, camera]);
 
-  /** With the cursor, a double click on a text or a shape types into it. */
+  /** With the cursor, a double click on a text or a shape types into it; on empty board it starts a new text. */
   const onDoubleClick = (e: React.MouseEvent) => {
     const store = useBoardStore.getState();
     if (store.tool !== 'select' || !store.canEditNow()) return;
@@ -874,7 +874,10 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     const p = screenToBoard(e.clientX - box.left, e.clientY - box.top);
     const hit = store.elementAt(p, 6 / store.camera.scale);
     // Not what someone else holds: it is theirs to edit until they let go.
-    if (hit && (hit.kind === 'text' || hit.kind === 'shape') && !held.has(hit.id)) setEditingId(hit.id);
+    if (!hit) {
+      const id = store.addText(p);
+      if (id) setEditingId(id);
+    } else if ((hit.kind === 'text' || hit.kind === 'shape') && !held.has(hit.id)) setEditingId(hit.id);
   };
 
   return (
@@ -923,9 +926,9 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           onDraft={setDraft}
           onClose={() => {
             // A new text that kept its words comes up selected, with the cursor.
-            const { tool, elements, finishCreate } = useBoardStore.getState();
+            const { elements, finishCreate } = useBoardStore.getState();
             const done = elements[editing.id];
-            if (tool === 'text' && done?.kind === 'text' && !done.deleted && done.text) finishCreate([done.id]);
+            if (done?.kind === 'text' && !done.deleted && done.text) finishCreate([done.id]);
             setEditingId(null);
             setDraft(null);
           }}
