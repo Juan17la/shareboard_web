@@ -1,10 +1,11 @@
 /**
  * "What should we call you?" — the identity step before a board opens.
  *
- * There are no accounts, so this name and icon *are* the user as far as the
- * board is concerned: they label the cursor other people watch move and the
- * avatar in the header. Both are remembered per browser, so a returning user
- * sees their own name already filled in and one click gets them through.
+ * This name and icon are the user as far as the board is concerned: they label
+ * the cursor other people watch move and the avatar in the header. Both are
+ * remembered per browser, so a returning user sees their own name already
+ * filled in and one click gets them through. It is also the welcome screens'
+ * second step, where it starts empty rather than on the stand-in guest name.
  */
 import { useState } from 'react';
 
@@ -23,17 +24,20 @@ import { SectionLabel } from '../ui/Sheet';
 export function NicknameScreen({
   error,
   onContinue,
+  blank = false,
 }: {
   /** Set when the last attempt came back `NICKNAME_TAKEN`. */
   error?: string | null;
   onContinue: (nickname: string) => void;
+  /** Start with an empty field instead of the stored name. */
+  blank?: boolean;
 }) {
   const t = useT();
   const storedNickname = useSessionStore((s) => s.nickname);
   const nickColor = useSessionStore((s) => s.nickColor);
   const avatar = useSessionStore((s) => s.avatar);
 
-  const [draft, setDraft] = useState(storedNickname);
+  const [draft, setDraft] = useState(blank ? '' : storedNickname);
   const ready = draft.trim().length > 0;
 
   return (
@@ -69,7 +73,7 @@ export function NicknameScreen({
                     value={draft}
                     onChange={(e) => setDraft(e.target.value.trimStart().slice(0, LIMITS.maxNicknameLength))}
                     placeholder={t.nickPlaceholder}
-                    autoFocus={!storedNickname}
+                    autoFocus={blank || !storedNickname}
                     autoComplete="nickname"
                     aria-label={t.nickPlaceholder}
                     className="!text-[1.0625rem]"
