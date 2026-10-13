@@ -78,14 +78,15 @@ export function persisted<T extends object, P>(
   }
 
   let queued: number | null = null;
-  store.subscribe((state) => {
+  store.subscribe(() => {
     if (queued !== null) return;
     // Coalesce a burst of writes (dragging a slider, a rename keystroke) into
-    // one serialization per frame.
+    // one serialization per frame — of the state as it is then, not as the
+    // first change of the burst left it.
     queued = window.setTimeout(() => {
       queued = null;
       try {
-        localStorage.setItem(key, JSON.stringify(partialize(state)));
+        localStorage.setItem(key, JSON.stringify(partialize(store.getState())));
       } catch {
         /* ignore */
       }
