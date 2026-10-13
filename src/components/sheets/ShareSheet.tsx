@@ -32,11 +32,14 @@ export function ShareSheet({
   onClose,
   link,
   onOpenPrivacy,
+  onNeedAccount,
 }: {
   open: boolean;
   onClose: () => void;
   link: string;
   onOpenPrivacy: () => void;
+  /** Sharing the offline board needs an account; a guest is sent to sign in. */
+  onNeedAccount: () => void;
 }) {
   const t = useT();
   const meta = useBoardStore((s) => s.meta);
@@ -52,7 +55,7 @@ export function ShareSheet({
     }
   };
 
-  if (local) return <LocalShare open={open} onClose={onClose} />;
+  if (local) return <LocalShare open={open} onClose={onClose} onNeedAccount={onNeedAccount} />;
 
   return (
     <Sheet open={open} title={t.sheetShare} onClose={onClose} closeLabel={t.close} wide>
@@ -107,11 +110,21 @@ export function ShareSheet({
  * The offline board has no code yet (plans/34): sharing makes a live copy of
  * it and opens that, this sheet staying up to show the new code and link. The
  * offline board stays as it is — a private copy, never merged with the live one.
+ * A guest is asked to sign in first: a live board belongs to an account.
  */
-function LocalShare({ open, onClose }: { open: boolean; onClose: () => void }) {
+function LocalShare({
+  open,
+  onClose,
+  onNeedAccount,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onNeedAccount: () => void;
+}) {
   const t = useT();
   const navigate = useNavigate();
   const userId = useSessionStore((s) => s.userId);
+  const signedIn = useSessionStore((s) => s.account !== null);
   const [busy, setBusy] = useState(false);
   const [sharedAs, setSharedAs] = useState<string | undefined>();
   useEffect(() => {
@@ -139,8 +152,14 @@ function LocalShare({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Sheet open={open} title={t.sheetShare} onClose={onClose} closeLabel={t.close}>
       <div className="flex flex-col gap-3">
-        <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{t.shareLocalBody}</p>
-        <Button label={t.shareLocalCta} icon="share" loading={busy} fullWidth onClick={() => void promote()} />
+        <p className="text-[0.8125rem] leading-relaxed text-text-secondary">
+          {signedIn ? t.shareLocalBody : t.signInToShareBody}
+        </p>
+        {signedIn ? (
+          <Button label={t.shareLocalCta} icon="share" loading={busy} fullWidth onClick={() => void promote()} />
+        ) : (
+          <Button label={t.signInToShare} icon="user" fullWidth onClick={onNeedAccount} />
+        )}
         {sharedAs ? (
           <Button label={t.openShared} icon="link" variant="secondary" fullWidth onClick={() => navigate(`/board/${sharedAs}`)} />
         ) : null}
