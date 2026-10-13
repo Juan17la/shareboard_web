@@ -255,7 +255,7 @@ let ground = '#FFFFFF';
  * The element as it is painted on the dark board: the default ink swapped for
  * the dark theme's text colour (`inkFor`). The element itself is untouched.
  */
-function inked(el: BoardElement): BoardElement {
+export function inked(el: BoardElement): BoardElement {
   switch (el.kind) {
     case 'stroke':
     case 'text':

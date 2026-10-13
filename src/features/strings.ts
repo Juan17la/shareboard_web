@@ -270,7 +270,9 @@ const es = {
   exportSelection: 'Selección',
   download: 'Descargar',
   copyImage: 'Copiar la imagen',
-  exportFile: 'Exportar archivo .json',
+  exportFile: 'JSON',
+  exportLight: 'Claro',
+  exportDark: 'Oscuro',
   exportSize: '#W × #H px · #N elementos',
 
   // import
@@ -595,7 +597,9 @@ const en: Record<keyof typeof es, string> = {
   exportSelection: 'Selection',
   download: 'Download',
   copyImage: 'Copy the image',
-  exportFile: 'Export .json file',
+  exportFile: 'JSON',
+  exportLight: 'Light',
+  exportDark: 'Dark',
   exportSize: '#W × #H px · #N elements',
 
   pickFile: 'Choose file',

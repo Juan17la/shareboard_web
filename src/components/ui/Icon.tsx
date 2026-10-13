@@ -16,6 +16,7 @@ import {
   ArrowUpIcon,
   ArrowUpRightIcon,
   BoundingBoxIcon,
+  BracketsCurlyIcon,
   CaretLeftIcon,
   CaretRightIcon,
   ChalkboardSimpleIcon,
@@ -116,6 +117,7 @@ export type IconName =
   | 'to-front'
   | 'moon'
   | 'sun'
+  | 'json'
   | 'sparkle'
   | 'fit';
 
@@ -171,6 +173,7 @@ const GLYPHS: Record<IconName, [PhosphorIcon, IconWeight?]> = {
   'to-front': [ArrowLineUpIcon],
   moon: [MoonIcon],
   sun: [SunIcon],
+  json: [BracketsCurlyIcon],
   sparkle: [SparkleIcon],
   fit: [CornersOutIcon],
 };
