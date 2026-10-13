@@ -9,8 +9,12 @@
  *
  * There is no page behind it: the app opens on the last whiteboard, and the
  * menu is where a new one, an old one, a code or a file is reached from. The
- * identity step only appears when a name clashes with someone's on the board
- * (everyone starts with a guest name, changed in the settings).
+ * welcome screens come first, once per browser; after them the identity step
+ * only appears when a name clashes with someone's on the board.
+ *
+ * A live board is a shared one, so making one (new, imported, or the offline
+ * board shared) needs an account: a guest is shown the account sheet instead,
+ * and brought back to where they were once signed in.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -22,7 +26,9 @@ import { Toolbar } from '../components/board/Toolbar';
 import { Tutorial } from '../components/board/Tutorial';
 import { BoardHeader } from '../components/header/BoardHeader';
 import { NicknameScreen } from '../components/screens/NicknameScreen';
+import { Onboarding } from '../components/screens/Onboarding';
 import { PinScreen } from '../components/screens/PinScreen';
+import { AccountSheet } from '../components/sheets/AccountSheet';
 import { AiSheet } from '../components/sheets/AiSheet';
 import { BoardsSheet } from '../components/sheets/BoardsSheet';
 import { ExportSheet } from '../components/sheets/ExportSheet';
@@ -63,7 +69,8 @@ type SheetName =
   | 'settings'
   | 'ai'
   | 'join'
-  | 'boards';
+  | 'boards'
+  | 'account';
 type ConfirmName = 'clear' | 'delete';
 
 export default function BoardPage() {
@@ -79,6 +86,8 @@ export default function BoardPage() {
   const nickname = useSessionStore((s) => s.nickname);
   const forgetBoard = useSessionStore((s) => s.forgetBoard);
   const userId = useSessionStore((s) => s.userId);
+  const onboarded = useSessionStore((s) => s.onboarded);
+  const signedIn = useSessionStore((s) => s.account !== null);
 
   const meta = useBoardStore((s) => s.meta);
   const clearBoard = useBoardStore((s) => s.clearBoard);
@@ -89,7 +98,15 @@ export default function BoardPage() {
   const [codeCopied, setCodeCopied] = useState(false);
   const copyTimer = useRef<number | null>(null);
 
-  const sync = useBoardSync(id);
+  // Where to go back to once signed in, and why the account sheet is asking.
+  const [afterSignIn, setAfterSignIn] = useState<SheetName | null>(null);
+  const askAccount = useCallback((from: SheetName | null) => {
+    setAfterSignIn(from);
+    setSheet('account');
+  }, []);
+
+  // Nothing connects while the welcome screens are up: the name is still being chosen.
+  const sync = useBoardSync(id, { paused: !onboarded });
   const headerBottom = useHeaderBottom(sync.phase);
   // Keys belong to the board only while it is the thing on screen.
   const openShortcuts = useCallback(() => setSheet('settings'), []);
@@ -117,6 +134,10 @@ export default function BoardPage() {
 
   const handleImportSnapshot = useCallback(
     async (snapshot: BoardSnapshot) => {
+      if (!signedIn) {
+        askAccount('import');
+        return;
+      }
       // Always a new board, never a paste into this one — importing must not be
       // able to overwrite something other people are working on.
       const created = await importSnapshot(
@@ -125,12 +146,16 @@ export default function BoardPage() {
       );
       navigate(`/board/${created.id}`, { replace: true });
     },
-    [navigate, t, userId],
+    [navigate, t, userId, signedIn, askAccount],
   );
 
   const [creating, setCreating] = useState(false);
   /** A fresh, empty whiteboard — public, anyone with the code can draw; the access button changes that. */
   const createNew = useCallback(async (name = '') => {
+    if (!signedIn) {
+      askAccount('join');
+      return;
+    }
     setCreating(true);
     try {
       const created = await createBoard({
@@ -146,7 +171,7 @@ export default function BoardPage() {
     } finally {
       setCreating(false);
     }
-  }, [navigate, t, userId]);
+  }, [navigate, t, userId, signedIn, askAccount]);
 
   // A board that is gone (deleted, or its server forgot it) is let go of; the
   // root then opens the next one, or a new one.
@@ -185,6 +210,8 @@ export default function BoardPage() {
 
   // --- gates -------------------------------------------------------------
 
+  if (!onboarded) return <Onboarding />;
+
   if (sync.phase === 'need-nickname') {
     return (
       <NicknameScreen
@@ -209,12 +236,13 @@ export default function BoardPage() {
           {sync.error ? (
             <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{sync.error}</p>
           ) : null}
+          {/* A guest cannot make a live board; their own offline one is always there. */}
           <Button
-            label={t.newWhiteboard}
-            icon="plus"
+            label={signedIn ? t.newWhiteboard : t.localBoardName}
+            icon={signedIn ? 'plus' : 'pencil'}
             variant="secondary"
             loading={creating}
-            onClick={() => void createNew()}
+            onClick={() => (signedIn ? void createNew() : navigate('/', { replace: true }))}
           />
         </div>
       </main>
@@ -271,8 +299,8 @@ export default function BoardPage() {
         open={sheet === 'share'}
         onClose={() => setSheet(null)}
         link={link}
-        onOpenExport={() => setSheet('export')}
         onOpenPrivacy={() => setSheet('privacy')}
+        onNeedAccount={() => askAccount('share')}
       />
       <PeopleSheet open={sheet === 'people'} onClose={() => setSheet(null)} />
       <AiSheet open={sheet === 'ai'} onClose={() => setSheet(null)} />
@@ -309,6 +337,13 @@ export default function BoardPage() {
         onClose={() => setSheet(null)}
         onAskClear={() => setConfirm('clear')}
         onAskDelete={() => setConfirm('delete')}
+        onOpenAccount={() => askAccount(null)}
+      />
+      <AccountSheet
+        open={sheet === 'account'}
+        onClose={() => setSheet(null)}
+        reason={afterSignIn ? t.signInToShareBody : undefined}
+        onSignedIn={() => setSheet(afterSignIn)}
       />
 
       <ConfirmDialog

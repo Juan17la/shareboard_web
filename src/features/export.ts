@@ -73,6 +73,8 @@ export async function renderBoardImage(options: {
   snapshot: BoardSnapshot;
   format: ImageFormat;
   transparent: boolean;
+  /** Fill when not transparent; white by default. */
+  background?: string;
   /** Multiplies the pixel size, for a crisper file than the on-screen size. */
   pixelRatio?: number;
 }): Promise<RenderedBoard> {
@@ -103,7 +105,7 @@ export async function renderBoardImage(options: {
     smooth: true,
     // The grid is a working aid, not content: it never goes into an export.
     grid: false,
-    background: options.transparent && options.format === 'png' ? null : '#FFFFFF',
+    background: options.transparent && options.format === 'png' ? null : (options.background ?? '#FFFFFF'),
     onImageReady: () => {},
   });
 

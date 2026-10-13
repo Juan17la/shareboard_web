@@ -1,7 +1,9 @@
 /**
- * "My whiteboards": the offline board first, then the live boards this browser
- * has opened, newest first. Picking one goes there; the cross takes it off the
- * list (it does not delete it).
+ * "My whiteboards": the offline board first, then the live boards — for an
+ * account, every board it made or has got into, from the server, on any
+ * device; for a guest, the ones this browser has opened. Newest first. Picking
+ * one goes there (a private one the account got into opens without its PIN);
+ * the cross takes it off the list (it does not delete it).
  *
  * The live ones are only offered while they can be reached (plans/34): hidden
  * once the server has not been heard from in five hours, back as soon as it
@@ -13,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { relativeTime, useT } from '../../features/i18n';
 import { useSessionStore } from '../../features/session';
 import { checkOnline, isLocalId, recentlyOnline } from '../../features/board-local';
+import { forgetMyBoard, getMyBoards, type MyBoard } from '../../lib/api';
 import { formatShortCode } from '../../lib/short-code';
 import { toast } from '../../lib/toast';
 
@@ -36,10 +39,41 @@ export function BoardsSheet({
   const recent = useSessionStore((s) => s.recent);
   const nickColor = useSessionStore((s) => s.nickColor);
   const forgetBoard = useSessionStore((s) => s.forgetBoard);
+  const signedIn = useSessionStore((s) => s.account !== null);
   const [live, setLive] = useState(recentlyOnline);
+  // The account's boards, fetched each time the sheet opens; null until they arrive.
+  const [mine, setMine] = useState<MyBoard[] | null>(null);
+  const [mineFailed, setMineFailed] = useState(false);
   useEffect(() => {
-    if (open) void checkOnline().then((ok) => setLive(ok || recentlyOnline()));
-  }, [open]);
+    if (!open) return;
+    void checkOnline().then((ok) => setLive(ok || recentlyOnline()));
+    if (!signedIn) return;
+    let cancelled = false;
+    getMyBoards().then(
+      (boards) => {
+        if (cancelled) return;
+        setMine(boards);
+        setMineFailed(false);
+      },
+      () => {
+        if (!cancelled) setMineFailed(true);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [open, signedIn]);
+
+  const rows = signedIn
+    ? (mine ?? []).map((b) => ({ ...b, at: b.updatedAt, yours: b.role === 'creator' }))
+    : recent.map((b) => ({ ...b, at: b.lastOpenedAt, yours: true, hasPin: false }));
+  const forget = (id: string) => {
+    forgetBoard(id);
+    toast(t.forget);
+    if (!signedIn) return;
+    setMine((list) => list?.filter((b) => b.id !== id) ?? null);
+    forgetMyBoard(id).catch((error: Error) => toast(error.message));
+  };
 
   return (
     <Sheet open={open} title={t.myWhiteboards} onClose={onClose} closeLabel={t.close}>
@@ -69,12 +103,18 @@ export function BoardsSheet({
             ) : null}
           </button>
         </GlassPanel>
-        {!live ? (
+        {!live || (signedIn && mineFailed && mine === null) ? (
           <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">{t.liveHidden}</p>
-        ) : recent.length === 0 ? (
-          <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">{t.noRecent}</p>
+        ) : signedIn && mine === null ? (
+          <div className="grid place-items-center py-6">
+            <div className="sb-loading" role="status" aria-label={t.loading} />
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">
+            {signedIn ? t.myBoardsEmpty : t.noRecent}
+          </p>
         ) : (
-          recent.map((board) => (
+          rows.map((board) => (
             <GlassPanel key={board.id} level="row" radius={16}>
               <div className="flex items-center">
                 <button
@@ -90,8 +130,15 @@ export function BoardsSheet({
                   <Avatar name={board.name} color={nickColor} size={38} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.8438rem] leading-tight font-bold">{board.name}</span>
-                    <span className="mt-0.5 block truncate font-mono text-[0.75rem] text-text-secondary">
-                      {formatShortCode(board.shortCode)} · {relativeTime(t, board.lastOpenedAt)}
+                    <span className="mt-0.5 flex items-center gap-1 truncate text-[0.75rem] text-text-secondary">
+                      {board.hasPin ? (
+                        <span aria-label={t.privateBoard}>
+                          <Icon name="lock" size={12} />
+                        </span>
+                      ) : null}
+                      <span className="font-mono">{formatShortCode(board.shortCode)}</span>
+                      <span>· {relativeTime(t, board.at)}</span>
+                      {signedIn && board.yours ? <span>· {t.boardYours}</span> : null}
                     </span>
                   </span>
                   {board.id === currentId ? (
@@ -100,16 +147,14 @@ export function BoardsSheet({
                     </span>
                   ) : null}
                 </button>
-                {board.id === currentId ? null : (
+                {/* The account's own boards are deleted from their settings, not forgotten. */}
+                {board.id === currentId || (signedIn && board.yours) ? null : (
                   <button
                     type="button"
                     aria-label={t.forget}
                     data-tip={t.forget}
                     data-tip-side="left"
-                    onClick={() => {
-                      forgetBoard(board.id);
-                      toast(t.forget);
-                    }}
+                    onClick={() => forget(board.id)}
                     className="mr-2 grid h-9 w-9 flex-none place-items-center rounded-[11px] text-text-tertiary transition hover:bg-surface-selected hover:text-danger"
                   >
                     <Icon name="close" size={14} />

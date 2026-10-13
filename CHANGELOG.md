@@ -7,6 +7,27 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.6.0-beta] - 2026-10-13
+
+### Added
+
+- Welcome screens on the first visit: what Shareboard does, your name and
+  icon, then create an account or sign in ("Not now" skips it).
+- Accounts: sign in, create an account or sign out from Settings → Account.
+  "My whiteboards" lists every board the account made or joined, on any device,
+  and a private one opens without its PIN again.
+
+### Changed
+
+- Sharing a board (or creating or importing one) asks a guest to sign in first.
+- A double click on empty board, with the cursor, starts a new text there.
+- The board menu and the right-click menu have larger, rounded rows.
+
+### Fixed
+
+- Two settings changed in the same instant were not both saved: only the
+  first reached `localStorage`.
+
 ## [1.5.0-beta] - 2026-10-09
 
 ### Fixed

@@ -15,8 +15,8 @@ import { toast } from '../../lib/toast';
 import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
 
-const WIDTH = 210;
-const ROW = 34;
+const WIDTH = 220;
+const ROW = 36;
 
 export interface MenuSpot {
   /** Client (screen) position of the click. */
@@ -114,12 +114,12 @@ export function ContextMenu({ spot, onClose }: { spot: MenuSpot; onClose: () => 
                   row.run();
                   onClose();
                 }}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[0.8125rem] font-semibold transition hover:bg-surface-selected ${
+                className={`flex w-full items-center gap-3 rounded-[10px] px-3 text-left text-[0.875rem] font-semibold transition hover:bg-surface-selected ${
                   row.danger ? 'text-danger' : 'text-text'
                 }`}
                 style={{ height: ROW }}
               >
-                <Icon name={row.icon} size={16} />
+                <Icon name={row.icon} size={18} />
                 {t[row.label]}
               </button>
             ),
