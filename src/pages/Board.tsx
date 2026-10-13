@@ -271,7 +271,6 @@ export default function BoardPage() {
         open={sheet === 'share'}
         onClose={() => setSheet(null)}
         link={link}
-        onOpenExport={() => setSheet('export')}
         onOpenPrivacy={() => setSheet('privacy')}
       />
       <PeopleSheet open={sheet === 'people'} onClose={() => setSheet(null)} />
