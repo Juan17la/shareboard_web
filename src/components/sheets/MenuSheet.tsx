@@ -51,16 +51,16 @@ export function MenuSheet({
   return (
     <Sheet open={open} title={t.boardMenu} onClose={onClose} closeLabel={t.close}>
       {/* A long board name is cut short in the header; here it is whole. */}
-      {name ? <p className="mb-1 px-2 text-[0.75rem] font-semibold break-words text-text-secondary">{name}</p> : null}
-      <div className="flex flex-col divide-y divide-line-strong">
+      {name ? <p className="mb-2 px-3 text-[0.75rem] font-semibold break-words text-text-secondary">{name}</p> : null}
+      <div className="flex flex-col gap-1">
         {rows.map((row) => (
           <button
             key={row.label}
             type="button"
             onClick={row.onClick}
-            className="flex w-full items-center gap-3 px-2 py-3 text-left hover:bg-text/[0.12] active:bg-text/[0.16]"
+            className="flex h-11 w-full items-center gap-3 rounded-[12px] px-3 text-left transition hover:bg-text/[0.08] active:bg-text/[0.12]"
           >
-            <Icon name={row.icon} size={19} />
+            <Icon name={row.icon} size={18} />
             <span className="flex-1 text-[0.875rem] leading-tight font-semibold">{row.label}</span>
           </button>
         ))}
