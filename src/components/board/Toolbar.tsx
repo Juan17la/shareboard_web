@@ -46,7 +46,7 @@ import {
   type ToolType,
 } from '../../lib/contract';
 import { canRound, dashIntervals, headsOf, isLineLike, markerPaths, routePath } from '../../lib/geometry';
-import { Css, StrokeSizes, fillColorOf, fillOpacityOf, fillWith, inkFor } from '../../lib/theme';
+import { Css, DrawingPalette, StickyColors, StrokeSizes, fillColorOf, fillOpacityOf, fillWith, inkFor } from '../../lib/theme';
 import { useSessionStore } from '../../features/session';
 import { useViewport } from '../../hooks/use-viewport';
 
@@ -71,7 +71,8 @@ type LabelKey =
   | 'shapeArrow'
   | 'shapes'
   | 'text'
-  | 'fill';
+  | 'fill'
+  | 'sticky';
 
 /**
  * `key` is the keyboard shortcut. They are the initials of the *English* tool
@@ -109,6 +110,7 @@ const TOOLS: ToolEntry[] = [
   { tool: 'pen', icon: 'pencil', labelKey: 'pencil', key: 'p' },
   { tool: 'eraser', icon: 'eraser', labelKey: 'eraser', key: 'e' },
   ...SHAPES,
+  { tool: 'sticky', icon: 'sticky', labelKey: 'sticky', key: 'n' },
   { tool: 'text', icon: 'text', labelKey: 'text', key: 't' },
   { tool: 'fill', icon: 'fill', labelKey: 'fill', key: 'f' },
 ];
@@ -117,8 +119,18 @@ const TOOLS: ToolEntry[] = [
 const COMPACT_TOOLS: ToolEntry[] = [
   ...TOOLS.slice(0, 4),
   { tool: 'shape', icon: 'shapes', labelKey: 'shapes', key: 's' },
-  ...TOOLS.slice(-2),
+  ...TOOLS.slice(-3),
 ];
+
+/** The highlighter's colour when the pen still has the default ink. */
+const HIGHLIGHT = DrawingPalette[3];
+
+/** What the pencil can draw, in the strip's order. */
+const PEN_KINDS = [
+  { kind: 'pen', icon: 'pencil', labelKey: 'penPen' },
+  { kind: 'highlighter', icon: 'highlighter', labelKey: 'penHighlighter' },
+  { kind: 'laser', icon: 'laser', labelKey: 'penLaser' },
+] as const;
 
 export function Toolbar({ compact }: { compact: boolean }) {
   const t = useT();
@@ -131,7 +143,9 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const canEdit = useBoardStore((s) => s.canEditNow());
   const open = useBoardStore((s) => s.railOpen);
   const dark = useSessionStore((s) => s.theme === 'dark');
-  const narrow = useViewport().width < 360;
+  const viewport = useViewport();
+  const narrow = viewport.width < 360;
+  const short = viewport.height < 480;
 
   const [picking, setPicking] = useState(false);
   const [filling, setFilling] = useState(false);
@@ -226,6 +240,9 @@ export function Toolbar({ compact }: { compact: boolean }) {
       config.align,
     valign: first((el) => (el.kind === 'shape' ? (el.valign ?? 'middle') : undefined)) ?? config.valign,
     rounded: first((el) => (el.kind === 'shape' && canRound(el.shape) ? !!el.rounded : undefined)) ?? config.rounded,
+    stickyColor:
+      first((el) => (el.kind === 'shape' && el.sticky ? el.fill?.slice(0, 7).toUpperCase() : undefined)) ??
+      config.stickyColor,
   };
   const fontSize = cur.fontSize;
   // The board ink flips on the dark theme (`inkFor`); the swatches follow it.
@@ -244,8 +261,11 @@ export function Toolbar({ compact }: { compact: boolean }) {
   };
 
   // 320px phones: eight 38px buttons plus their gaps do not fit, so the strip tightens.
-  const button = narrow ? 34 : compact ? 38 : 40;
+  // A full fingertip on a phone held upright with room for all eight; landscape has no height to spare.
+  const button = narrow ? 36 : compact && !short && viewport.width >= 420 ? 44 : 40;
   const tools = compact ? COMPACT_TOOLS : TOOLS;
+  // How many tools one column of the side rail holds: the screen less 10rem, less the rail's padding.
+  const railRows = Math.min(tools.length, Math.max(1, Math.floor((viewport.height - 160 - 12 + 4) / (button + 4))));
 
   const captionEl = caption ? (
     <div
@@ -314,6 +334,46 @@ export function Toolbar({ compact }: { compact: boolean }) {
               <Icon name={kind} size={18} />
             </MiniButton>
           ))}
+        </Group>
+      ) : null}
+
+      {show('penKind') ? (
+        <Group title={t.secPenKind}>
+          {PEN_KINDS.map((entry) => (
+            <MiniButton
+              key={entry.kind}
+              label={t[entry.labelKey]}
+              active={config.pen === entry.kind}
+              // A highlighter in the default ink would only grey things out: it starts amber.
+              onClick={() =>
+                setConfig({
+                  pen: entry.kind,
+                  ...(entry.kind === 'highlighter' && config.color === DrawingPalette[0] ? { color: HIGHLIGHT } : null),
+                })
+              }
+            >
+              <Icon name={entry.icon} size={18} />
+            </MiniButton>
+          ))}
+        </Group>
+      ) : null}
+
+      {show('stickyColor') ? (
+        <Group title={t.stickyColor}>
+          {StickyColors.map((paper) => (
+            <ColorSwatch
+              key={paper}
+              label={`${t.stickyColor} ${paper}`}
+              color={paper}
+              active={!config.vote && cur.stickyColor === paper}
+              onClick={() => setConfig({ stickyColor: paper, vote: false })}
+            />
+          ))}
+          {show('vote') ? (
+            <MiniButton label={t.voteDot} active={config.vote} onClick={() => setConfig({ vote: !config.vote })}>
+              <Icon name="vote" size={14} />
+            </MiniButton>
+          ) : null}
         </Group>
       ) : null}
 
@@ -482,7 +542,10 @@ export function Toolbar({ compact }: { compact: boolean }) {
   const railEl = (
         <GlassPanel level="panel" radius={compact ? 17 : 20} overflow="visible" className="pointer-events-auto max-w-full shadow-panel">
           <div
-            className={`flex items-center p-1.5 ${compact ? 'max-w-[calc(100vw-16px)] flex-wrap justify-center' : 'max-h-[calc(100vh-15rem)] flex-col flex-wrap justify-center'} ${narrow ? 'gap-0' : 'gap-1'}`}
+            className={`items-center p-1.5 ${compact ? 'flex max-w-[calc(100vw-16px)] flex-wrap justify-center' : 'grid grid-flow-col'} ${narrow ? 'gap-0' : 'gap-1'}`}
+            // A column as tall as the screen allows (clear of the header and the zoom chip), then
+            // another beside it. A grid, not a wrapping flex column: Firefox does not widen those.
+            style={compact ? undefined : { gridTemplateRows: `repeat(${railRows}, auto)` }}
             role="toolbar"
             aria-label={t.tools}
           >
@@ -549,6 +612,9 @@ const Vertical = createContext(false);
 
 /** One option of the strip; `style` is bold, italic and underline together. */
 type Opt =
+  | 'penKind'
+  | 'stickyColor'
+  | 'vote'
   | 'fill'
   | 'color'
   | 'width'
@@ -570,7 +636,9 @@ type Opt =
  * and `stroke` (a selected pencil line). Mobile keeps the same table.
  */
 const OPTIONS: Partial<Record<string, Opt[]>> = {
-  pen: ['color', 'width'],
+  pen: ['penKind', 'color', 'width'],
+  sticky: ['stickyColor', 'vote'],
+  note: ['stickyColor'],
   stroke: ['color', 'width'],
   eraser: ['width'],
   fill: ['color'],
@@ -582,7 +650,7 @@ const OPTIONS: Partial<Record<string, Opt[]>> = {
   arrow: ['color', 'dash', 'tail', 'head', 'route', 'label'],
   text: ['color', 'textSize', 'font', 'style', 'align'],
 };
-const optionsKey = (el: BoardElement) => (el.kind === 'shape' ? el.shape : el.kind);
+const optionsKey = (el: BoardElement) => (el.kind === 'shape' ? (el.sticky ? 'note' : el.shape) : el.kind);
 
 /**
  * A `{}` option of the to-do: one button showing the current choice, its
@@ -623,6 +691,7 @@ function Menu({
         ref={anchor}
         type="button"
         popoverTarget={id}
+        aria-haspopup="true"
         aria-label={label}
         data-tip={label}
         className="touch-36 flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-[9px] border px-1.5 transition hover:bg-surface-selected"

@@ -26,16 +26,18 @@ import { useSessionStore } from '../../features/session';
 import {
   boardToScreen,
   editPatches,
+  HIGHLIGHTER_SCALE,
+  setLiveDrag,
   heldByOthers,
+  previewOf,
   screenToBoard,
-  sketchElement,
   shapeElement,
   useBoardStore,
   writable,
   type Camera,
   type LiveEdit,
 } from '../../features/board-store';
-import type { BoardElement, Link, Point, ShapeElement } from '../../lib/contract';
+import type { BoardElement, Link, Point, Preview, ShapeElement } from '../../lib/contract';
 import { LIMITS, SHAPE_TEXT_SIZE } from '../../lib/contract';
 import {
   boxOf,
@@ -46,11 +48,13 @@ import {
   clampZoom,
   coveringFigure,
   elementsIn,
+  fitSticky,
   groupHandles,
   handlesOf,
   isLineLike,
   labelBox,
   labelFromDrag,
+  labelButtonOf,
   labelLines,
   lineLabelCentre,
   linkEndpoints,
@@ -74,19 +78,34 @@ import { useT } from '../../features/i18n';
 import { keys } from '../../hooks/use-shortcuts';
 
 import { ContextMenu, type MenuSpot } from './ContextMenu';
+import { LaserLayer } from './LaserLayer';
+import { pushLaser } from './laser';
 import { PeerCursors } from './PeerCursors';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { cursorFor } from './cursors';
 import { paintAnchors, paintBoard, paintDashedBox, paintHeld, paintSelection } from './renderer';
 
+/**
+ * Matches a canvas's backing store to its CSS size in device pixels and returns
+ * its context set to draw in CSS pixels, with that size.
+ */
+function fitCanvas(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const { width, height } = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, width, height };
+}
+
 /** How long a pen stroke's end is held before it is read as a figure (`recognizeSketch`). */
 const SKETCH_MS = 500;
 /** Screen pixels the pointer may wander and still count as held still. */
 const STILL_PX = 8;
-/** How often "draw to shape" reads the stroke again while the pen moves. */
-const GUESS_MS = 60;
-/** How faint the figure it reads shows over the stroke until the pen lifts. */
-const GUESS_ALPHA = 0.35;
 
 type Ends = { from: Point; to: Point; fromLink?: Link | null; toLink?: Link | null };
 type Box = { from: Point; to: Point };
@@ -104,8 +123,19 @@ interface Pointers {
   panClick: Point | null;
 }
 
-export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => void }) {
+export function BoardCanvas({
+  onCursorMove,
+  onPreview,
+}: {
+  /** `laser`: the pointer is the laser, and the others draw its trail. */
+  onCursorMove?: (at: Point, laser?: boolean) => void;
+  /** What is being drawn or dragged, for the others; `null` once the gesture is over. */
+  onPreview?: (preview: Preview | null) => void;
+}) {
+  /** The live layer, on top: it takes the pointer. */
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** The board layer, under it. */
+  const baseRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
 
   const camera = useBoardStore((s) => s.camera);
@@ -118,13 +148,9 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   const t = useT();
   const grid = useSessionStore((s) => s.settings.grid);
   const smooth = useSessionStore((s) => s.settings.smooth);
-  const drawToShape = useSessionStore((s) => s.settings.drawToShape);
   const dark = useSessionStore((s) => s.theme === 'dark');
 
-  const [livePoints, setLivePoints] = useState<number[]>([]);
   const [liveShape, setLiveShape] = useState<Box | null>(null);
-  /** The pen stroke, read as the figure it was meant to be after a hold; lifting draws that instead. */
-  const [liveSketch, setLiveSketch] = useState<Sketch | null>(null);
   // The selection while a handle or a body is being dragged; the elements only
   // change (one op each) when the pointer lifts.
   const [liveEdit, setLiveEdit] = useState<LiveEdit | null>(null);
@@ -151,7 +177,6 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   // them to check they are pure — and send the stroke to everyone twice.
   const livePointsRef = useRef<number[]>([]);
   const liveShapeRef = useRef<Box | null>(null);
-  const liveSketchRef = useRef<Sketch | null>(null);
   /** Where the pen was last held still, and the wait for it to become a figure. */
   const still = useRef<{ at: Point; timer: ReturnType<typeof setTimeout> | null }>({
     at: { x: 0, y: 0 },
@@ -166,20 +191,18 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   /** Where the pointer is over the board: the connection points nearest it show. */
   const pointerAt = useRef<Point | null>(null);
 
+  // The stroke being drawn changes on every move: it lives in the ref alone and
+  // repaints the live layer, never this component.
   const setPoints = (points: number[]) => {
     livePointsRef.current = points;
-    setLivePoints(points);
+    paintLiveLayer();
   };
   const setShape = (shape: Box | null) => {
     liveShapeRef.current = shape;
     setLiveShape(shape);
   };
-  const setSketch = (sketch: Sketch | null) => {
-    liveSketchRef.current = sketch;
-    setLiveSketch(sketch);
-  };
 
-  // A pen stroke held still at its end for 700 ms is made into the figure it
+  // A pen stroke held still at its end for 500 ms (`SKETCH_MS`) is made into the figure it
   // was meant to be (`recognizeSketch`) — at once, on the board, not as a
   // preview: the stroke gives way to it, and the pointer, still down, then
   // resizes it (an outward pull grows it, a line's tip follows), so moving on
@@ -192,8 +215,6 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   } | null>(null);
   /** Where the pen last was, in board space. */
   const penLast = useRef<Point>({ x: 0, y: 0 });
-  /** When "draw to shape" last read the stroke. */
-  const guessedAt = useRef(0);
   const stopSketch = () => {
     if (still.current.timer) clearTimeout(still.current.timer);
     still.current.timer = null;
@@ -209,13 +230,32 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       if (sketch && id) {
         figureRef.current = { id, sketch, p0: penLast.current, patch: null };
         setPoints([]);
-        setSketch(null);
       }
     }, SKETCH_MS);
   };
   useEffect(() => stopSketch, []);
+
+  // The context menu key (or Shift+F10) opens the same menu from the keyboard,
+  // at the middle of the board, so Copy / Paste / Order are not right-click only.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('input, textarea, [role="dialog"], [role="menu"]')) return;
+      const store = useBoardStore.getState();
+      const box = canvasRef.current?.getBoundingClientRect();
+      if (!box || !store.canEditNow()) return;
+      e.preventDefault();
+      const x = box.left + box.width / 2;
+      const y = box.top + box.height / 2;
+      setMenu({ x, y, at: screenToBoard(box.width / 2, box.height / 2) });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const setEdit = (edit: LiveEdit | null) => {
     editRef.current = edit;
+    setLiveDrag(edit);
     keys.dragging = edit !== null;
     setLiveEdit(edit);
   };
@@ -226,21 +266,38 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
   // Sorted once per change to the elements, not once per pointer move: the
   // drag preview below only patches the sorted list.
-  const drawn = useMemo(() => visibleSorted(elements), [elements]);
-  // What the eraser has passed over fades (`erasing` below) and is deleted for
-  // real, as one step, when the pointer lifts.
-  const sorted = drawn;
-  const list = useMemo(() => {
-    if (editingId && draft !== null) {
-      return sorted.map((el) => (el.id === editingId ? ({ ...el, text: draft } as BoardElement) : el));
+  const sorted = useMemo(() => visibleSorted(elements), [elements]);
+  // What the pointer is changing right now — a drag (the same patches the lift
+  // will commit, so the preview is the result), or the words being typed — by
+  // id, in paint order. These leave the board layer and are drawn on the live
+  // one, so a drag repaints a handful of elements, not the board.
+  const lifted = useMemo(() => {
+    const out = new Map<string, BoardElement>();
+    if (editingId && draft !== null && elements[editingId]) {
+      // A sticky note's words shrink to fit as they are typed.
+      out.set(editingId, fitSticky({ ...elements[editingId], text: draft } as BoardElement));
     }
-    if (!liveEdit) return sorted;
-    // The same patches the lift will commit, so the preview is the result.
-    const patches = new Map(editPatches(sorted, liveEdit).map((p) => [p.id, p.patch]));
-    return sorted.map((el) =>
-      patches.has(el.id) ? ({ ...el, ...patches.get(el.id) } as BoardElement) : el,
-    );
-  }, [sorted, liveEdit, editingId, draft]);
+    if (liveEdit) {
+      for (const p of editPatches(sorted, liveEdit)) out.set(p.id, { ...elements[p.id], ...p.patch } as BoardElement);
+    }
+    return out;
+  }, [sorted, elements, liveEdit, editingId, draft]);
+  // Everything as the user sees it: what the selection frame, the anchors and the tags are drawn round.
+  const list = useMemo(
+    () => (lifted.size ? sorted.map((el) => lifted.get(el.id) ?? el) : sorted),
+    [sorted, lifted],
+  );
+
+  // What the others are drawing or dragging (`peerDrafts`) is drawn on the live
+  // layer too; what they drag leaves the board layer while they do. Only the
+  // set of ids is state here: a preview's every move repaints the live layer, not this component.
+  const [theirsKey, setTheirsKey] = useState('');
+  // The board layer's elements: the same ids for a whole drag, so it is not repainted while it lasts.
+  const liftedKey = [...lifted.keys()].join(',');
+  const board = useMemo(() => {
+    const away = new Set([...(liftedKey ? liftedKey.split(',') : []), ...(theirsKey ? theirsKey.split(',') : [])]);
+    return away.size ? sorted.filter((el) => !away.has(el.id)) : sorted;
+  }, [sorted, liftedKey, theirsKey]);
 
   // What the others hold: dimmed, framed in their colour, not for picking.
   const participants = useBoardStore((s) => s.participants);
@@ -265,142 +322,180 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
   }, [list, liveShape, liveEdit]);
 
   // --- painting ------------------------------------------------------------
-  // One `requestAnimationFrame` per change rather than a paint per event: a
-  // pointer can fire several times between frames, and the extra paints would
-  // all be thrown away by the next one.
+  // Two canvases. The board layer holds what is on the board, and is repainted
+  // only when that, the camera or the theme changes. The live layer above it
+  // holds what the pointer is doing — the stroke or figure being drawn, what is
+  // dragged or typed, the others' drafts, the selection, the rubber band, the
+  // anchors — and is repainted on every move. Each asks for at most one
+  // `requestAnimationFrame` per change: a pointer can fire several times
+  // between frames, and the extra paints would be thrown away by the next one.
 
-  const frame = useRef<number | null>(null);
-  // An image element decodes asynchronously, so finishing a decode has to ask
-  // for another frame. Going through a ref keeps that from being a callback
-  // that captures itself while it is still being created.
-  const repaint = useRef<() => void>(() => {});
-  const paint = useCallback(() => {
-    if (frame.current !== null) return;
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null;
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
-      if (!canvas || !ctx) return;
+  const boardFrame = useRef<number | null>(null);
+  const liveFrame = useRef<number | null>(null);
+  // What each layer draws, as of the latest render. A frame draws whatever is
+  // current when it fires — not what was current when it was asked for — so a
+  // change that lands while a frame is already queued is never lost.
+  const drawBoardRef = useRef<() => void>(() => {});
+  const drawLiveRef = useRef<() => void>(() => {});
+  const paintBoardLayer = useCallback(() => {
+    if (boardFrame.current !== null) return;
+    boardFrame.current = requestAnimationFrame(() => {
+      boardFrame.current = null;
+      drawBoardRef.current();
+    });
+  }, []);
+  const paintLiveLayer = useCallback(() => {
+    if (liveFrame.current !== null) return;
+    liveFrame.current = requestAnimationFrame(() => {
+      liveFrame.current = null;
+      drawLiveRef.current();
+    });
+  }, []);
+  // A decoding image, a font, a resize or a peer's preview ask for both.
+  const repaintAll = useCallback(() => {
+    paintBoardLayer();
+    paintLiveLayer();
+  }, [paintBoardLayer, paintLiveLayer]);
 
-      const { width, height } = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      // Match the backing store to the device pixels, then work in CSS pixels.
-      if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
-        canvas.width = Math.round(width * dpr);
-        canvas.height = Math.round(height * dpr);
-      }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const drawBoard = useCallback(() => {
+    const surface = baseRef.current && fitCanvas(baseRef.current);
+    if (!surface) return;
+    paintBoard(surface.ctx, {
+      elements: board,
+      camera: useBoardStore.getState().camera,
+      width: surface.width,
+      height: surface.height,
+      smooth,
+      grid,
+      background: Colors.background,
+      dark,
+      held,
+      erasing: liveErased,
+      onImageReady: repaintAll,
+    });
+  }, [board, smooth, grid, dark, held, liveErased, repaintAll]);
 
-      const { camera: cam } = useBoardStore.getState();
-      const activeTool = tool;
-      const cfg = config;
-      const drafts = [...list];
-
-      // The in-progress stroke and shape are drawn as ordinary elements on top
-      // of everything else, so what is being drawn looks exactly like what it
-      // will become the moment the pointer lifts.
-      if (livePoints.length >= 4) {
-        drafts.push({
-          id: 'live-stroke',
-          kind: 'stroke',
-          points: livePoints,
-          color: cfg.color,
-          width: cfg.width,
+  const drawLive = useCallback(() => {
+    const surface = canvasRef.current && fitCanvas(canvasRef.current);
+    if (!surface) return;
+    const { camera: cam, peerDrafts } = useBoardStore.getState();
+    const cfg = config;
+    const drafts = [...lifted.values(), ...peerDrafts];
+    // The in-progress stroke and shape are drawn as ordinary elements on top
+    // of everything else, so what is being drawn looks exactly like what it
+    // will become the moment the pointer lifts.
+    const livePoints = livePointsRef.current;
+    if (livePoints.length >= 4) {
+      drafts.push({
+        id: 'live-stroke',
+        kind: 'stroke',
+        points: livePoints,
+        color: cfg.color,
+        ...(cfg.pen === 'highlighter'
+          ? { width: Math.min(LIMITS.maxStrokeWidth, cfg.width * HIGHLIGHTER_SCALE), tool: 'highlighter' as const }
+          : { width: cfg.width }),
+        createdBy: 'local',
+        createdAt: 0,
+        updatedAt: 0,
+        z: Number.MAX_SAFE_INTEGER,
+      });
+    }
+    if (liveShape && tool === 'shape') {
+      drafts.push(
+        shapeElement(cfg.shape, liveShape, cfg, {
+          id: 'live-shape',
           createdBy: 'local',
           createdAt: 0,
           updatedAt: 0,
           z: Number.MAX_SAFE_INTEGER,
-        });
-      }
-      // "Draw to shape": the figure the stroke reads as, faint over it.
-      if (liveSketch) {
-        drafts.push({
-          ...sketchElement(liveSketch, cfg, {
-            id: 'live-sketch',
-            createdBy: 'local',
-            createdAt: 0,
-            updatedAt: 0,
-            z: Number.MAX_SAFE_INTEGER,
-          }),
-          opacity: GUESS_ALPHA,
-        });
-      }
-      if (liveShape && activeTool === 'shape') {
-        drafts.push(
-          shapeElement(cfg.shape, liveShape, cfg, {
-            id: 'live-shape',
-            createdBy: 'local',
-            createdAt: 0,
-            updatedAt: 0,
-            z: Number.MAX_SAFE_INTEGER,
-          }),
-        );
-      }
-
-      paintBoard(ctx, {
-        elements: drafts,
-        camera: cam,
-        width,
-        height,
-        smooth,
-        grid,
-        background: Colors.background,
-        dark,
-        held,
-        erasing: liveErased,
-        onImageReady: () => repaint.current(),
-      });
-      if (held.size) paintHeld(ctx, list, held, cam);
-      if (selected.length) paintSelection(ctx, selected, cam);
-      if (marquee) paintDashedBox(ctx, shapeBounds(marquee), cam);
-      if (showAnchors && pointerAt.current) paintAnchors(ctx, list, cam, pointerAt.current);
-      for (const el of linked) paintDashedBox(ctx, boxOf(el), cam, rotationOf(el));
+        }),
+      );
+    }
+    const { ctx, width, height } = surface;
+    paintBoard(ctx, {
+      elements: drafts,
+      camera: cam,
+      width,
+      height,
+      smooth,
+      grid: false,
+      background: null,
+      dark,
+      held,
+      erasing: liveErased,
+      onImageReady: repaintAll,
     });
+    if (held.size) paintHeld(ctx, [...list, ...peerDrafts], held, cam);
+    if (selected.length) paintSelection(ctx, selected, cam);
+    if (marquee) paintDashedBox(ctx, shapeBounds(marquee), cam);
+    if (showAnchors && pointerAt.current) paintAnchors(ctx, list, cam, pointerAt.current);
+    for (const el of linked) paintDashedBox(ctx, boxOf(el), cam, rotationOf(el));
     // `config` is in the list because changing the colour or width while a
     // shape is being dragged has to repaint the draft, and no pointer event
     // follows to trigger it.
-  }, [list, livePoints, liveShape, liveSketch, marquee, selected, showAnchors, linked, smooth, grid, config, tool, dark, held, liveErased]);
+  }, [lifted, list, liveShape, marquee, selected, showAnchors, linked, smooth, config, tool, dark, held, liveErased, repaintAll]);
 
   useEffect(() => {
-    repaint.current = paint;
-    paint();
-  }, [paint, camera]);
+    drawBoardRef.current = drawBoard;
+    paintBoardLayer();
+  }, [drawBoard, paintBoardLayer, camera]);
+  useEffect(() => {
+    drawLiveRef.current = drawLive;
+    paintLiveLayer();
+  }, [drawLive, paintLiveLayer, camera]);
+  // `paint` is what a pointer move asks for (the anchors under it): the live layer.
+  const paint = paintLiveLayer;
+
+  // A peer's preview repaints the live layer, never this component — unless
+  // the set of elements they drag changes, which the board layer has to know.
+  useEffect(
+    () =>
+      useBoardStore.subscribe((s, prev) => {
+        if (s.peerDrafts === prev.peerDrafts) return;
+        const key = s.peerDrafts.map((el) => el.id).join(',');
+        setTheirsKey((k) => (k === key ? k : key));
+        paintLiveLayer();
+      }),
+    [paintLiveLayer],
+  );
 
   // A board typeface that finishes loading repaints the text drawn in its fallback.
   useEffect(() => {
-    const onFonts = () => repaint.current();
-    document.fonts?.addEventListener('loadingdone', onFonts);
-    return () => document.fonts?.removeEventListener('loadingdone', onFonts);
-  }, []);
+    document.fonts?.addEventListener('loadingdone', repaintAll);
+    return () => document.fonts?.removeEventListener('loadingdone', repaintAll);
+  }, [repaintAll]);
 
   // Repaint on resize and on a monitor change that alters the pixel ratio.
+  // Registered once: the paints are reached through their refs.
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
     const measure = () => {
       const { width, height } = host.getBoundingClientRect();
       useBoardStore.getState().setViewport({ width, height });
-      paint();
+      repaintAll();
     };
     const observer = new ResizeObserver(measure);
     observer.observe(host);
     measure();
-    window.addEventListener('resize', paint);
+    window.addEventListener('resize', repaintAll);
     return () => {
       observer.disconnect();
-      window.removeEventListener('resize', paint);
+      window.removeEventListener('resize', repaintAll);
     };
-  }, [paint]);
+  }, [repaintAll]);
 
   useEffect(
     () => () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-      // Clearing the handle matters as much as cancelling it: `paint` treats a
-      // non-null `frame` as "a repaint is already queued" and returns early, so
-      // leaving a cancelled id behind wedges the canvas permanently blank. In
-      // development StrictMode runs this cleanup once right after mount, which
-      // is exactly when that would happen.
-      frame.current = null;
+      for (const frame of [boardFrame, liveFrame]) {
+        if (frame.current !== null) cancelAnimationFrame(frame.current);
+        // Clearing the handle matters as much as cancelling it: a paint treats
+        // a non-null handle as "a repaint is already queued" and returns early,
+        // so leaving a cancelled id behind wedges the canvas permanently blank.
+        // In development StrictMode runs this cleanup once right after mount,
+        // which is exactly when that would happen.
+        frame.current = null;
+      }
     },
     [],
   );
@@ -429,7 +524,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     setPoints([]);
     setShape(null);
     stopSketch();
-    setSketch(null);
+    onPreview?.(null);
   };
 
   /** An arrow's ends bind to the shapes they land on; a plain line never does. */
@@ -579,8 +674,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       return;
     }
     if (e.button !== 0) return;
-    // Offline, nothing starts: a stroke that could not be sent would only ever
-    // exist on this screen, and the banner is what says so.
+    // Not before the board is open; offline is fine (the outbox waits for the reconnect).
     if (!writable(store.connection)) return;
 
     state.drawingId = e.pointerId;
@@ -593,10 +687,27 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         store.eraseAt(p, 12 / store.camera.scale);
         break;
       case 'pen':
+        if (store.config.pen === 'laser') {
+          pushLaser('self', p);
+          onCursorMove?.(p, true);
+          return;
+        }
         penLast.current = p;
         setPoints([p.x, p.y]);
-        awaitSketch(at);
+        // A highlighter stays a highlight: holding still never turns it into a figure.
+        if (store.config.pen === 'pen') awaitSketch(at);
         break;
+      case 'sticky': {
+        state.drawingId = null;
+        if (store.config.vote) {
+          store.addVote(p);
+          break;
+        }
+        // The sticky tool stays in hand: one note after another is how a brainstorm goes.
+        const id = store.addSticky(p);
+        if (id) setEditingId(id);
+        break;
+      }
       case 'shape': {
         if (beginEdit(p, store.camera.scale)) break;
         lineStart.current = p;
@@ -668,9 +779,13 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
     }
 
     const p = screenToBoard(at.x, at.y);
+    // The laser, while pressed: a trail here, and on everyone else's screen.
+    const laser = state.drawingId === e.pointerId && useBoardStore.getState().tool === 'pen' && useBoardStore.getState().config.pen === 'laser';
+    if (laser) pushLaser('self', p);
     // Presence follows the pointer whether or not anything is being drawn: it
     // is how the others see you thinking, not just marking.
-    onCursorMove?.(p);
+    onCursorMove?.(p, laser);
+    if (laser) return;
     // Where Ctrl+V lands.
     keys.pointer = at;
     pointerAt.current = p;
@@ -694,14 +809,10 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         }
         // The stroke is sent as one `add` when the gesture ends, not per point.
         const prev = livePointsRef.current;
-        if (Math.hypot(at.x - still.current.at.x, at.y - still.current.at.y) > STILL_PX) {
+        if (store.config.pen === 'pen' && Math.hypot(at.x - still.current.at.x, at.y - still.current.at.y) > STILL_PX) {
           awaitSketch(at);
         }
         if (prev.length / 2 < LIMITS.maxStrokePoints) setPoints([...prev, p.x, p.y]);
-        if (drawToShape && performance.now() - guessedAt.current >= GUESS_MS) {
-          guessedAt.current = performance.now();
-          setSketch(recognizeSketch(livePointsRef.current, 24 / store.camera.scale));
-        }
         break;
       }
       case 'shape':
@@ -722,6 +833,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         break;
       }
     }
+    onPreview?.(previewOf(store.config, editRef.current, livePointsRef.current, liveShapeRef.current));
   };
 
   const finishPointer = (e: React.PointerEvent) => {
@@ -745,7 +857,11 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
             if (store.tool !== 'select') store.setTool('select');
             store.select(hit.id);
           } else if (!hit) store.select(null);
-          if (store.canEditNow()) setMenu({ x: e.clientX, y: e.clientY, at: p });
+          // Off everything that can be picked, a locked element under the pointer can be unlocked.
+          const locked = hit
+            ? null
+            : store.elementAt(p, 6 / store.camera.scale, store.visibleElements().filter((el) => el.locked));
+          if (store.canEditNow()) setMenu({ x: e.clientX, y: e.clientY, at: p, locked: locked?.id });
         } else if (store.tool === 'select' && store.selectedIds.length) {
           store.select(null);
           store.setRailOpen(false);
@@ -755,6 +871,8 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
     if (state.drawingId !== e.pointerId) return;
     state.drawingId = null;
+    // Once whatever the gesture commits below is queued: the end of the preview follows its ops.
+    queueMicrotask(() => onPreview?.(null));
     const store = useBoardStore.getState();
 
     if (store.tool === 'eraser') store.commitErase();
@@ -763,18 +881,11 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
       const figure = figureRef.current;
       figureRef.current = null;
       setPoints([]);
-      setSketch(null);
       stopSketch();
-      // "Draw to shape" lands the figure the stroke reads as and stays in hand:
-      // drawing figure after figure is what the mode is for.
-      const sketch = !figure && drawToShape && points.length >= 4 ? recognizeSketch(points, 24 / store.camera.scale) : null;
-      const made = sketch ? store.addSketch(sketch) : null;
       if (figure) {
         // The figure is already on the board; settle its size into the same undo step.
         setEdit(null);
         if (figure.patch) store.finishFigure(figure.id, figure.patch);
-      } else if (made) {
-        // Nothing more to do: the figure is on the board.
       } else if (points.length >= 4) {
         // The pencil stays in hand: many strokes in a row is what it is for.
         store.addStroke(simplify(points));
@@ -859,11 +970,11 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
   const editing = editingId ? elements[editingId] : null;
 
-  // The label button floats just above the selected shape.
+  // The label button floats just below the selected shape, clear of the rotate knob.
   const labelAt = useMemo(() => {
     if (!selectedShape) return null;
-    const b = shapeBounds(selectedShape);
-    return boardToScreen(b.x + b.width / 2, b.y, camera);
+    const at = labelButtonOf(selectedShape, camera.scale);
+    return boardToScreen(at.x, at.y, camera);
   }, [selectedShape, camera]);
 
   /** With the cursor, a double click on a text or a shape types into it; on empty board it starts a new text. */
@@ -882,9 +993,10 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
 
   return (
     <div ref={hostRef} className="absolute inset-0 overflow-clip bg-background">
+      <canvas ref={baseRef} aria-hidden="true" className="pointer-events-none absolute inset-0 block h-full w-full" />
       <canvas
         ref={canvasRef}
-        className="block h-full w-full touch-none select-none"
+        className="absolute inset-0 block h-full w-full touch-none select-none"
         style={{ cursor: cursorFor(tool, canEdit, panning) }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -897,6 +1009,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
         aria-label="Shareboard canvas"
       />
 
+      <LaserLayer />
       <PeerCursors camera={camera} />
 
       {menu ? <ContextMenu spot={menu} onClose={() => setMenu(null)} /> : null}
@@ -909,7 +1022,7 @@ export function BoardCanvas({ onCursorMove }: { onCursorMove?: (at: Point) => vo
           className="absolute z-20 rounded-full border bg-surface px-2.5 py-1 text-[0.75rem] font-extrabold shadow-panel transition hover:bg-surface-selected"
           style={{
             left: labelAt.x,
-            top: labelAt.y - 42,
+            top: labelAt.y,
             transform: 'translateX(-50%)',
             borderColor: Css.accent,
             color: Css.accent,
