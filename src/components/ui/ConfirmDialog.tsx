@@ -6,9 +6,10 @@
  * *everyone else* on the board, and the browser dialog offers neither the copy
  * layout nor the warning glyph the design specifies.
  */
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 
 import { useDialogFocus } from '../../hooks/use-dialog-focus';
+import { useEscape } from '../../hooks/use-escape';
 import { GlassPanel } from './Glass';
 import { Icon } from './Icon';
 
@@ -38,17 +39,7 @@ export function ConfirmDialog({
   const dialog = useRef<HTMLDivElement>(null);
   useDialogFocus(open, dialog);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
+  useEscape(open, onCancel);
 
   if (!open) return null;
 

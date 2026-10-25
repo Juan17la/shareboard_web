@@ -60,7 +60,7 @@ export function AccountSheet({
       ) : (
         <div className="flex flex-col gap-4 pb-1">
           <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{reason ?? t.accountSub}</p>
-          <AuthForm onDone={onSignedIn ?? onClose} />
+          <AuthForm initialMode="login" onDone={onSignedIn ?? onClose} />
         </div>
       )}
     </Sheet>
