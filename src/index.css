@@ -43,7 +43,7 @@
   --color-line-strong: rgba(60, 60, 67, 0.14);
   --color-line-dashed: rgba(60, 60, 67, 0.22);
   /* The edge of a text field: clearly there on a white or a frosted ground. */
-  --color-field: rgba(60, 60, 67, 0.34);
+  --color-field: rgba(60, 60, 67, 0.58);
 
   /* --- Connection status badges (theme-independent) --- */
   --color-online: #0f9e8e;
@@ -85,7 +85,7 @@
   --color-line: rgba(235, 235, 245, 0.1);
   --color-line-strong: rgba(235, 235, 245, 0.16);
   --color-line-dashed: rgba(235, 235, 245, 0.26);
-  --color-field: rgba(235, 235, 245, 0.36);
+  --color-field: rgba(235, 235, 245, 0.5);
 }
 
 html,
@@ -210,12 +210,15 @@ body {
 [data-tip] {
   position: relative;
 }
+/* At rest the label is not laid out at all (display: none): hidden but present,
+   it widened every menu and strip it sat in, which then scrolled sideways. */
 [data-tip]::after {
+  display: none;
   content: attr(data-tip);
   position: absolute;
   left: 50%;
   bottom: calc(100% + 8px);
-  transform: translate(-50%, 4px);
+  transform: translate(-50%, 0);
   padding: 4px 9px;
   border-radius: 8px;
   border: 1px solid var(--color-line);
@@ -227,41 +230,29 @@ body {
   line-height: 1.2;
   white-space: nowrap;
   box-shadow: 0 8px 20px rgba(21, 26, 45, 0.1);
-  opacity: 0;
   pointer-events: none;
   z-index: 60;
-  transition: opacity 0.12s ease, transform 0.12s ease;
 }
 [data-tip]:hover::after,
 [data-tip]:focus-visible::after {
-  opacity: 1;
-  transform: translate(-50%, 0);
-  transition-delay: 0.35s;
+  display: block;
+  animation: sb-fade 0.12s ease 0.35s both;
 }
 [data-tip-side='bottom']::after {
   bottom: auto;
   top: calc(100% + 8px);
-  transform: translate(-50%, -4px);
 }
 [data-tip-side='left']::after {
   left: auto;
   right: calc(100% + 8px);
   bottom: auto;
   top: 50%;
-  transform: translate(4px, -50%);
-}
-[data-tip-side='left']:hover::after,
-[data-tip-side='left']:focus-visible::after {
   transform: translate(0, -50%);
 }
 [data-tip-side='right']::after {
   left: calc(100% + 8px);
   bottom: auto;
   top: 50%;
-  transform: translate(-4px, -50%);
-}
-[data-tip-side='right']:hover::after,
-[data-tip-side='right']:focus-visible::after {
   transform: translate(0, -50%);
 }
 @media (hover: none) {
@@ -287,6 +278,11 @@ body {
   .touch-36 {
     min-width: 36px;
     min-height: 36px;
+  }
+  /* The primary controls (header, camera chip, sheet close, switches) get a full 44px target. */
+  .touch-44 {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -405,6 +401,28 @@ body {
   animation: sb-fade 0.5s ease 1.2s both;
 }
 
+/* A reaction: rises from the bottom of the screen and fades as it goes. */
+@keyframes sb-float {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  12% {
+    transform: translateY(-24px) scale(1.1);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-220px) scale(1);
+    opacity: 0;
+  }
+}
+.sb-float {
+  animation: sb-float 3s ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sb-loading::before {
     width: 100%;
@@ -418,7 +436,11 @@ body {
   .sb-toast {
     animation: none;
   }
-  [data-tip]::after {
-    transition: none;
+  .sb-float {
+    animation: sb-out 3s ease-in forwards;
+  }
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    animation: none;
   }
 }

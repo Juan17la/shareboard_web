@@ -41,6 +41,7 @@ import { Icon } from '../ui/Icon';
 import { Sheet, SheetRow, SectionLabel } from '../ui/Sheet';
 import { Toggle } from '../ui/Toggle';
 import { toast } from '../../lib/toast';
+import { ShortcutList } from './ShortcutsSheet';
 
 export function SettingsSheet({
   open,
@@ -267,28 +268,7 @@ export function SettingsSheet({
             </div>
           </GlassPanel>
         ) : (
-          <GlassPanel level="row" radius={15}>
-            <div className="flex items-start gap-2.5 p-3.5">
-              <span className="mt-0.5 text-text-secondary">
-                <Icon name="keyboard" size={18} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[0.8125rem] leading-tight font-bold">{t.shortcuts}</div>
-                <div className="mt-2 flex flex-col gap-1.5">
-                  {[
-                    [t.shortcutsTools, t.shortcutsToolsKeys],
-                    [t.shortcutsEdit, t.shortcutsEditKeys],
-                    [t.shortcutsView, t.shortcutsViewKeys],
-                  ].map(([label, keys]) => (
-                    <div key={label}>
-                      <div className="text-[0.75rem] font-bold text-text-tertiary uppercase">{label}</div>
-                      <div className="text-[0.75rem] leading-relaxed text-text-secondary">{keys}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </GlassPanel>
+          <ShortcutList />
         )}
 
         <div className="h-1" />

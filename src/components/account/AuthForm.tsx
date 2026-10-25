@@ -1,13 +1,13 @@
 /**
- * Create an account, or sign in to one: two fields and one button, with a
- * link underneath that flips between the two. Used by the last welcome screen,
- * the account sheet, and wherever sharing asks for an account first.
+ * Create an account, or sign in to one: a segmented switch on top, two fields
+ * that explain themselves, one button. Used by the account sheet, which is
+ * also wherever sharing asks for an account first.
  *
- * Registering takes the name and icon already chosen (welcome screen or
- * settings), so it asks for nothing else. Either way the guest id this browser
- * had goes along, and the boards it made become the account's.
+ * Registering takes the name and icon already chosen (asked just before the
+ * account sheet, or in settings), so it asks for nothing else. Either way the
+ * guest id this browser had goes along, and the boards it made become the account's.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useT } from '../../features/i18n';
 import { useSessionStore } from '../../features/session';
@@ -18,6 +18,7 @@ import { toast } from '../../lib/toast';
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Field';
 import { Icon } from '../ui/Icon';
+import { Segmented } from '../ui/Segmented';
 
 export type AuthMode = 'register' | 'login';
 
@@ -38,21 +39,48 @@ export function AuthForm({
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [taken, setTaken] = useState(false);
+  const [shown, setShown] = useState({ username: false, password: false });
+  const formRef = useRef<HTMLFormElement>(null);
 
   const registering = mode === 'register';
-  const ready =
-    USERNAME.test(username.trim()) &&
-    (registering ? password.length >= LIMITS.minPasswordLength : password.length > 0);
+  const name = username.trim();
+  // Sign-in only needs something typed: older accounts may predate today's rules.
+  const userErr = !name
+    ? t.errUserRequired
+    : registering && !USERNAME.test(name)
+      ? t.errUserInvalid
+      : taken
+        ? t.errUsernameTaken
+        : null;
+  const passErr = !password
+    ? t.errPassRequired
+    : registering && password.length < LIMITS.minPasswordLength
+      ? t.errPassShort
+      : null;
+
+  function switchMode(next: AuthMode) {
+    setMode(next);
+    setError(null);
+    setTaken(false);
+    setShown({ username: false, password: false });
+  }
 
   async function submit() {
-    if (!ready || busy) return;
+    if (busy) return;
+    if (userErr || passErr) {
+      setShown({ username: true, password: true });
+      // Wait for the errors to render, then land the caret on the first one.
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
+      return;
+    }
     setBusy(true);
     setError(null);
     const { guestId, nickname, avatar, signIn } = useSessionStore.getState();
     try {
       const res = registering
-        ? await register({ username: username.trim(), password, nickname, avatar, deviceId: guestId })
-        : await login({ username: username.trim(), password, deviceId: guestId });
+        ? await register({ username: name, password, nickname, avatar, deviceId: guestId })
+        : await login({ username: name, password, deviceId: guestId });
       signIn(
         { id: res.account.id, username: res.account.username, token: res.token },
         { nickname: res.account.nickname, avatar: res.account.avatar },
@@ -60,28 +88,49 @@ export function AuthForm({
       toast(t.toastSignedIn);
       onDone();
     } catch (err) {
-      setError(messageFor(err, t));
+      if (err instanceof ApiError && err.code === 'USERNAME_TAKEN') {
+        setTaken(true);
+        setShown((s) => ({ ...s, username: true }));
+      } else {
+        setError(messageFor(err, t));
+      }
       setBusy(false);
     }
   }
 
   return (
     <form
+      ref={formRef}
+      noValidate
       className="flex flex-col gap-3.5"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
+      <Segmented
+        label={t.accountTitle}
+        value={mode}
+        onChange={switchMode}
+        options={[
+          { value: 'register', label: t.createAccount },
+          { value: 'login', label: t.signIn },
+        ]}
+      />
       <Field
         label={t.username}
         value={username}
-        onChange={(e) => setUsername(e.target.value.replace(/\s/g, '').slice(0, 24))}
+        onChange={(e) => {
+          setUsername(e.target.value.replace(/\s/g, '').slice(0, 24));
+          setTaken(false);
+        }}
+        onBlur={() => setShown((s) => ({ ...s, username: true }))}
         autoComplete="username"
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
         name="username"
+        error={shown.username ? userErr : null}
         hint={registering ? t.usernameHint : undefined}
       />
       <div className="relative">
@@ -90,8 +139,10 @@ export function AuthForm({
           type={reveal ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value.slice(0, 128))}
+          onBlur={() => setShown((s) => ({ ...s, password: true }))}
           autoComplete={registering ? 'new-password' : 'current-password'}
           name="password"
+          error={shown.password ? passErr : null}
           hint={registering ? t.passwordHint : undefined}
           className="!pr-12"
         />
@@ -113,23 +164,7 @@ export function AuthForm({
         </p>
       ) : null}
 
-      <Button
-        type="submit"
-        label={registering ? t.createAccount : t.signIn}
-        loading={busy}
-        disabled={!ready}
-        fullWidth
-      />
-      <button
-        type="button"
-        onClick={() => {
-          setMode(registering ? 'login' : 'register');
-          setError(null);
-        }}
-        className="self-center rounded-[10px] px-2 py-1 text-[0.8125rem] font-bold text-accent transition hover:underline"
-      >
-        {registering ? t.haveAccount : t.noAccount}
-      </button>
+      <Button type="submit" label={registering ? t.createAccount : t.signIn} loading={busy} fullWidth />
     </form>
   );
 }
