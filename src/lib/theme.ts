@@ -115,6 +115,12 @@ export const DrawingPalette = [
   '#FF8FAB', // pink
 ] as const;
 
+/** Sticky note papers: pale enough that the default ink reads on them, light or dark board. */
+export const StickyColors = ['#FFE58A', '#FFC2D1', '#B8E2FF', '#C6F0C2', '#E3D3FF', '#FFD3A8'] as const;
+
+/** The ink a sticky note is written in: always dark, since the paper is always light. */
+export const STICKY_INK = '#1B2030';
+
 /** Stroke widths offered by the size picker. */
 export const StrokeSizes = [2, 5, 10, 20] as const;
 
@@ -164,9 +170,9 @@ export const Layout = {
 /** The dot grid's spacing in board units, and where it stops being drawn. */
 export const GRID = { step: 26, minScreenStep: 9 } as const;
 
-/** Zoom bounds. Matches the design's 25%–600% range. */
-export const MIN_ZOOM = 0.25;
-export const MAX_ZOOM = 6;
+/** Zoom bounds: 10 %–2,000 %, wide enough to fit a big board on screen. */
+export const MIN_ZOOM = 0.1;
+export const MAX_ZOOM = 20;
 
 /**
  * A fill is any `#RRGGBB` at any opacity, stored as `#RRGGBBAA` (the format

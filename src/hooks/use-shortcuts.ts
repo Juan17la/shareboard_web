@@ -39,6 +39,7 @@ const TOOL_KEYS: Record<string, { tool: ToolType; shape?: ShapeKind }> = {
   a: { tool: 'shape', shape: 'arrow' },
   t: { tool: 'text' },
   f: { tool: 'fill' },
+  n: { tool: 'sticky' },
 };
 
 const NUDGE: Record<string, [number, number]> = {

@@ -99,8 +99,52 @@ const measure = (text: string, font: Parameters<typeof fontFor>[0]) => {
 if (measurer) {
   setTextMeasure(measure);
   // A typeface arriving changes every width measured with its fallback.
-  document.fonts?.addEventListener('loadingdone', () => setTextMeasure(measure));
+  document.fonts?.addEventListener('loadingdone', () => {
+    setTextMeasure(measure);
+    boxes = new WeakMap();
+    lines = new WeakMap();
+  });
 }
+
+// What painting an element parses or measures — a figure's outline or a line's
+// route, its end markers, its wrapped text, its dark-board copy — kept once per
+// element object, as strokes already are (`strokePath`): a pan or a zoom
+// repaints thousands of elements, none of which changed.
+const outlines = new WeakMap<ShapeElement, Path2D>();
+const markers = new WeakMap<ShapeElement, { path: Path2D; fill: string }[]>();
+let lines = new WeakMap<BoardElement, string[]>();
+const inks = new WeakMap<BoardElement, BoardElement>();
+function once<K extends object, V>(cache: WeakMap<K, V>, key: K, make: () => V): V {
+  let value = cache.get(key);
+  if (value === undefined) cache.set(key, (value = make()));
+  return value;
+}
+
+// Each element's bounds, once per element object (elements are replaced, never
+// mutated): what culling tests every frame without measuring anything again.
+let boxes = new WeakMap<BoardElement, Bounds>();
+const EVERYWHERE: Bounds = { x: -Infinity, y: -Infinity, width: Infinity, height: Infinity };
+function cachedBounds(el: BoardElement): Bounds {
+  let b = boxes.get(el);
+  if (!b) {
+    b = elementBounds(el);
+    if (el.kind === 'shape' && isLineLike(el)) {
+      // ponytail: a curve or an elbow can bow out past its ends' box, so it is
+      // never culled; route bounds would let it be, if boards fill up with them.
+      if (el.route && el.route !== 'straight') b = EVERYWHERE;
+      else {
+        // Its end markers stand past its ends.
+        const m = markerSize(el.strokeWidth) * 2;
+        b = { x: b.x - m, y: b.y - m, width: b.width + m * 2, height: b.height + m * 2 };
+      }
+    }
+    boxes.set(el, b);
+  }
+  return b;
+}
+
+/** Screen pixels kept around the view: a shadow, a marker or a soft edge just off screen still shows. */
+const CULL_MARGIN = 24;
 
 function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   ctx.font = fontFor(el);
@@ -110,7 +154,7 @@ function paintText(ctx: CanvasRenderingContext2D, el: TextElement): void {
   const { x, align } = textAnchor(el);
   ctx.textAlign = align;
   // Its own newlines, then wrapped to its width if it has one.
-  textLines(el).forEach((line, i) => {
+  once(lines, el, () => textLines(el)).forEach((line, i) => {
     const y = el.at.y + el.fontSize + i * step;
     ctx.fillText(line, x, y);
     if (el.underline && line) {
@@ -128,7 +172,7 @@ function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void 
   if (!el.text) return;
   const fontSize = el.fontSize ?? SHAPE_TEXT_SIZE;
   const step = fontSize * TEXT_LINE_HEIGHT;
-  const lines = labelLines(el, fontSize);
+  const lines = labelLinesOf(el, fontSize);
   // Where the figure's alignment puts it; on a line, where it stands along it (the line is cut behind it).
   const at = labelPlacement(el, fontSize, lines.length);
 
@@ -140,6 +184,8 @@ function paintShapeLabel(ctx: CanvasRenderingContext2D, el: ShapeElement): void 
   ctx.textAlign = 'start';
   ctx.textBaseline = 'alphabetic';
 }
+
+const labelLinesOf = (el: ShapeElement, fontSize: number) => once(lines, el, () => labelLines(el, fontSize));
 
 function paintShape(ctx: CanvasRenderingContext2D, el: ShapeElement): void {
   paintShapeGeometry(ctx, el);
@@ -161,10 +207,25 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   const outline = dashIntervals(el.dash, el.strokeWidth);
   if (outline) ctx.setLineDash(outline);
 
+  if (el.shape === 'rectangle' && el.sticky) {
+    // A sticky note: paper with a soft drop shadow and no outline.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = el.fill ?? '#FFE58A';
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
+    ctx.setLineDash([]);
+    return;
+  }
+
   if (el.shape === 'rectangle') {
-    const r = el.rounded ? cornerRadius(w, h) : 0;
-    const path = new Path2D();
-    path.roundRect(x, y, w, h, r);
+    const path = once(outlines, el, () => {
+      const p = new Path2D();
+      p.roundRect(x, y, w, h, el.rounded ? cornerRadius(w, h) : 0);
+      return p;
+    });
     if (el.fill) {
       ctx.fillStyle = el.fill;
       ctx.fill(path);
@@ -175,8 +236,11 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   }
 
   if (el.shape === 'ellipse') {
-    const path = new Path2D();
-    path.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+    const path = once(outlines, el, () => {
+      const p = new Path2D();
+      p.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+      return p;
+    });
     if (el.fill) {
       ctx.fillStyle = el.fill;
       ctx.fill(path);
@@ -189,15 +253,14 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   if (el.shape === 'triangle' || el.shape === 'polygon') {
     // A triangle: apex centred on the top edge, base along the bottom — the
     // shape the tool icon promises. A polygon: regular, first corner up.
-    const pts = shapeCorners(el);
-    let path: Path2D;
-    if (el.rounded) {
-      path = new Path2D(roundedPolygonPath(pts, cornerRadius(w, h)));
-    } else {
-      path = new Path2D();
-      pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
-      path.closePath();
-    }
+    const path = once(outlines, el, () => {
+      const pts = shapeCorners(el);
+      if (el.rounded) return new Path2D(roundedPolygonPath(pts, cornerRadius(w, h)));
+      const p = new Path2D();
+      pts.forEach((pt, i) => (i ? p.lineTo(pt.x, pt.y) : p.moveTo(pt.x, pt.y)));
+      p.closePath();
+      return p;
+    });
     if (el.fill) {
       ctx.fillStyle = el.fill;
       ctx.fill(path);
@@ -213,7 +276,7 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   // The line is cut away behind its label, so the text sits in it: clip to
   // everything but the label's box.
   const labelSize = el.fontSize ?? SHAPE_TEXT_SIZE;
-  const gap = el.text ? labelBox(el, labelLines(el, labelSize), labelSize) : null;
+  const gap = el.text ? labelBox(el, labelLinesOf(el, labelSize), labelSize) : null;
   if (gap) {
     ctx.save();
     ctx.beginPath();
@@ -222,28 +285,28 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
     ctx.clip('evenodd');
   }
   if (dash) ctx.setLineDash(dash);
-  ctx.stroke(new Path2D(routePath(el)));
+  ctx.stroke(once(outlines, el, () => new Path2D(routePath(el))));
   ctx.setLineDash([]);
   if (gap) ctx.restore();
 
-  const [headStart, headEnd] = headsOf(el);
-  const angles = endAngles(el);
-  const size = markerSize(el.strokeWidth);
   // Sharp tips, not the line's soft join: a crow's foot or a chevron rounded
   // off at the point reads as a blob rather than an arrowhead.
   ctx.lineJoin = 'miter';
-  for (const [kind, tip, angle] of [
-    [headStart, el.from, angles.start],
-    [headEnd, el.to, angles.end],
-  ] as const) {
-    for (const part of markerPaths(kind, tip, angle, size)) {
-      const path = new Path2D(part.d);
-      if (part.fill !== 'none') {
-        ctx.fillStyle = part.fill === 'solid' ? el.stroke : ground;
-        ctx.fill(path);
-      }
-      ctx.stroke(path);
+  const parts = once(markers, el, () => {
+    const [headStart, headEnd] = headsOf(el);
+    const angles = endAngles(el);
+    const size = markerSize(el.strokeWidth);
+    return [
+      ...markerPaths(headStart, el.from, angles.start, size),
+      ...markerPaths(headEnd, el.to, angles.end, size),
+    ].map((part) => ({ path: new Path2D(part.d), fill: part.fill }));
+  });
+  for (const { path, fill } of parts) {
+    if (fill !== 'none') {
+      ctx.fillStyle = fill === 'solid' ? el.stroke : ground;
+      ctx.fill(path);
     }
+    ctx.stroke(path);
   }
 }
 
@@ -256,6 +319,8 @@ let ground = '#FFFFFF';
  * the dark theme's text colour (`inkFor`). The element itself is untouched.
  */
 export function inked(el: BoardElement): BoardElement {
+  // A sticky note is light paper on either board: its dark ink stays dark.
+  if (el.kind === 'shape' && el.sticky) return el;
   switch (el.kind) {
     case 'stroke':
     case 'text':
@@ -275,7 +340,7 @@ export function paintElement(
   onImageReady: () => void,
   dark = false,
 ): void {
-  if (dark) el = inked(el);
+  if (dark) el = once(inks, el, () => inked(el));
   const angle = rotationOf(el);
   if (angle) {
     // Turned about the centre of its box: everything below paints unturned.
@@ -294,6 +359,15 @@ export function paintElement(
       ctx.lineWidth = el.width;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      if (el.tool === 'highlighter') {
+        // Translucent, and multiplied on a light board so the ink under it stays crisp.
+        ctx.save();
+        ctx.globalAlpha *= HIGHLIGHTER_ALPHA;
+        if (!dark) ctx.globalCompositeOperation = 'multiply';
+        ctx.stroke(strokePath(el.points, smooth));
+        ctx.restore();
+        break;
+      }
       ctx.stroke(strokePath(el.points, smooth));
       break;
     }
@@ -314,10 +388,13 @@ export function paintElement(
 /**
  * The dot grid the settings sheet can turn off.
  *
- * Drawn in screen space as one path of small arcs. Below ~9px apart the dots
- * read as a grey wash, so the grid drops out — the same threshold the design
- * uses when zoomed out.
+ * Drawn in screen space as one fill of a repeating one-dot tile: a pan only
+ * moves the pattern, and the tile is redrawn only when the zoom, the pixel
+ * ratio or the theme changes it. Below ~9px apart the dots read as a grey
+ * wash, so the grid drops out — the same threshold the design uses when
+ * zoomed out.
  */
+let gridTile: { key: string; pattern: CanvasPattern } | null = null;
 export function paintGrid(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -328,17 +405,33 @@ export function paintGrid(
   if (step <= GRID.minScreenStep) return;
 
   const radius = camera.scale > 1.4 ? 1.4 : 1.1;
-  const path = new Path2D();
+  // The tile is whole device pixels; the pattern's transform stretches it to
+  // the exact (fractional) step, so the dots stay crisp on a high-DPI screen.
+  const ratio = ctx.getTransform().a || 1;
+  const tile = Math.ceil(step * ratio);
+  const key = `${tile}|${radius}|${step}|${Colors.borderStrong}`;
+  if (gridTile?.key !== key) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = tile;
+    const t = canvas.getContext('2d');
+    if (!t) return;
+    t.fillStyle = Colors.borderStrong;
+    t.beginPath();
+    t.arc(tile / 2, tile / 2, (radius * tile) / step, 0, Math.PI * 2);
+    t.fill();
+    // The pattern copies the tile as it is now: it is drawn first.
+    const pattern = ctx.createPattern(canvas, 'repeat');
+    if (!pattern) return;
+    gridTile = { key, pattern };
+  }
+  // The tile's dot sits at its centre; the old dots sat on the camera's lattice.
   const startX = ((camera.x % step) + step) % step;
   const startY = ((camera.y % step) + step) % step;
-  for (let x = startX; x < width; x += step) {
-    for (let y = startY; y < height; y += step) {
-      path.moveTo(x + radius, y);
-      path.arc(x, y, radius, 0, Math.PI * 2);
-    }
-  }
-  ctx.fillStyle = Colors.borderStrong;
-  ctx.fill(path);
+  gridTile.pattern.setTransform(
+    new DOMMatrix().translate(startX - step / 2, startY - step / 2).scale(step / tile),
+  );
+  ctx.fillStyle = gridTile.pattern;
+  ctx.fillRect(0, 0, width, height);
 }
 
 /**
@@ -547,6 +640,9 @@ export function paintAnchors(
   ctx.restore();
 }
 
+/** How opaque a highlighter stroke is painted. */
+export const HIGHLIGHTER_ALPHA = 0.4;
+
 /** How opaque an element someone else holds is painted. */
 export const HELD_ALPHA = 0.45;
 /** What the eraser is about to take: faint enough to read as going, visible enough to see what. */
@@ -626,7 +722,15 @@ export function paintBoard(ctx: CanvasRenderingContext2D, opts: PaintOptions): v
 
   ctx.translate(camera.x, camera.y);
   ctx.scale(camera.scale, camera.scale);
+  // The board seen, in board units: what lies wholly outside it is not painted.
+  const pad = CULL_MARGIN / camera.scale;
+  const left = -camera.x / camera.scale - pad;
+  const top = -camera.y / camera.scale - pad;
+  const right = left + width / camera.scale + pad * 2;
+  const bottom = top + height / camera.scale + pad * 2;
   for (const el of opts.elements) {
+    const b = cachedBounds(el);
+    if (b.x > right || b.y > bottom || b.x + b.width < left || b.y + b.height < top) continue;
     const fade = opts.erasing?.includes(el.id);
     const dim = fade || opts.held?.has(el.id);
     // The eraser's and the holder's dimming multiply with the element's own opacity.

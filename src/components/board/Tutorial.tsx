@@ -3,8 +3,9 @@
  * real interface — the board dimmed around the thing being shown, a caption,
  * Next and Skip. The dimming lets every click through, so a step can be done
  * for real: drawing something finishes the first, selecting it the fourth;
- * Next always works. It runs once (`tutorialDone` in the session) and again
- * from Settings.
+ * Next always works. On first run it is only offered — a card with Not now
+ * and Show me around, gone with the first stroke — so nothing stands between
+ * a new user and the board; it runs again from Settings (`tutorialDone`).
  *
  * Targets are found by what the user sees — the tool's label, the options
  * strip — and measured while the step is up, so a toolbar that moves or wraps
@@ -13,7 +14,7 @@
 import { useEffect, useState } from 'react';
 
 import { useT } from '../../features/i18n';
-import { useBoardStore } from '../../features/board-store';
+import { hasContent, useBoardStore } from '../../features/board-store';
 import { useSessionStore } from '../../features/session';
 import type { Strings } from '../../features/strings';
 
@@ -34,20 +35,31 @@ const tool = (label: string) => `[role=toolbar] [aria-label="${label}"]`;
 const STEPS: Step[] = [
   { text: 'tourDraw', target: (t) => tool(t.pencil), pen: true, done: (count) => count > 0 },
   { text: 'tourOptions', target: () => '.sb-strip', pen: true },
-  { text: 'tourShape', target: (t) => `.sb-strip [aria-label="${t.penShape}"]`, pen: true },
+  { text: 'tourShape', target: (t) => tool(t.pencil), pen: true },
   { text: 'tourSelect', target: (t) => tool(t.select), deselect: true, done: (_, selected) => selected > 0 },
   { text: 'tourArrows', target: (t, compact) => tool(compact ? t.shapes : t.shapeArrow) },
   { text: 'tourShare', target: (t) => `header [aria-label="${t.share}"]` },
 ];
 
-export function Tutorial({ compact }: { compact: boolean }) {
+export function Tutorial({
+  compact,
+  offerTop,
+}: {
+  compact: boolean;
+  /** Where the first-run offer sits. */
+  offerTop: number;
+}) {
   const t = useT();
   const done = useSessionStore((s) => s.tutorialDone);
   const setDone = useSessionStore((s) => s.setTutorialDone);
   const canEdit = useBoardStore((s) => s.canEditNow());
-  const [index, setIndex] = useState(0);
+  const empty = useBoardStore((s) => !hasContent(s));
+  // -1 is the offer: first run asks; a replay from Settings starts at once.
+  const [index, setIndex] = useState(() => (useSessionStore.getState().tutorialDone ? 0 : -1));
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const step = STEPS[index];
+  const offer = index < 0;
+  const step = STEPS[Math.max(0, index)];
+  const text = offer ? 'tourOffer' : step.text;
   const active = !done && canEdit;
 
   const finish = () => {
@@ -61,7 +73,7 @@ export function Tutorial({ compact }: { compact: boolean }) {
   // Put the pencil in hand with its options open for the steps about it, and
   // advance when the step is done for real — counted from when it came up.
   useEffect(() => {
-    if (!active) return;
+    if (!active || offer) return;
     const board = useBoardStore.getState();
     if (step.pen) {
       if (board.tool !== 'pen') board.pickTool('pen');
@@ -77,11 +89,11 @@ export function Tutorial({ compact }: { compact: boolean }) {
       setIndex((i) => i + 1);
     });
     return unsub;
-  }, [active, step]);
+  }, [active, offer, step]);
 
   // Follow the target while the step is up: toolbars wrap, strips open late.
   useEffect(() => {
-    if (!active) return;
+    if (!active || offer) return;
     const measure = () => {
       const el = document.querySelector(step.target(t, compact));
       const r = el?.getBoundingClientRect() ?? null;
@@ -92,23 +104,53 @@ export function Tutorial({ compact }: { compact: boolean }) {
     measure();
     const timer = setInterval(measure, 250);
     return () => clearInterval(timer);
-  }, [active, step, t, compact]);
+  }, [active, offer, step, t, compact]);
 
-  if (!active) return null;
+  // Drawing answers the offer: they found their way without it. The pencil is
+  // in hand meanwhile, so the first stroke takes no tap at all.
+  useEffect(() => {
+    if (!active || !offer || !empty) return;
+    useBoardStore.getState().setTool('pen');
+    return useBoardStore.subscribe((s) => {
+      if (!hasContent(s)) return;
+      setIndex(0);
+      setDone(true);
+    });
+  }, [active, offer, empty, setDone]);
+
+  if (!active || (offer && !empty)) return null;
 
   const pad = 6;
-  // The caption goes on the side of the target with the most room.
+  const cardW = 300;
+  const gap = pad + 12;
+  // Beside a target near a side edge (the toolbar standing on the left), so
+  // the card doesn't cover the buttons above and below it; otherwise above or
+  // below it, whichever has more room.
+  const side = !rect
+    ? null
+    : rect.right < innerWidth / 3 && innerWidth - rect.right - gap >= cardW + 12
+      ? 'right'
+      : rect.left > (innerWidth * 2) / 3 && rect.left - gap >= cardW + 12
+        ? 'left'
+        : null;
   const below = !rect || rect.top < innerHeight / 2;
-  const caption: React.CSSProperties = rect
-    ? {
-        left: Math.max(12, Math.min(rect.left + rect.width / 2 - 150, innerWidth - 312)),
-        ...(below ? { top: rect.bottom + pad + 12 } : { bottom: innerHeight - rect.top + pad + 12 }),
-      }
-    : { left: '50%', top: '40%', transform: 'translateX(-50%)' };
+  // The offer has no target: it sits just under the header, the board left clear.
+  const caption: React.CSSProperties = !rect
+    ? { left: '50%', top: offer ? offerTop : '40%', transform: 'translateX(-50%)' }
+    : side
+      ? {
+          ...(side === 'right' ? { left: rect.right + gap } : { left: rect.left - gap - cardW }),
+          // Centred on the target, kept on screen (the card is ~110px tall).
+          top: Math.max(12, Math.min(rect.top + rect.height / 2 - 55, innerHeight - 122)),
+        }
+      : {
+          left: Math.max(12, Math.min(rect.left + rect.width / 2 - cardW / 2, innerWidth - cardW - 12)),
+          ...(below ? { top: rect.bottom + gap } : { bottom: innerHeight - rect.top + gap }),
+        };
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50" aria-live="polite">
-      {rect ? (
+      {offer ? null : rect ? (
         <div
           className="absolute rounded-[14px] transition-all duration-200"
           style={{
@@ -124,14 +166,14 @@ export function Tutorial({ compact }: { compact: boolean }) {
       )}
       <div
         role="dialog"
-        aria-label={t[step.text]}
+        aria-label={t[text]}
         className="pointer-events-auto absolute flex w-[300px] max-w-[calc(100vw-24px)] flex-col gap-3 rounded-2xl bg-surface p-4 text-text shadow-panel"
         style={caption}
       >
-        <p className="text-[0.875rem] leading-snug font-semibold">{t[step.text]}</p>
+        <p className="text-[0.875rem] leading-snug font-semibold">{t[text]}</p>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[0.75rem] text-text-tertiary">
-            {index + 1}/{STEPS.length}
+            {offer ? null : `${index + 1}/${STEPS.length}`}
           </span>
           <span className="flex-1" />
           <button
@@ -139,14 +181,14 @@ export function Tutorial({ compact }: { compact: boolean }) {
             onClick={finish}
             className="rounded-[10px] px-3 py-1.5 text-[0.7812rem] font-bold text-text-secondary transition hover:bg-surface-selected"
           >
-            {t.tourSkip}
+            {offer ? t.notNow : t.tourSkip}
           </button>
           <button
             type="button"
             onClick={next}
             className="rounded-[10px] bg-accent px-3 py-1.5 text-[0.7812rem] font-extrabold text-white transition hover:bg-accent-deep"
           >
-            {index === STEPS.length - 1 ? t.tourDone : t.tourNext}
+            {offer ? t.tourStart : index === STEPS.length - 1 ? t.tourDone : t.tourNext}
           </button>
         </div>
       </div>

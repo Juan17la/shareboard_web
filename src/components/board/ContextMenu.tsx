@@ -4,11 +4,12 @@
  * small. Over an element it acts on the selection; over empty board it offers
  * paste and select all.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { copyToSystem, pasteFromSystem } from '../../features/board-clipboard';
 import { useBoardStore, type ReorderOp } from '../../features/board-store';
 import { useT } from '../../features/i18n';
+import { useEscape } from '../../hooks/use-escape';
 import type { StringKey } from '../../features/strings';
 import type { Point } from '../../lib/contract';
 import { toast } from '../../lib/toast';
@@ -16,7 +17,8 @@ import { GlassPanel } from '../ui/Glass';
 import { Icon, type IconName } from '../ui/Icon';
 
 const WIDTH = 220;
-const ROW = 36;
+const ROW_MOUSE = 36;
+const ROW_TOUCH = 44;
 
 export interface MenuSpot {
   /** Client (screen) position of the click. */
@@ -24,6 +26,8 @@ export interface MenuSpot {
   y: number;
   /** The same spot on the board: where a paste lands. */
   at: Point;
+  /** A locked element under the click, offered for unlocking. */
+  locked?: string;
 }
 
 export function ContextMenu({ spot, onClose }: { spot: MenuSpot; onClose: () => void }) {
@@ -34,11 +38,29 @@ export function ContextMenu({ spot, onClose }: { spot: MenuSpot; onClose: () => 
   const groupable = new Set(selected.map((el) => el.group ?? el.id)).size > 1;
   const grouped = selected.some((el) => !!el.group);
 
+  const ROW = window.matchMedia('(pointer: coarse)').matches ? ROW_TOUCH : ROW_MOUSE;
+  useEscape(true, onClose);
+
+  // Keyboard: focus lands on the first item, arrows / Home / End move between
+  // them, Tab leaves the menu closed behind it.
+  const menu = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, []);
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const next =
+      e.key === 'ArrowDown' ? (at + 1) % items.length
+      : e.key === 'ArrowUp' ? (at - 1 + items.length) % items.length
+      : e.key === 'Home' ? 0
+      : e.key === 'End' ? items.length - 1
+      : -1;
+    if (e.key === 'Tab') onClose();
+    if (next < 0) return;
+    e.preventDefault();
+    items[next]?.focus();
+  };
 
   type Row = { icon: IconName; label: StringKey; run: () => void; danger?: boolean } | 'line';
   const order = (op: ReorderOp, icon: IconName, label: StringKey): Row => ({
@@ -76,9 +98,11 @@ export function ContextMenu({ spot, onClose }: { spot: MenuSpot; onClose: () => 
         ...(groupable ? [{ icon: 'group', label: 'group', run: () => s.group() } as Row] : []),
         ...(grouped ? [{ icon: 'ungroup', label: 'ungroup', run: () => s.ungroup() } as Row] : []),
         'line',
+        { icon: 'lock', label: 'lock', run: () => s.lockSelection() },
         { icon: 'trash', label: 'remove', run: () => s.deleteSelection(), danger: true },
       ]
     : [
+        ...(spot.locked ? [{ icon: 'lock-open', label: 'unlock', run: () => s.unlock(spot.locked!) } as Row] : []),
         { icon: 'paste', label: 'paste', run: () => void pasteFromSystem(spot.at) },
         { icon: 'board', label: 'selectAll', run: () => s.selectAll() },
       ];
@@ -101,7 +125,7 @@ export function ContextMenu({ spot, onClose }: { spot: MenuSpot; onClose: () => 
         className="absolute shadow-panel"
         style={{ left, top, width: WIDTH, padding: 6 }}
       >
-        <div role="menu" onPointerDown={(e) => e.stopPropagation()}>
+        <div ref={menu} role="menu" aria-label={t.contextMenu} onKeyDown={onMenuKey} onPointerDown={(e) => e.stopPropagation()}>
           {rows.map((row, i) =>
             row === 'line' ? (
               <div key={i} className="mx-1 my-1 h-px bg-line" />
@@ -114,7 +138,7 @@ export function ContextMenu({ spot, onClose }: { spot: MenuSpot; onClose: () => 
                   row.run();
                   onClose();
                 }}
-                className={`flex w-full items-center gap-3 rounded-[10px] px-3 text-left text-[0.875rem] font-semibold transition hover:bg-surface-selected ${
+                className={`flex w-full items-center gap-3 rounded-[10px] px-3 text-left text-[0.875rem] font-semibold transition hover:bg-surface-selected focus-visible:bg-surface-selected ${
                   row.danger ? 'text-danger' : 'text-text'
                 }`}
                 style={{ height: ROW }}
