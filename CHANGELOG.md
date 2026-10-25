@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.7.0-beta] - 2026-10-25
+
 ### Added
 
 - Sticky notes (N): one tap, type, the words shrink to fit; six papers, and vote dots in your colour.
