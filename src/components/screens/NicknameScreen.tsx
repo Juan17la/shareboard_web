@@ -4,8 +4,9 @@
  * This name and icon are the user as far as the board is concerned: they label
  * the cursor other people watch move and the avatar in the header. Both are
  * remembered per browser, so a returning user sees their own name already
- * filled in and one click gets them through. It is also the welcome screens'
- * second step, where it starts empty rather than on the stand-in guest name.
+ * filled in and one click gets them through. The first time — joining or
+ * sharing a live board, or making an account — it starts empty rather than on
+ * the stand-in guest name.
  */
 import { useState } from 'react';
 
@@ -24,11 +25,14 @@ import { SectionLabel } from '../ui/Sheet';
 export function NicknameScreen({
   error,
   onContinue,
+  onCancel,
   blank = false,
 }: {
   /** Set when the last attempt came back `NICKNAME_TAKEN`. */
   error?: string | null;
   onContinue: (nickname: string) => void;
+  /** Shows a Cancel button: the step was asked for on the way to something else. */
+  onCancel?: () => void;
   /** Start with an empty field instead of the stored name. */
   blank?: boolean;
 }) {
@@ -97,6 +101,9 @@ export function NicknameScreen({
               fullWidth
               onClick={() => ready && onContinue(draft.trim())}
             />
+            {onCancel ? (
+              <Button label={t.cancel} variant="ghost" fullWidth compact onClick={onCancel} />
+            ) : null}
           </form>
         </GlassPanel>
       </div>

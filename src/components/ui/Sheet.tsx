@@ -10,9 +10,10 @@
  * it, and the design's own tablet/desktop breakpoint (mobile/docs/03-styles)
  * already expects the layout to reflow.
  */
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useId, useRef, type PointerEvent, type ReactNode } from 'react';
 
 import { useDialogFocus } from '../../hooks/use-dialog-focus';
+import { useEscape } from '../../hooks/use-escape';
 import { IconButton } from './Button';
 import { GlassPanel } from './Glass';
 import { ToastHost } from './Toast';
@@ -39,17 +40,31 @@ export function Sheet({
 
   // Escape closes the sheet, which is what the mobile app's Android back
   // gesture does and what a browser user will try first.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  useEscape(open, onClose);
+
+  // Dragging the handle or the title row down dismisses it, as the handle promises.
+  const drag = useRef<{ y: number; t: number } | null>(null);
+  const panelOf = (e: PointerEvent) => e.currentTarget.closest<HTMLElement>('.sb-sheet');
+  const onDragStart = (e: PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    drag.current = { y: e.clientY, t: e.timeStamp };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onDragMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    const panel = panelOf(e);
+    if (d && panel) panel.style.translate = `0 ${Math.max(0, e.clientY - d.y)}px`;
+  };
+  const onDragEnd = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    drag.current = null;
+    const panel = panelOf(e);
+    if (!d || !panel) return;
+    const dy = e.clientY - d.y;
+    const fast = dy / Math.max(1, e.timeStamp - d.t) > 0.6;
+    if (dy > 90 || (dy > 24 && fast)) onClose();
+    else panel.style.translate = '';
+  };
 
   if (!open) return null;
 
@@ -78,23 +93,30 @@ export function Sheet({
         className={`sb-sheet relative flex max-h-[82vh] w-full flex-col rounded-b-none border-t border-t-glass-highlight ${wide ? 'sm:max-w-[720px]' : 'sm:max-w-[520px]'} sm:rounded-b-[26px] sm:border sm:border-glass-highlight`}
         style={{ boxShadow: '0 -12px 40px rgba(21,26,45,0.18)' }}
       >
-        {/* The grab handle is decorative on a pointer device, but it is what
-            tells a touch user the panel can be dismissed downward. */}
-        <div className="flex justify-center pt-2 pb-0.5 sm:hidden">
-          <div className="h-1 w-[38px] rounded-full bg-text/15" />
-        </div>
+        {/* Grab zone: the handle and the title row follow a downward drag. */}
+        <div
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+          className="touch-none max-sm:cursor-grab"
+        >
+          <div className="flex justify-center pt-2 pb-0.5 sm:hidden">
+            <div className="h-1 w-[38px] rounded-full bg-text/15" />
+          </div>
 
-        <div className="flex items-center justify-between gap-2.5 px-5 pt-1.5 pb-3.5 sm:pt-4">
-          <h2 id={titleId} className="flex-1 truncate text-[1.125rem] font-extrabold tracking-[-0.3px]">{title}</h2>
-          <IconButton
-            icon="close"
-            label={closeLabel}
-            onClick={onClose}
-            size={30}
-            iconSize={15}
-            radius={10}
-            className="touch-36"
-          />
+          <div className="flex items-center justify-between gap-2.5 px-5 pt-1.5 pb-3.5 sm:pt-4">
+            <h2 id={titleId} className="flex-1 truncate text-[1.125rem] font-extrabold tracking-[-0.3px]">{title}</h2>
+            <IconButton
+              icon="close"
+              label={closeLabel}
+              onClick={onClose}
+              size={30}
+              iconSize={15}
+              radius={10}
+              className="touch-44"
+            />
+          </div>
         </div>
 
         <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-5 pb-6">

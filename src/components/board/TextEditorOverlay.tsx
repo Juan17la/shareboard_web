@@ -18,6 +18,7 @@ import { useSessionStore } from '../../features/session';
 import { SHAPE_TEXT_SIZE, type ShapeElement, type TextElement } from '../../lib/contract';
 import {
   boxOf,
+  fitSticky,
   isLineLike,
   labelLines,
   labelPlacement,
@@ -77,20 +78,13 @@ export function TextEditorOverlay({
     onClose();
   };
 
-  /** Throws the draft away: a brand-new text goes, an existing one is kept as it was. */
-  const cancel = () => {
-    if (committed.current) return;
-    committed.current = true;
-    if (element.kind === 'text' && !element.text) updateText(element.id, { text: '' });
-    onClose();
-  };
-
   // The renderer paints the draft (`onDraft`) exactly as it will look; this
   // textarea lies over it in the same font, size, line height and turn, with
   // its own glyphs invisible — only the caret and the selection show.
   const s = camera.scale;
-  const draft = { ...element, text: value } as TextElement | ShapeElement;
-  const fontSize = (element.fontSize ?? SHAPE_TEXT_SIZE) * s;
+  // A sticky note's label shrinks as it fills, as the board paints it.
+  const draft = fitSticky({ ...element, text: value } as TextElement | ShapeElement);
+  const fontSize = (draft.fontSize ?? SHAPE_TEXT_SIZE) * s;
   const step = fontSize * TEXT_LINE_HEIGHT;
   let box: { x: number; y: number; width: number; height: number };
   let paddingTop = 0;
@@ -149,15 +143,11 @@ export function TextEditorOverlay({
         onBlur={commit}
         onKeyDown={(e) => {
           // Enter is a newline (the textarea's own); Ctrl/Cmd+Enter commits.
-          // Escape throws the text away, which for a brand-new empty element removes it.
-          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          // Escape commits too, as in Excalidraw or FigJam: undo takes the text back.
+          if (e.key === 'Escape') e.stopPropagation();
+          if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
             e.preventDefault();
             commit();
-          }
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            e.stopPropagation();
-            cancel();
           }
         }}
         placeholder={t.typeHere}

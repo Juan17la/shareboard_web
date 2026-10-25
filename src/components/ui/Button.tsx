@@ -14,9 +14,11 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dash
 const VARIANT: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-white shadow-accent hover:bg-[#0077ed]',
   danger: 'bg-danger text-white shadow-danger hover:brightness-110',
+  // Tinted, the Apple way: the accent at low strength with accent type, so it
+  // reads as a button without competing with the filled primary.
   secondary:
-    'bg-glass-solid text-text border border-line-strong backdrop-blur-md hover:bg-surface-selected active:bg-surface-selected',
-  ghost: 'text-text-secondary hover:bg-text/[0.04] active:bg-text/[0.07]',
+    'bg-accent-soft text-accent-text border border-accent/30 hover:bg-accent/[0.17] active:bg-accent/[0.22]',
+  ghost: 'text-text-secondary hover:bg-text/[0.06] active:bg-text/[0.1]',
   dashed:
     'border border-dashed border-line-dashed text-text/60 hover:bg-surface-selected hover:text-text active:bg-surface-selected',
 };
@@ -86,7 +88,7 @@ export function IconButton({
   icon,
   label,
   onClick,
-  size = 36,
+  size = 40,
   iconSize = 18,
   radius = 12,
   disabled,
@@ -120,9 +122,9 @@ export function IconButton({
       onClick={onClick}
       style={{ width: size, height: size, borderRadius: radius }}
       className={[
-        'flex flex-none items-center justify-center border border-line transition',
+        'touch-44 flex flex-none items-center justify-center border border-line-strong transition',
         active ? 'bg-accent text-white shadow-accent' : 'bg-surface text-text hover:bg-surface-selected',
-        disabled ? 'pointer-events-none opacity-40' : '',
+        disabled ? 'cursor-not-allowed opacity-40' : '',
         className,
       ]
         .filter(Boolean)

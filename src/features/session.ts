@@ -47,8 +47,6 @@ export interface AppSettings {
   peers: boolean;
   /** Curve-fit freehand strokes instead of joining raw points. */
   smooth: boolean;
-  /** The pencil turns what is drawn into the figure it was meant to be ("draw to shape"). */
-  drawToShape: boolean;
 }
 
 /** The signed-in account. */
@@ -65,7 +63,7 @@ interface SessionState {
   /** This browser's own id, used while nobody is signed in. */
   guestId: string;
   account: Account | null;
-  /** The welcome screens have been through (or skipped). */
+  /** A name has been chosen: asked the first time a live board opens, or brought by an account. */
   onboarded: boolean;
   nickname: string;
   /** Preferred presence colour; the server may still assign a different one. */
@@ -81,7 +79,10 @@ interface SessionState {
   pins: Record<string, string>;
   /** The first-run hint on an empty board has been dismissed (or acted on). */
   hintDismissed: boolean;
-  /** The first-run walkthrough has been finished or skipped (plans/33). */
+  /**
+   * The walkthrough (plans/33) is not running. False on first run, where it is
+   * only offered, and again when replayed from Settings.
+   */
   tutorialDone: boolean;
 
   setNickname(nickname: string): void;
@@ -101,7 +102,7 @@ interface SessionState {
   rememberPin(boardId: string, pin: string | null): void;
 }
 
-export const DEFAULT_SETTINGS: AppSettings = { grid: true, peers: true, smooth: true, drawToShape: false };
+export const DEFAULT_SETTINGS: AppSettings = { grid: true, peers: true, smooth: true };
 
 const STORAGE_KEY = 'shareboard.session';
 
@@ -164,6 +165,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     set({
       account,
       userId: account.id,
+      onboarded: true,
       nickname: profile.nickname.slice(0, LIMITS.maxNicknameLength),
       ...(profile.avatar ? { avatar: profile.avatar, nickColor: avatarColor(profile.avatar) } : null),
     });
@@ -261,7 +263,7 @@ if (saved) {
     avatar: saved.avatar || Avatars[0].icon,
     nickColor: avatarColor(saved.avatar || Avatars[0].icon),
     theme: saved.theme === 'dark' ? 'dark' : 'light',
-    settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}), drawToShape: false },
+    settings: { ...DEFAULT_SETTINGS, ...(saved.settings ?? {}) },
     // Saved before accounts: the id it had was the guest one.
     guestId: saved.guestId ?? saved.userId,
     account: saved.account ?? null,
@@ -273,8 +275,7 @@ if (saved) {
   });
 }
 
-// The welcome screens ask for a name; until then (or if it is skipped some
-// other way) a guest name stands in.
+// The name is asked when a live board first opens; until then a guest name stands in.
 if (!useSessionStore.getState().nickname) {
   const word = useSessionStore.getState().lang === 'es' ? 'Invitado' : 'Guest';
   useSessionStore.setState({ nickname: `${word} ${1000 + Math.floor(Math.random() * 9000)}` });

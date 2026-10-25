@@ -7,6 +7,65 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.7.0-beta] - 2026-10-25
+
+### Added
+
+- Sticky notes (N): one tap, type, the words shrink to fit; six papers, and vote dots in your colour.
+- Highlighter and laser pointer, in the pencil's options.
+- Lock / Unlock in the right-click menu: a locked element can't be picked, moved or erased.
+- Templates in the menu: brainstorm, retro, flowchart, Kanban, mind map.
+- Reactions and a class timer in the top-right chip, seen by everyone on the board.
+  The timer also takes any time up to three hours (minutes and seconds).
+- Faster board: the drawing and dragging are painted on their own layer and off-screen elements are skipped (pen at 5,000 elements: 22 → 58 events/s).
+- Smoother pan and zoom on big boards: the dot grid is one repeating tile, and shapes, arrowheads and wrapped text are worked out once instead of on every frame. Rarely used sheets (Share, Export, Import, AI, Account) load when first opened.
+- Others see your stroke while you draw it and your shapes move while you
+  drag them, not only when you let go.
+- A live board keeps working when the connection drops: what you draw waits
+  and is sent when you're back online, and the banner says so.
+
+### Changed
+
+- Text fields are paper-white with a 3:1 edge, a focus ring and an error ring;
+  secondary buttons are tinted in the accent; placeholders meet 4.5:1.
+- Sign in and Create account are a switch at the top of the form; each field
+  shows its own error, and the button focuses the first problem.
+- The header is one row: board name (tap the status line for who is here),
+  Share and the menu. Settings, other boards, export, access, people and the
+  assistant are in the menu, in three labelled groups. The code stays in Share.
+- On a phone the camera chip drops − and + (zoom is a pinch) and keeps the zoom
+  readout, Fit, undo and redo; the assistant moved to the menu everywhere.
+- Header, chip, menu and sheet buttons have a 44px touch target.
+- A landscape phone gets the bottom toolbar instead of the side rail.
+- Esc closes only the topmost dialog; the context menu opens from the keyboard
+  (menu key or Shift+F10) and moves with the arrow keys.
+- Sheets close by dragging the handle or title down.
+- Zoom goes from 10 % to 2,000 % (was 25 %–600 %), so fit can show a big board
+  whole.
+- The board menu lists the keyboard shortcuts (on devices with a mouse).
+- The tutorial's card stands beside the toolbar instead of covering the
+  buttons around the one it points at.
+- The app opens straight on your board with the pencil in hand: no welcome
+  screens, no name, no account before the first stroke. Your name and icon are
+  asked the first time you share or join a live board, an account only when
+  you share.
+- The tutorial is offered, not forced: a small card on the empty board says
+  "Show me around" or "Not now"; it is still in Settings.
+- Other people's cursors glide instead of jumping, and a moving cursor no
+  longer repaints the board.
+
+### Fixed
+
+- A figure is picked only by its inside or its outline: a click in an ellipse's or a triangle's empty corner no longer selects it.
+- Firefox: the side toolbar no longer spills tools outside its panel on shorter windows, and the option menus no longer scroll sideways.
+- The rotate knob can be dragged again: the "Aa" label button now sits below
+  the selected figure and its knob instead of covering the knob.
+- Escape while typing a text or a label keeps what was typed (Ctrl+Z takes it
+  back), as in other whiteboards; it used to throw it away.
+- `?` opens a keyboard shortcut list instead of Settings.
+- The dead "Draw to shape" setting is gone; the tutorial and the guide now
+  teach hold to shape (hold the pencil still at the end of a stroke).
+
 ## [1.6.0-beta] - 2026-10-13
 
 ### Added

@@ -8,37 +8,35 @@
  * here rather than a route, so the board stays visible underneath.
  *
  * There is no page behind it: the app opens on the last whiteboard, and the
- * menu is where a new one, an old one, a code or a file is reached from. The
- * welcome screens come first, once per browser; after them the identity step
- * only appears when a name clashes with someone's on the board.
+ * menu is where a new one, an old one, a code or a file is reached from.
+ * Nothing comes before the first stroke: the identity step appears the first
+ * time a live board opens (shared or joined), then only when a name clashes
+ * with someone's on the board.
  *
  * A live board is a shared one, so making one (new, imported, or the offline
  * board shared) needs an account: a guest is shown the account sheet instead,
  * and brought back to where they were once signed in.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { BoardCanvas } from '../components/board/BoardCanvas';
 import { ConnectionBanner } from '../components/board/ConnectionBanner';
 import { BottomControls } from '../components/board/BottomControls';
+import { ReactionStream, TimerPill } from '../components/board/ClassControls';
 import { Toolbar } from '../components/board/Toolbar';
 import { Tutorial } from '../components/board/Tutorial';
 import { BoardHeader } from '../components/header/BoardHeader';
 import { NicknameScreen } from '../components/screens/NicknameScreen';
-import { Onboarding } from '../components/screens/Onboarding';
 import { PinScreen } from '../components/screens/PinScreen';
-import { AccountSheet } from '../components/sheets/AccountSheet';
-import { AiSheet } from '../components/sheets/AiSheet';
 import { BoardsSheet } from '../components/sheets/BoardsSheet';
-import { ExportSheet } from '../components/sheets/ExportSheet';
-import { ImportSheet } from '../components/sheets/ImportSheet';
 import { JoinSheet } from '../components/sheets/JoinSheet';
 import { MenuSheet } from '../components/sheets/MenuSheet';
 import { PeopleSheet } from '../components/sheets/PeopleSheet';
 import { PrivacySheet } from '../components/sheets/PrivacySheet';
 import { SettingsSheet } from '../components/sheets/SettingsSheet';
-import { ShareSheet } from '../components/sheets/ShareSheet';
+import { ShortcutsSheet } from '../components/sheets/ShortcutsSheet';
+import { TemplatesSheet } from '../components/sheets/TemplatesSheet';
 import { Backdrop } from '../components/ui/Backdrop';
 import { Button } from '../components/ui/Button';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -47,11 +45,11 @@ import { toast } from '../lib/toast';
 import { fill, useT } from '../features/i18n';
 import { GlassPanel } from '../components/ui/Glass';
 import { useSessionStore } from '../features/session';
-import { useBoardStore } from '../features/board-store';
+import { hasContent, useBoardStore } from '../features/board-store';
+import { isLocalId } from '../features/board-local';
 import { useBoardSync } from '../hooks/use-board-sync';
 import { createBoard, deleteBoard, importSnapshot } from '../lib/api';
 import type { BoardSnapshot } from '../lib/contract';
-import { copyText } from '../lib/clipboard';
 import { WEB_BASE_URL } from '../lib/config';
 import { boardShareLink } from '../lib/deep-link';
 import { Layout } from '../lib/theme';
@@ -67,18 +65,43 @@ type SheetName =
   | 'import'
   | 'menu'
   | 'settings'
+  | 'shortcuts'
   | 'ai'
+  | 'templates'
   | 'join'
   | 'boards'
   | 'account';
 type ConfirmName = 'clear' | 'delete';
+
+// The sheets most sessions never open (and the QR encoder, the SVG export and
+// the sign-in form behind them) load the first time they open, not with the
+// board. Once loaded a sheet stays mounted, so closing it works as before.
+function lazySheet<P extends { open: boolean }>(load: () => Promise<ComponentType<P>>) {
+  const Lazy = lazy(() => load().then((Sheet) => ({ default: Sheet })));
+  return function LazySheet(props: P) {
+    const [opened, setOpened] = useState(props.open);
+    if (props.open && !opened) setOpened(true);
+    return opened ? (
+      <Suspense fallback={null}>
+        <Lazy {...props} />
+      </Suspense>
+    ) : null;
+  };
+}
+const AccountSheet = lazySheet(() => import('../components/sheets/AccountSheet').then((m) => m.AccountSheet));
+const AiSheet = lazySheet(() => import('../components/sheets/AiSheet').then((m) => m.AiSheet));
+const ExportSheet = lazySheet(() => import('../components/sheets/ExportSheet').then((m) => m.ExportSheet));
+const ImportSheet = lazySheet(() => import('../components/sheets/ImportSheet').then((m) => m.ImportSheet));
+const ShareSheet = lazySheet(() => import('../components/sheets/ShareSheet').then((m) => m.ShareSheet));
 
 export default function BoardPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const t = useT();
   const { width, height } = useViewport();
-  const compact = width < Layout.compactBreakpoint;
+  // Phone-sized in either direction: a landscape phone is wide but only ~360px
+  // tall, and the side rail would eat the board, so height counts too.
+  const compact = width < Layout.compactBreakpoint || height < 480;
   // Same rule as the mobile app: in landscape the header collapses to one row
   // and the tool rail moves up to meet it.
   const landscape = width > height;
@@ -95,8 +118,6 @@ export default function BoardPage() {
   const [sheet, setSheet] = useState<SheetName | null>(null);
   const [confirm, setConfirm] = useState<ConfirmName | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const copyTimer = useRef<number | null>(null);
 
   // Where to go back to once signed in, and why the account sheet is asking.
   const [afterSignIn, setAfterSignIn] = useState<SheetName | null>(null);
@@ -105,32 +126,12 @@ export default function BoardPage() {
     setSheet('account');
   }, []);
 
-  // Nothing connects while the welcome screens are up: the name is still being chosen.
-  const sync = useBoardSync(id, { paused: !onboarded });
+  // A live board waits for a name, asked once; the offline board needs none.
+  const sync = useBoardSync(id, { paused: !onboarded && !isLocalId(id) });
   const headerBottom = useHeaderBottom(sync.phase);
   // Keys belong to the board only while it is the thing on screen.
-  const openShortcuts = useCallback(() => setSheet('settings'), []);
+  const openShortcuts = useCallback(() => setSheet('shortcuts'), []);
   useShortcuts(sync.phase === 'ready' && sheet === null && confirm === null, openShortcuts);
-
-  useEffect(
-    () => () => {
-      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
-    },
-    [],
-  );
-
-  const copyCode = useCallback(async () => {
-    if (!meta) return;
-    try {
-      await copyText(meta.shortCode);
-      setCodeCopied(true);
-      toast(t.toastCopied);
-      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
-      copyTimer.current = window.setTimeout(() => setCodeCopied(false), 1500);
-    } catch {
-      toast(t.errClipboard);
-    }
-  }, [meta, t]);
 
   const handleImportSnapshot = useCallback(
     async (snapshot: BoardSnapshot) => {
@@ -210,13 +211,29 @@ export default function BoardPage() {
 
   // --- gates -------------------------------------------------------------
 
-  if (!onboarded) return <Onboarding />;
+  // An account is registered under the name, so one not chosen yet is asked first.
+  if (sheet === 'account' && !onboarded) {
+    return (
+      <NicknameScreen
+        blank
+        onCancel={() => setSheet(null)}
+        onContinue={(name) => {
+          useSessionStore.getState().setNickname(name);
+          useSessionStore.getState().setOnboarded();
+        }}
+      />
+    );
+  }
 
   if (sync.phase === 'need-nickname') {
     return (
       <NicknameScreen
         error={sync.error}
-        onContinue={(name) => sync.submitNickname(name)}
+        blank={!onboarded}
+        onContinue={(name) => {
+          sync.submitNickname(name);
+          useSessionStore.getState().setOnboarded();
+        }}
       />
     );
   }
@@ -262,36 +279,28 @@ export default function BoardPage() {
 
   const link = meta ? boardShareLink(WEB_BASE_URL, meta.shortCode) : '';
   const anyOverlay = sheet !== null || confirm !== null;
-  // Just under the header, whichever shape it takes.
-  // Never above where the header's own height would put it: large text makes the
-  // header taller, and the controls must move down with it, not sit on top of it.
-  const controlsTop = Math.max(
-    landscape ? (compact ? 62 : 76) : compact ? 108 : 128,
-    headerBottom + 12,
-  );
+  // Just under the header, measured: large text makes it taller, and the
+  // controls move down with it instead of sitting on top of it.
+  const controlsTop = Math.max(landscape ? 56 : 64, headerBottom + 12);
 
   return (
     <div className="relative h-full overflow-clip bg-background">
-      <BoardCanvas onCursorMove={sync.sendCursor} />
+      <BoardCanvas onCursorMove={sync.sendCursor} onPreview={sync.sendPreview} />
 
       <BoardHeader
-        compact={compact}
-        codeCopied={codeCopied}
-        onCopyCode={() => void copyCode()}
         onOpenPeople={() => setSheet('people')}
         onOpenMenu={() => setSheet('menu')}
-        onOpenNew={() => setSheet('join')}
-        onOpenPrivacy={() => setSheet('privacy')}
         onOpenShare={() => setSheet('share')}
-        onOpenExport={() => setSheet('export')}
-        onOpenSettings={() => setSheet('settings')}
       />
 
       <Toolbar compact={compact} />
-      <BottomControls top={controlsTop} onOpenAi={() => setSheet('ai')} />
-      <ConnectionBanner top={controlsTop + 44} onRetry={sync.retry} />
-      <FirstRunHint top={controlsTop + 52} />
-      <Tutorial compact={compact} />
+      <BottomControls top={controlsTop} compact={compact} onReact={sync.sendReact} onTimer={sync.sendTimer} />
+      <TimerPill top={controlsTop} />
+      {/* Above the bottom toolbar on a phone; on a wide screen the tools are down the left. */}
+      <ReactionStream bottom={compact ? 150 : 32} />
+      <ConnectionBanner top={controlsTop + 48} onRetry={sync.retry} />
+      <FirstRunHint top={controlsTop + 56} />
+      <Tutorial compact={compact} offerTop={controlsTop + 56} />
 
       <ToastHost bottom={compact ? 140 : 132} enabled={!anyOverlay} />
 
@@ -304,6 +313,7 @@ export default function BoardPage() {
       />
       <PeopleSheet open={sheet === 'people'} onClose={() => setSheet(null)} />
       <AiSheet open={sheet === 'ai'} onClose={() => setSheet(null)} />
+      <TemplatesSheet open={sheet === 'templates'} onClose={() => setSheet(null)} />
       <PrivacySheet
         open={sheet === 'privacy'}
         onClose={() => setSheet(null)}
@@ -320,10 +330,15 @@ export default function BoardPage() {
         open={sheet === 'menu'}
         onClose={() => setSheet(null)}
         onOpenBoards={() => setSheet('boards')}
+        onOpenNew={() => setSheet('join')}
         onOpenImport={() => setSheet('import')}
+        onOpenExport={() => setSheet('export')}
         onOpenPrivacy={() => setSheet('privacy')}
         onOpenPeople={() => setSheet('people')}
         onOpenAi={() => setSheet('ai')}
+        onOpenTemplates={() => setSheet('templates')}
+        onOpenSettings={() => setSheet('settings')}
+        onOpenShortcuts={openShortcuts}
       />
       <BoardsSheet open={sheet === 'boards'} onClose={() => setSheet(null)} currentId={id} />
       <JoinSheet
@@ -339,6 +354,7 @@ export default function BoardPage() {
         onAskDelete={() => setConfirm('delete')}
         onOpenAccount={() => askAccount(null)}
       />
+      <ShortcutsSheet open={sheet === 'shortcuts'} onClose={() => setSheet(null)} />
       <AccountSheet
         open={sheet === 'account'}
         onClose={() => setSheet(null)}
@@ -374,7 +390,7 @@ function FirstRunHint({ top }: { top: number }) {
   const dismissed = useSessionStore((s) => s.hintDismissed || !s.tutorialDone);
   const dismiss = useSessionStore((s) => s.dismissHint);
   const canEdit = useBoardStore((s) => s.canEditNow());
-  const empty = useBoardStore((s) => !Object.values(s.elements).some((el) => !el.deleted));
+  const empty = useBoardStore((s) => !hasContent(s));
 
   useEffect(() => {
     if (!empty && !dismissed) dismiss();

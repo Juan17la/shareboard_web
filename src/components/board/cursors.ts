@@ -55,6 +55,7 @@ const BY_TOOL: Record<ToolType, string> = {
   shape: SHAPE,
   text: TEXT,
   fill: FILL,
+  sticky: SHAPE,
 };
 
 /**

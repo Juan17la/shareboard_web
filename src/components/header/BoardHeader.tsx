@@ -1,51 +1,29 @@
 /**
- * The board's header: who you are looking at, how to get others in, and the
- * two buttons everything else hangs off — the menu and the settings.
+ * The board's header: which board this is, how to get others in, and the one
+ * button everything else hangs off.
  *
  * It floats over the canvas with nothing behind the row — no bar, no glass, no
  * fade — only each button on its own small solid chip, so the board really
  * does run edge to edge — "enfocada en la pizarra y no en la interfaz"
- * (mobile/docs/01). Everything in
- * it is a shortcut into a sheet, except the code chip, which the design makes
- * directly clickable to copy because that is the single most repeated action in
- * a class.
+ * (mobile/docs/01). One row on every screen: the name and who is here on the
+ * left, Share and the menu on the right. Settings, other boards, export,
+ * access, people and the assistant all live in the menu, grouped.
  */
 import { useT, useTf } from '../../features/i18n';
 import { useBoardStore } from '../../features/board-store';
-import { formatShortCode } from '../../lib/short-code';
 import { Css, StatusColors } from '../../lib/theme';
 
-import { Avatar, AvatarOverflow } from '../ui/Avatar';
 import { IconButton } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 
-/** Every labelled header chip: same height, radius, padding and type as the icon buttons. */
-const CHIP =
-  'flex h-9 flex-none items-center justify-center gap-1.5 rounded-[12px] border border-line bg-surface px-3 text-[0.8125rem] font-bold whitespace-nowrap text-text transition hover:bg-surface-selected';
-
 export function BoardHeader({
-  compact,
-  codeCopied,
-  onCopyCode,
   onOpenPeople,
   onOpenMenu,
-  onOpenNew,
-  onOpenPrivacy,
   onOpenShare,
-  onOpenExport,
-  onOpenSettings,
 }: {
-  compact: boolean;
-  codeCopied: boolean;
-  onCopyCode: () => void;
   onOpenPeople: () => void;
   onOpenMenu: () => void;
-  /** Another whiteboard: a blank one, or one joined with a code. */
-  onOpenNew: () => void;
-  onOpenPrivacy: () => void;
   onOpenShare: () => void;
-  onOpenExport: () => void;
-  onOpenSettings: () => void;
 }) {
   const t = useT();
   const tf = useTf();
@@ -74,154 +52,69 @@ export function BoardHeader({
       ? t.offline
       : t.connecting;
 
-  // The rail owns the right edge, so on a narrow screen the header stops short
-  // of it instead of running underneath.
-  const shown = participants.slice(0, compact ? 3 : 5);
-  const overflow = participants.length - shown.length;
-  const isPrivate = meta?.access === 'private';
-
-  // The header is two clusters: on the left the board (its name, the menu,
-  // settings, export), on the right who is here and who may edit (people,
-  // permissions, the code to copy) and share.
-  return (
+  const status = (
     <>
-      <header
-        data-board-header
-        className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-2 sm:px-4 sm:pt-3"
-      >
-        <div className="flex items-start justify-between gap-2 sm:items-center">
-          <div className="pointer-events-auto flex min-w-0 flex-wrap items-center gap-2">
-            {/* On a phone the name gets a row of its own, the buttons and their words go under it. */}
-            <div className="min-w-0 max-w-fit flex-1 px-1 py-0.5 max-sm:max-w-full max-sm:basis-full">
-              <h1
-                title={meta?.name}
-                className="truncate text-[0.9375rem] leading-tight font-extrabold tracking-[-0.2px]"
-              >
-                {meta?.name ?? t.appName}
-              </h1>
-              <div className="mt-px flex items-center gap-1.5 text-[0.75rem] font-semibold text-text-secondary">
-                <span
-                  className={`h-1.5 w-1.5 flex-none rounded-full ${online ? 'sb-pulse' : ''}`}
-                  style={{ background: statusColor }}
-                />
-                <span>{statusLabel}</span>
-                {!canEdit && meta ? (
-                  <>
-                    <span className="text-text-tertiary">·</span>
-                    <span className="font-bold text-text-tertiary">{t.viewOnly}</span>
-                  </>
-                ) : null}
-              </div>
-            </div>
-
-            <IconButton icon="settings" label={t.sheetSettings} onClick={onOpenSettings} />
-            {/* Says what it does: the "+" alone read as "add something to this board". */}
-            <button
-              type="button"
-              aria-label={t.anotherWhiteboard}
-              data-tip={t.anotherWhiteboard}
-              data-tip-side="bottom"
-              onClick={onOpenNew}
-              className={CHIP}
-            >
-              <Icon name="plus" size={18} />
-              <span>{t.createOrJoin}</span>
-            </button>
-          </div>
-
-          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
-            {local ? null : (
-            <>
-            <button
-              type="button"
-              aria-label={t.connectedPeople}
-              data-tip={participants.map((p) => p.nickname).join(', ') || t.connectedPeople}
-              data-tip-side="left"
-              onClick={onOpenPeople}
-              className="flex h-9 flex-none items-center rounded-[12px] border border-line bg-surface px-[4px] transition hover:bg-surface-selected"
-            >
-              {shown.length === 0 ? (
-                <span className="grid h-[26px] w-[26px] place-items-center text-text-secondary">
-                  <Icon name="people" size={18} />
-                </span>
-              ) : (
-                shown.map((p, i) => (
-                  <Avatar
-                    key={p.userId}
-                    name={p.nickname}
-                    color={p.color}
-                    avatar={p.avatar}
-                    size={26}
-                    overlap={i > 0}
-                    title={`${p.nickname} · ${p.role}`}
-                  />
-                ))
-              )}
-              {overflow > 0 ? <AvatarOverflow count={overflow} /> : null}
-            </button>
-            <button
-              type="button"
-              aria-label={t.privacyShort}
-              data-tip={t.privacyShort}
-              data-tip-side="bottom"
-              onClick={onOpenPrivacy}
-              className={CHIP}
-            >
-              <Icon name={isPrivate ? 'lock' : 'lock-open'} size={18} />
-              {/* Below 360px the strip has no room for the word; the icon and its label stay. */}
-              <span className="max-[359px]:hidden">{t.privacyShort}</span>
-            </button>
-
-            <button
-              type="button"
-              aria-label={`${t.code} ${meta?.shortCode ?? ''}`}
-              data-tip={t.code}
-              data-tip-side="bottom"
-              onClick={onCopyCode}
-              disabled={!meta}
-              className={CHIP}
-              style={{
-                borderColor: codeCopied ? 'transparent' : Css.border,
-                background: codeCopied ? 'rgba(15,158,142,0.14)' : 'var(--color-surface)',
-                color: codeCopied ? '#0B7F72' : Css.text,
-              }}
-            >
-              <Icon name={codeCopied ? 'check' : 'copy'} size={18} />
-              <span className="font-extrabold tracking-[1px]">
-                {meta ? formatShortCode(meta.shortCode) : '———·———'}
-              </span>
-            </button>
-            </>
-            )}
-
-            <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} />
-            <button
-              type="button"
-              aria-label={t.exportImage}
-              data-tip={t.exportImage}
-              data-tip-side="bottom"
-              onClick={onOpenExport}
-              className={CHIP}
-            >
-              <Icon name="download" size={18} />
-              <span className="hidden sm:inline">{t.exportImage}</span>
-            </button>
-
-            {/* The primary action says what it is once there is room for the word. */}
-            <button
-              type="button"
-              aria-label={t.share}
-              data-tip={t.share}
-              data-tip-side="bottom"
-              onClick={onOpenShare}
-              className="flex h-9 min-w-9 flex-none items-center justify-center gap-1.5 rounded-[12px] border border-transparent bg-accent px-3 text-white shadow-accent transition hover:bg-accent-deep"
-            >
-              <Icon name="share" size={18} />
-              <span className="hidden text-[0.8125rem] font-bold sm:inline">{t.share}</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <span
+        className={`h-1.5 w-1.5 flex-none rounded-full ${online ? 'sb-pulse' : ''}`}
+        style={{ background: statusColor }}
+      />
+      <span className="truncate">{statusLabel}</span>
+      {!canEdit && meta ? (
+        <>
+          <span className="text-text-tertiary">·</span>
+          <span className="font-bold text-text-tertiary">{t.viewOnly}</span>
+        </>
+      ) : null}
     </>
+  );
+  const statusClass = 'flex min-w-0 items-center gap-1.5 text-[0.75rem] font-semibold text-text-secondary';
+
+  return (
+    <header
+      data-board-header
+      className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-2 sm:px-4 sm:pt-3"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="pointer-events-auto min-w-0 px-1 py-0.5">
+          <h1
+            title={meta?.name}
+            className="truncate text-[0.9375rem] leading-tight font-extrabold tracking-[-0.2px]"
+          >
+            {meta?.name ?? t.appName}
+          </h1>
+          {/* Who is here is one tap away: the status line opens the list. */}
+          {local ? (
+            <div className={`mt-px ${statusClass}`}>{status}</div>
+          ) : (
+            <button
+              type="button"
+              aria-label={`${t.connectedPeople}: ${statusLabel}`}
+              data-tip={participants.map((p) => p.nickname).join(', ') || t.connectedPeople}
+              data-tip-side="bottom"
+              onClick={onOpenPeople}
+              className={`touch-44 -ml-1 mt-px rounded-[8px] px-1 py-0.5 transition hover:bg-surface-selected ${statusClass}`}
+            >
+              {status}
+            </button>
+          )}
+        </div>
+
+        <div className="pointer-events-auto flex flex-none items-center gap-2">
+          {/* The primary action says what it is. */}
+          <button
+            type="button"
+            aria-label={t.share}
+            data-tip={t.share}
+            data-tip-side="bottom"
+            onClick={onOpenShare}
+            className="touch-44 flex h-10 flex-none items-center justify-center gap-1.5 rounded-[12px] border border-transparent bg-accent px-3.5 text-white shadow-accent transition hover:bg-accent-deep"
+          >
+            <Icon name="share" size={18} />
+            <span className="text-[0.8125rem] font-bold">{t.share}</span>
+          </button>
+          <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} size={40} className="touch-44" />
+        </div>
+      </div>
+    </header>
   );
 }
