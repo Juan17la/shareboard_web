@@ -107,10 +107,10 @@ export function BoardHeader({
             data-tip={t.share}
             data-tip-side="bottom"
             onClick={onOpenShare}
-            className="touch-44 flex h-10 flex-none items-center justify-center gap-1.5 rounded-[12px] border border-transparent bg-accent px-3.5 text-white shadow-accent transition hover:bg-accent-deep"
+            className="touch-44 flex h-10 flex-none items-center justify-center gap-1.5 rounded-full bg-accent pr-4 pl-3 text-white shadow-accent transition hover:bg-accent-deep"
           >
             <Icon name="share" size={18} />
-            <span className="text-[0.8125rem] font-bold">{t.share}</span>
+            <span className="text-[0.875rem] font-bold">{t.share}</span>
           </button>
           <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} size={40} className="touch-44" />
         </div>

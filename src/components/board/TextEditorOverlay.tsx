@@ -28,7 +28,7 @@ import {
   shapeBounds,
   TEXT_LINE_HEIGHT,
 } from '../../lib/geometry';
-import { Css, inkFor } from '../../lib/theme';
+import { Css, inkFor, isLightPaper } from '../../lib/theme';
 import { FONT_FAMILIES } from './renderer';
 
 export function TextEditorOverlay({
@@ -126,7 +126,9 @@ export function TextEditorOverlay({
   // The stored colour is the light-theme ink by default; flip it to the dark
   // board's ink the same way the committed element already paints (`inked` in
   // renderer.ts) — otherwise the caret is black on black.
-  const color = inkFor(element.kind === 'text' ? element.color : element.stroke, dark);
+  const color = element.kind === 'text'
+    ? inkFor(element.color, dark)
+    : inkFor(element.stroke, dark && !isLightPaper(element.fill));
   const bold = element.kind === 'text' && element.bold;
   const italic = element.kind === 'text' && element.italic;
 

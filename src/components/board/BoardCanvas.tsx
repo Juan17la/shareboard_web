@@ -703,9 +703,13 @@ export function BoardCanvas({
           store.addVote(p);
           break;
         }
-        // The sticky tool stays in hand: one note after another is how a brainstorm goes.
+        // Like a shape, a new note hands the cursor back, the note selected.
         const id = store.addSticky(p);
-        if (id) setEditingId(id);
+        if (id) {
+          store.finishCreate([id]);
+          store.setRailOpen(false);
+          setEditingId(id);
+        }
         break;
       }
       case 'shape': {
@@ -715,6 +719,21 @@ export function BoardCanvas({
         break;
       }
       case 'select': {
+        // Ctrl/⌘+click adds what is under the pointer to the selection, or takes it back out.
+        if (e.ctrlKey || e.metaKey) {
+          state.drawingId = null;
+          const hit = store.elementAt(p, 6 / store.camera.scale);
+          if (hit) {
+            const had = store.selectedIds.includes(hit.id);
+            // A group comes and goes whole, as `select` adds it back otherwise.
+            const ids = had
+              ? store.selectedIds.filter((id) => id !== hit.id && (!hit.group || store.elements[id]?.group !== hit.group))
+              : [...store.selectedIds, hit.id];
+            store.select(ids);
+            store.setRailOpen(useBoardStore.getState().selectedIds.length > 0);
+          }
+          break;
+        }
         if (beginEdit(p, store.camera.scale)) break;
         // On something not yet selected: pick it up and carry it at once. Off
         // everything: rubber-band a new selection (a click picks nothing).
@@ -969,6 +988,10 @@ export function BoardCanvas({
   }, []);
 
   const editing = editingId ? elements[editingId] : null;
+  // While typing, the options strip folds away so the words get the whole board.
+  useEffect(() => {
+    if (editingId) useBoardStore.getState().setRailOpen(false);
+  }, [editingId]);
 
   // The label button floats just below the selected shape, clear of the rotate knob.
   const labelAt = useMemo(() => {
@@ -1042,6 +1065,8 @@ export function BoardCanvas({
             const { elements, finishCreate } = useBoardStore.getState();
             const done = elements[editing.id];
             if (done?.kind === 'text' && !done.deleted && done.text) finishCreate([done.id]);
+            // Typing over: what is still selected gets its options back.
+            useBoardStore.getState().setRailOpen(useBoardStore.getState().selectedIds.length > 0);
             setEditingId(null);
             setDraft(null);
           }}

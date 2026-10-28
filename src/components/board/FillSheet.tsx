@@ -92,7 +92,7 @@ export function FillSheet({
         </div>
 
         <label className="flex flex-col gap-2">
-          <span className="flex justify-between text-[0.75rem] font-extrabold tracking-[0.9px] text-text-secondary uppercase">
+          <span className="flex justify-between text-[0.8125rem] font-bold text-text">
             {t.opacity}
             <span className="font-mono text-text">{opacity}%</span>
           </span>
