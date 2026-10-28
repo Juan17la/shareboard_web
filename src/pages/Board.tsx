@@ -40,6 +40,7 @@ import { TemplatesSheet } from '../components/sheets/TemplatesSheet';
 import { Backdrop } from '../components/ui/Backdrop';
 import { Button } from '../components/ui/Button';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { SheetBack } from '../components/ui/sheet-back';
 import { ToastHost } from '../components/ui/Toast';
 import { toast } from '../lib/toast';
 import { fill, useT } from '../features/i18n';
@@ -115,7 +116,13 @@ export default function BoardPage() {
   const meta = useBoardStore((s) => s.meta);
   const clearBoard = useBoardStore((s) => s.clearBoard);
 
-  const [sheet, setSheet] = useState<SheetName | null>(null);
+  // Sheets opened from another sheet stack up, so each can go back to the one
+  // that opened it; `setSheet` starts over, `pushSheet` goes one deeper.
+  const [stack, setStack] = useState<SheetName[]>([]);
+  const sheet = stack.at(-1) ?? null;
+  const setSheet = useCallback((next: SheetName | null) => setStack(next ? [next] : []), []);
+  const pushSheet = useCallback((next: SheetName) => setStack((s) => [...s, next]), []);
+  const backSheet = useCallback(() => setStack((s) => s.slice(0, -1)), []);
   const [confirm, setConfirm] = useState<ConfirmName | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -123,14 +130,14 @@ export default function BoardPage() {
   const [afterSignIn, setAfterSignIn] = useState<SheetName | null>(null);
   const askAccount = useCallback((from: SheetName | null) => {
     setAfterSignIn(from);
-    setSheet('account');
-  }, []);
+    pushSheet('account');
+  }, [pushSheet]);
 
   // A live board waits for a name, asked once; the offline board needs none.
   const sync = useBoardSync(id, { paused: !onboarded && !isLocalId(id) });
   const headerBottom = useHeaderBottom(sync.phase);
   // Keys belong to the board only while it is the thing on screen.
-  const openShortcuts = useCallback(() => setSheet('shortcuts'), []);
+  const openShortcuts = useCallback(() => pushSheet('shortcuts'), [pushSheet]);
   useShortcuts(sync.phase === 'ready' && sheet === null && confirm === null, openShortcuts);
 
   const handleImportSnapshot = useCallback(
@@ -172,7 +179,7 @@ export default function BoardPage() {
     } finally {
       setCreating(false);
     }
-  }, [navigate, t, userId, signedIn, askAccount]);
+  }, [navigate, t, userId, signedIn, askAccount, setSheet]);
 
   // A board that is gone (deleted, or its server forgot it) is let go of; the
   // root then opens the next one, or a new one.
@@ -245,7 +252,7 @@ export default function BoardPage() {
   if (sync.phase === 'error') {
     return (
       <main className="relative h-full">
-        <Backdrop variant="home" />
+        <Backdrop />
         <div className="relative flex h-full flex-col items-center justify-center gap-3.5 p-7 text-center">
           <h1 className="text-[1.25rem] leading-tight font-extrabold tracking-[-0.4px]">
             {t.errOpen}
@@ -284,11 +291,12 @@ export default function BoardPage() {
   const controlsTop = Math.max(landscape ? 56 : 64, headerBottom + 12);
 
   return (
+    <SheetBack.Provider value={stack.length > 1 ? backSheet : undefined}>
     <div className="relative h-full overflow-clip bg-background">
       <BoardCanvas onCursorMove={sync.sendCursor} onPreview={sync.sendPreview} />
 
       <BoardHeader
-        onOpenPeople={() => setSheet('people')}
+        onOpenPeople={() => pushSheet('people')}
         onOpenMenu={() => setSheet('menu')}
         onOpenShare={() => setSheet('share')}
       />
@@ -299,7 +307,8 @@ export default function BoardPage() {
       {/* Above the bottom toolbar on a phone; on a wide screen the tools are down the left. */}
       <ReactionStream bottom={compact ? 150 : 32} />
       <ConnectionBanner top={controlsTop + 48} onRetry={sync.retry} />
-      <FirstRunHint top={controlsTop + 56} />
+      {/* Hidden while a sheet covers the toolbar it points at. */}
+      {sheet ? null : <FirstRunHint top={controlsTop + 56} />}
       <Tutorial compact={compact} offerTop={controlsTop + 56} />
 
       <ToastHost bottom={compact ? 140 : 132} enabled={!anyOverlay} />
@@ -308,7 +317,7 @@ export default function BoardPage() {
         open={sheet === 'share'}
         onClose={() => setSheet(null)}
         link={link}
-        onOpenPrivacy={() => setSheet('privacy')}
+        onOpenPrivacy={() => pushSheet('privacy')}
         onNeedAccount={() => askAccount('share')}
       />
       <PeopleSheet open={sheet === 'people'} onClose={() => setSheet(null)} />
@@ -317,7 +326,7 @@ export default function BoardPage() {
       <PrivacySheet
         open={sheet === 'privacy'}
         onClose={() => setSheet(null)}
-        onOpenPeople={() => setSheet('people')}
+        onOpenPeople={() => pushSheet('people')}
       />
       <ExportSheet open={sheet === 'export'} onClose={() => setSheet(null)} />
       <ImportSheet
@@ -329,15 +338,15 @@ export default function BoardPage() {
       <MenuSheet
         open={sheet === 'menu'}
         onClose={() => setSheet(null)}
-        onOpenBoards={() => setSheet('boards')}
-        onOpenNew={() => setSheet('join')}
-        onOpenImport={() => setSheet('import')}
-        onOpenExport={() => setSheet('export')}
-        onOpenPrivacy={() => setSheet('privacy')}
-        onOpenPeople={() => setSheet('people')}
-        onOpenAi={() => setSheet('ai')}
-        onOpenTemplates={() => setSheet('templates')}
-        onOpenSettings={() => setSheet('settings')}
+        onOpenBoards={() => pushSheet('boards')}
+        onOpenNew={() => pushSheet('join')}
+        onOpenImport={() => pushSheet('import')}
+        onOpenExport={() => pushSheet('export')}
+        onOpenPrivacy={() => pushSheet('privacy')}
+        onOpenPeople={() => pushSheet('people')}
+        onOpenAi={() => pushSheet('ai')}
+        onOpenTemplates={() => pushSheet('templates')}
+        onOpenSettings={() => pushSheet('settings')}
         onOpenShortcuts={openShortcuts}
       />
       <BoardsSheet open={sheet === 'boards'} onClose={() => setSheet(null)} currentId={id} />
@@ -353,12 +362,12 @@ export default function BoardPage() {
         onAskClear={() => setConfirm('clear')}
         onAskDelete={() => setConfirm('delete')}
         onOpenAccount={() => askAccount(null)}
+        onOpenShortcuts={openShortcuts}
       />
       <ShortcutsSheet open={sheet === 'shortcuts'} onClose={() => setSheet(null)} />
       <AccountSheet
         open={sheet === 'account'}
         onClose={() => setSheet(null)}
-        reason={afterSignIn ? t.signInToShareBody : undefined}
         onSignedIn={() => setSheet(afterSignIn)}
       />
 
@@ -376,6 +385,7 @@ export default function BoardPage() {
         onCancel={() => setConfirm(null)}
       />
     </div>
+    </SheetBack.Provider>
   );
 }
 
@@ -401,11 +411,11 @@ function FirstRunHint({ top }: { top: number }) {
     <div className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-4" style={{ top }}>
       <GlassPanel level="chip" radius={16} overflow="visible" className="pointer-events-auto max-w-[340px] shadow-panel">
         <div className="flex items-center gap-3 py-2.5 pr-2.5 pl-4">
-          <p className="text-[0.8125rem] leading-snug font-semibold">{t.firstRunHint}</p>
+          <p className="text-[0.8125rem] leading-snug font-semibold text-balance">{t.firstRunHint}</p>
           <button
             type="button"
             onClick={dismiss}
-            className="flex-none rounded-[10px] bg-accent px-3 py-1.5 text-[0.7812rem] font-extrabold text-white transition hover:bg-accent-deep"
+            className="flex-none rounded-full bg-accent px-3.5 py-1.5 text-[0.8125rem] font-bold text-white shadow-accent transition hover:bg-accent-deep"
           >
             {t.gotIt}
           </button>

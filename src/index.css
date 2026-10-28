@@ -1,8 +1,10 @@
 @import 'tailwindcss';
 
 /**
- * Shareboard design tokens. Neutrals, labels, separators and the red/orange
- * intents are Apple's iOS/macOS system colours; the accent is the brand's.
+ * Shareboard design tokens: the wayfinding system. Signage ink on a white
+ * ground, and a set of transit "lines" that each own one job: blue is the
+ * primary action and selection, green confirms, orange asks for attention,
+ * violet marks the app-wide places. Panels are solid signage, not glass.
  *
  * Copied from the mobile app's `src/constants/theme.ts`, which is the source
  * of truth for the palette (mobile/docs/03-styles). Light is the default; the
@@ -11,81 +13,83 @@
  * variables, so nothing else has to know which theme is on.
  */
 @theme {
-  /* --- UI surfaces (restrained: board content is the star) --- */
+  /* --- UI surfaces (board content is the star) --- */
   --color-background: #ffffff;
-  --color-surface: #f2f2f7;
-  --color-surface-selected: #e5e5ea;
-  --color-text: #000000;
-  --color-text-secondary: #6c6c70;
-  --color-text-tertiary: #8e8e93;
+  --color-surface: #eef1f5;
+  --color-surface-selected: #e1e6ed;
+  --color-text: #0f1b2d;
+  --color-text-secondary: #4a566b;
+  --color-text-tertiary: #6b7689;
 
-  /* --- Brand / intent (one accent does active tool, CTA and selection) --- */
-  --color-accent: #0071e3;
-  --color-accent-deep: #0058b0;
-  /* Apple's blue, in the shade apple.com paints its buttons (#0071e3): white on
-     it clears AA. As *text* (tab labels, links) a touch deeper on the light
-     board, a lighter tint on the dark one, where the fill is only 3.4:1. */
-  --color-accent-text: #0062cc;
-  --color-accent-soft: rgba(0,113,227, 0.11);
-  --color-accent-softer: rgba(0,113,227, 0.07);
-  --color-danger: #d70015;
-  --color-danger-bright: #ff3b30;
-  --color-danger-soft: rgba(255, 59, 48, 0.08);
-  --color-warn: #c93400;
-  --color-warn-soft: rgba(255, 149, 0, 0.12);
+  /* --- Lines: one job each --- */
+  --color-accent: #0072ce;
+  --color-accent-deep: #005aa3;
+  /* The blue as *text*: deeper on white, lighter on the dark ground. */
+  --color-accent-text: #0063b4;
+  --color-accent-soft: rgba(0, 114, 206, 0.11);
+  --color-accent-softer: rgba(0, 114, 206, 0.06);
+  --color-go: #00843d;
+  --color-go-soft: rgba(0, 132, 61, 0.1);
+  --color-line-orange: #e06f00;
+  --color-line-violet: #6e4bd8;
+  --color-danger: #c8102e;
+  --color-danger-bright: #e5283c;
+  --color-danger-soft: rgba(229, 40, 60, 0.08);
+  --color-warn: #b45300;
+  --color-warn-soft: rgba(224, 111, 0, 0.12);
 
-  /* --- Glass --- */
-  --color-glass: rgba(255, 255, 255, 0.46);
-  --color-glass-solid: rgba(255, 255, 255, 0.62);
-  --color-glass-row: rgba(255, 255, 255, 0.72);
-  --color-glass-highlight: rgba(255, 255, 255, 0.92);
-  --color-line: rgba(60, 60, 67, 0.1);
-  --color-line-strong: rgba(60, 60, 67, 0.14);
-  --color-line-dashed: rgba(60, 60, 67, 0.22);
-  /* The edge of a text field: clearly there on a white or a frosted ground. */
-  --color-field: rgba(60, 60, 67, 0.58);
+  /* --- Panels (solid signage; the names stay from the glass era) --- */
+  --color-glass: rgba(255, 255, 255, 0.96);
+  --color-glass-solid: #ffffff;
+  --color-glass-row: #ffffff;
+  --color-glass-highlight: rgba(255, 255, 255, 0);
+  --color-line: rgba(15, 27, 45, 0.1);
+  --color-line-strong: rgba(15, 27, 45, 0.16);
+  --color-line-dashed: rgba(15, 27, 45, 0.28);
+  /* The edge of a text field: 3:1 against white, so a field reads as one. */
+  --color-field: #8a94a4;
 
   /* --- Connection status badges (theme-independent) --- */
-  --color-online: #0f9e8e;
-  --color-connecting: #f59e0b;
-  --color-offline: #9aa0a6;
+  --color-online: #00843d;
+  --color-connecting: #e06f00;
+  --color-offline: #8a94a4;
 
-  /* Generous, soft corners throughout. */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 26px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
 
-  --font-sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
-/* The dark board: Apple's dark system colours (iOS elevated / macOS) under
-   the same glass recipe. Blur still
-   gives the panels their depth because the tint is dark on dark. */
+/* The dark board: pure black and white, no tint. Greys are neutral; the lines
+   keep their colours because they carry meaning (primary, confirm, danger). */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --color-background: #1c1c1e;
-  --color-surface: #2c2c2e;
-  --color-surface-selected: #3a3a3c;
+  --color-background: #000000;
+  --color-surface: #141414;
+  --color-surface-selected: #262626;
   --color-text: #ffffff;
-  --color-text-secondary: #aeaeb2;
-  --color-text-tertiary: #8e8e93;
-  --color-accent: #0071e3;
-  --color-accent-deep: #0058b0;
-  --color-accent-text: #4DA2FF;
-  --color-accent-soft: rgba(10,132,255, 0.2);
-  --color-accent-softer: rgba(10,132,255, 0.11);
-  --color-danger-bright: #ff453a;
-  --color-glass: rgba(28, 28, 30, 0.55);
-  --color-glass-solid: rgba(44, 44, 46, 0.72);
-  --color-glass-row: rgba(44, 44, 46, 0.8);
-  --color-glass-highlight: rgba(255, 255, 255, 0.08);
-  --color-line: rgba(235, 235, 245, 0.1);
-  --color-line-strong: rgba(235, 235, 245, 0.16);
-  --color-line-dashed: rgba(235, 235, 245, 0.26);
-  --color-field: rgba(235, 235, 245, 0.5);
+  --color-text-secondary: #a3a3a3;
+  --color-text-tertiary: #8a8a8a;
+  --color-accent: #0072ce;
+  --color-accent-deep: #005aa3;
+  --color-accent-text: #5aaeff;
+  --color-accent-soft: rgba(43, 143, 232, 0.2);
+  --color-accent-softer: rgba(43, 143, 232, 0.1);
+  /* Same green as light: white on it must clear 4.5:1. */
+  --color-go-soft: rgba(0, 132, 61, 0.2);
+  --color-danger-bright: #ff5a5f;
+  --color-glass: rgba(10, 10, 10, 0.97);
+  --color-glass-solid: #0a0a0a;
+  --color-glass-row: #141414;
+  --color-glass-highlight: rgba(255, 255, 255, 0);
+  --color-line: rgba(255, 255, 255, 0.1);
+  --color-line-strong: rgba(255, 255, 255, 0.18);
+  --color-line-dashed: rgba(255, 255, 255, 0.3);
+  --color-field: rgba(255, 255, 255, 0.42);
 }
 
 html,
@@ -110,6 +114,14 @@ body {
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
+input,
+textarea {
+  caret-color: var(--color-accent);
 }
 
 /* In the base layer, under the utilities: an unlayered `button {}` rule beats
@@ -145,61 +157,51 @@ body {
     0 0 0 3px var(--color-accent-soft);
 }
 
-/* --- The frosted panel recipe --------------------------------------------
-   The mobile app builds this from a BlurView plus a tint, a hairline and a top
-   highlight. In a browser `backdrop-filter` does the same job in one line, so
-   the panels here are real glass on every platform rather than the near-opaque
-   fallback Android has to take. */
+/* --- Panels ----------------------------------------------------------------
+   Solid, like a sign: an opaque face and a soft offset shadow, so text on it
+   keeps full contrast over any drawing. Mirrors mobile's `ui/Glass.tsx`. */
 .glass {
-  background: linear-gradient(155deg, var(--color-glass-solid), var(--color-glass));
-  backdrop-filter: blur(30px) saturate(1.8);
-  box-shadow:
-    0 12px 34px rgba(21, 26, 45, 0.16),
-    inset 0 1px 0 var(--color-glass-highlight);
+  background: var(--color-glass-solid);
+  box-shadow: 0 10px 28px rgba(15, 27, 45, 0.14);
 }
 
-/* Rows and chips that hold text sit at a higher opacity so their contrast
-   matches flat surfaces. */
 .glass-row {
   background: var(--color-glass-row);
-  backdrop-filter: blur(18px) saturate(1.5);
 }
 
 .glass-chip {
-  background: linear-gradient(155deg, var(--color-glass-solid), var(--color-glass));
-  backdrop-filter: blur(24px) saturate(1.8);
-  box-shadow:
-    0 8px 22px rgba(21, 26, 45, 0.12),
-    inset 0 1px 0 var(--color-glass-highlight);
+  background: var(--color-glass-solid);
+  box-shadow: 0 4px 14px rgba(15, 27, 45, 0.12);
 }
 
-/* Soft elevation. */
+/* On the black board a shadow has nothing to fall on: panels are edged with a
+   hairline instead. */
+:root[data-theme='dark'] .glass,
+:root[data-theme='dark'] .glass-chip {
+  box-shadow: 0 0 0 1px var(--color-line-strong);
+}
+
+/* Elevation: offset, soft. */
 .shadow-panel {
-  box-shadow: 0 12px 34px rgba(21, 26, 45, 0.16);
+  box-shadow: 0 12px 34px rgba(15, 27, 45, 0.14);
 }
 .shadow-card {
-  box-shadow: 0 8px 20px rgba(21, 26, 45, 0.1);
+  box-shadow: 0 8px 20px rgba(15, 27, 45, 0.1);
 }
 
-/* Filled controls, the way macOS (Sonoma) and iOS paint them: the flat system
-   colour — no gradient, no coloured glow — with a lit 1px top edge, a hairline
-   ring and a tight, low shadow. Pressing dims it. `.shadow-accent` goes on
-   anything `bg-accent`; `.shadow-danger` on `bg-danger`. */
-.shadow-accent {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.28),
-    0 0 0 0.5px rgb(0 55 130 / 0.45),
-    0 1px 2px rgb(0 40 100 / 0.3);
-}
+/* Filled controls, painted like signage: the flat line colour, flat as
+   enamel, with a soft low shadow; pressing darkens it.
+   `.shadow-accent` goes on anything `bg-accent`, `.shadow-go` on `bg-go`,
+   `.shadow-danger` on `bg-danger`. */
+.shadow-accent,
+.shadow-go,
 .shadow-danger {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.26),
-    0 0 0 0.5px rgb(150 10 20 / 0.45),
-    0 1px 2px rgb(120 0 10 / 0.28);
+  box-shadow: 0 1px 2px rgb(15 27 45 / 0.18);
 }
 .shadow-accent:active:not(:disabled),
+.shadow-go:active:not(:disabled),
 .shadow-danger:active:not(:disabled) {
-  background-image: linear-gradient(rgb(0 0 0 / 0.14), rgb(0 0 0 / 0.14));
+  background-image: linear-gradient(rgb(0 0 0 / 0.16), rgb(0 0 0 / 0.16));
 }
 
 /* --- Tooltips --------------------------------------------------------------
@@ -221,15 +223,13 @@ body {
   transform: translate(-50%, 0);
   padding: 4px 9px;
   border-radius: 8px;
-  border: 1px solid var(--color-line);
-  background: var(--color-glass-row);
-  backdrop-filter: blur(18px) saturate(1.5);
-  color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-background);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
-  box-shadow: 0 8px 20px rgba(21, 26, 45, 0.1);
+  box-shadow: 0 8px 20px rgba(15, 27, 45, 0.1);
   pointer-events: none;
   z-index: 60;
 }

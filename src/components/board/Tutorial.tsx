@@ -186,7 +186,7 @@ export function Tutorial({
           <button
             type="button"
             onClick={next}
-            className="rounded-[10px] bg-accent px-3 py-1.5 text-[0.7812rem] font-extrabold text-white transition hover:bg-accent-deep"
+            className="rounded-full bg-accent px-3.5 py-1.5 text-[0.8125rem] font-bold text-white shadow-accent transition hover:bg-accent-deep"
           >
             {offer ? t.tourStart : index === STEPS.length - 1 ? t.tourDone : t.tourNext}
           </button>

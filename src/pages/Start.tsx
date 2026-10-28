@@ -61,7 +61,7 @@ export default function StartPage() {
   if (failed) {
     return (
       <main className="relative h-full">
-        <Backdrop variant="home" />
+        <Backdrop />
         <div className="relative flex h-full flex-col items-center justify-center gap-3.5 p-7 text-center">
           <h1 className="text-[1.25rem] leading-tight font-extrabold tracking-[-0.4px]">{t.errCreate}</h1>
           <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{failed}</p>

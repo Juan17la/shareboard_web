@@ -1,6 +1,7 @@
 /**
- * Create an account, or sign in to one: a segmented switch on top, two fields
- * that explain themselves, one button. Used by the account sheet, which is
+ * Sign in, or sign up: two fields that explain themselves, one button, and
+ * under it the way to the other one and the forgotten-password answer. The
+ * sheet around it carries the title, so `mode` is the sheet's to hold. Used by the account sheet, which is
  * also wherever sharing asks for an account first.
  *
  * Registering takes the name and icon already chosen (asked just before the
@@ -18,22 +19,23 @@ import { toast } from '../../lib/toast';
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Field';
 import { Icon } from '../ui/Icon';
-import { Segmented } from '../ui/Segmented';
 
 export type AuthMode = 'register' | 'login';
 
 const USERNAME = /^[a-zA-Z0-9._]{3,24}$/;
 
 export function AuthForm({
-  initialMode = 'register',
+  mode,
+  onModeChange,
   onDone,
 }: {
-  initialMode?: AuthMode;
+  mode: AuthMode;
+  onModeChange: (mode: AuthMode) => void;
   /** Signed in. */
   onDone: () => void;
 }) {
   const t = useT();
-  const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [forgot, setForgot] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [reveal, setReveal] = useState(false);
@@ -60,7 +62,8 @@ export function AuthForm({
       : null;
 
   function switchMode(next: AuthMode) {
-    setMode(next);
+    onModeChange(next);
+    setForgot(false);
     setError(null);
     setTaken(false);
     setShown({ username: false, password: false });
@@ -102,21 +105,12 @@ export function AuthForm({
     <form
       ref={formRef}
       noValidate
-      className="flex flex-col gap-3.5"
+      className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <Segmented
-        label={t.accountTitle}
-        value={mode}
-        onChange={switchMode}
-        options={[
-          { value: 'register', label: t.createAccount },
-          { value: 'login', label: t.signIn },
-        ]}
-      />
       <Field
         label={t.username}
         value={username}
@@ -131,7 +125,7 @@ export function AuthForm({
         spellCheck={false}
         name="username"
         error={shown.username ? userErr : null}
-        hint={registering ? t.usernameHint : undefined}
+        hint={registering ? <Rule met={USERNAME.test(name)}>{t.usernameHint}</Rule> : undefined}
       />
       <div className="relative">
         <Field
@@ -143,7 +137,7 @@ export function AuthForm({
           autoComplete={registering ? 'new-password' : 'current-password'}
           name="password"
           error={shown.password ? passErr : null}
-          hint={registering ? t.passwordHint : undefined}
+          hint={registering ? <Rule met={password.length >= LIMITS.minPasswordLength}>{t.passwordHint}</Rule> : undefined}
           className="!pr-12"
         />
         {/* Sits on the input row: the label above it is 7px + one line. */}
@@ -152,7 +146,7 @@ export function AuthForm({
           aria-label={reveal ? t.hidePassword : t.showPassword}
           aria-pressed={reveal}
           onClick={() => setReveal((on) => !on)}
-          className="absolute right-1.5 top-[29px] grid h-10 w-10 place-items-center rounded-[10px] text-text-secondary transition hover:bg-surface-selected hover:text-text"
+          className="absolute right-1 top-[27.5px] grid h-10 w-10 place-items-center rounded-full text-text-secondary transition hover:bg-surface hover:text-text"
         >
           <Icon name={reveal ? 'eye-slash' : 'eye'} size={18} />
         </button>
@@ -164,7 +158,44 @@ export function AuthForm({
         </p>
       ) : null}
 
-      <Button type="submit" label={registering ? t.createAccount : t.signIn} loading={busy} fullWidth />
+
+      <Button
+        type="submit"
+        variant="go"
+        icon="go"
+        label={registering ? t.signUp : t.signIn}
+        loading={busy}
+        fullWidth
+        className="flex-row-reverse"
+      />
+
+      <p className="text-center text-[0.875rem] text-text-secondary">
+        {registering ? t.haveAccount : t.noAccount}{' '}
+        <button
+          type="button"
+          onClick={() => switchMode(registering ? 'login' : 'register')}
+          className="font-bold text-accent-text underline-offset-2 hover:underline"
+        >
+          {registering ? t.signIn : t.signUp}
+        </button>
+      </p>
+      {registering ? null : (
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            aria-expanded={forgot}
+            onClick={() => setForgot((on) => !on)}
+            className="text-[0.8125rem] text-text-secondary underline underline-offset-2 hover:text-text"
+          >
+            {t.forgotPassword}
+          </button>
+          {forgot ? (
+            <p role="status" className="text-center text-[0.8125rem] leading-snug text-text-secondary">
+              {t.forgotBody}
+            </p>
+          ) : null}
+        </div>
+      )}
     </form>
   );
 }
@@ -184,4 +215,18 @@ function messageFor(err: unknown, t: ReturnType<typeof useT>): string {
     default:
       return t.errAuth;
   }
+}
+
+/** A rule under a field that ticks itself off as it is met. */
+function Rule({ met, children }: { met: boolean; children: string }) {
+  return (
+    <span className={`flex items-center gap-1.5 ${met ? 'font-semibold text-go' : ''}`}>
+      <span
+        className={`grid h-3.5 w-3.5 flex-none place-items-center rounded-full ${met ? 'bg-go text-white' : 'border-[1.5px] border-text-tertiary'}`}
+      >
+        {met ? <Icon name="check" size={9} /> : null}
+      </span>
+      {children}
+    </span>
+  );
 }

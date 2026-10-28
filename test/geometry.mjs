@@ -426,6 +426,9 @@ assert.deepEqual(bendHandleOf({ ...step, shape: 'arrow', ...draggedElbow }), { x
   s().select(['U']);
   s().reorder('front');
   assert.equal(coveringFigure(s().visibleElements(), [s().elements.U], { x: 40, y: 40 }, 6), null);
+  // A locked figure on top never covers: what sits inside it can still be moved.
+  const L = { ...box('L', 0, 0, 200, 200, 9), locked: true, fill: '#ff000080' };
+  assert.equal(coveringFigure([...s().visibleElements(), L], [s().elements.U], { x: 80, y: 80 }, 6), null);
   // The eraser follows the same line: a pass between the stroke's points erases it.
   s().eraseAt({ x: 400, y: 100 });
   s().commitErase();

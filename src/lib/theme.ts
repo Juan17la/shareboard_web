@@ -9,29 +9,29 @@ export type Theme = 'light' | 'dark';
 /** The light palette, as literals: the fallback when there is no DOM (node checks). */
 const Light = {
   background: '#FFFFFF',
-  surface: '#F2F2F7',
-  surfaceSelected: '#E5E5EA',
-  text: '#000000',
-  textSecondary: '#6C6C70',
-  textTertiary: '#8E8E93',
+  surface: '#EEF1F5',
+  surfaceSelected: '#E1E6ED',
+  text: '#0F1B2D',
+  textSecondary: '#4A566B',
+  textTertiary: '#6B7689',
 
-  /** The single brand accent: active tool, primary CTA, selected state. */
-  accent: '#0071E3',
-  accentDeep: '#0058B0',
-  accentSoft: 'rgba(0,113,227,0.11)',
-  accentSofter: 'rgba(0,113,227,0.07)',
+  /** The blue line: active tool, primary CTA, selected state. */
+  accent: '#0072CE',
+  accentDeep: '#005AA3',
+  accentSoft: 'rgba(0,114,206,0.11)',
+  accentSofter: 'rgba(0,114,206,0.06)',
 
-  danger: '#D70015',
-  dangerBright: '#FF3B30',
-  dangerSoft: 'rgba(255,59,48,0.08)',
-  warn: '#C93400',
-  warnSoft: 'rgba(255,149,0,0.12)',
+  danger: '#C8102E',
+  dangerBright: '#E5283C',
+  dangerSoft: 'rgba(229,40,60,0.08)',
+  warn: '#B45300',
+  warnSoft: 'rgba(224,111,0,0.12)',
 
-  glass: 'rgba(255,255,255,0.46)',
-  glassSolid: 'rgba(255,255,255,0.62)',
-  border: 'rgba(60,60,67,0.10)',
-  borderStrong: 'rgba(60,60,67,0.14)',
-  borderDashed: 'rgba(60,60,67,0.22)',
+  glass: 'rgba(255,255,255,0.96)',
+  glassSolid: '#FFFFFF',
+  border: 'rgba(15,27,45,0.10)',
+  borderStrong: 'rgba(15,27,45,0.16)',
+  borderDashed: 'rgba(15,27,45,0.28)',
 };
 
 /** The CSS variable behind each token; the key itself, kebab-cased, unless named here. */
@@ -93,11 +93,32 @@ export function inkFor(color: string, dark: boolean): string {
   return dark && /^#(1B2030|000000)/i.test(color) ? '#FFFFFF' + color.slice(7) : color;
 }
 
+/**
+ * A fill that reads as light paper on the dark board: bright and mostly
+ * opaque (an AI flowchart's white or yellow boxes). Its dark ink stays dark,
+ * as on a sticky note, or the white label would vanish into it.
+ */
+export function isLightPaper(fill: string | null | undefined): boolean {
+  if (!fill || (fill.length > 7 && parseInt(fill.slice(7, 9), 16) < 0x99)) return false;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(fill.slice(i, i + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150;
+}
+
+/** The lines a section can sit on: each group of a menu owns one, on web and mobile alike. */
+export type Line = 'blue' | 'green' | 'orange' | 'violet' | 'ink';
+export const LineColor: Record<Line, string> = {
+  blue: 'var(--color-accent)',
+  green: 'var(--color-go)',
+  orange: 'var(--color-line-orange)',
+  violet: 'var(--color-line-violet)',
+  ink: 'var(--color-text)',
+};
+
 /** Connection status badge colors (theme-independent). */
 export const StatusColors = {
-  online: '#0F9E8E',
-  connecting: '#F59E0B',
-  offline: '#9AA0A6',
+  online: '#00843D',
+  connecting: '#E06F00',
+  offline: '#8A94A4',
 } as const;
 
 /**
@@ -158,7 +179,7 @@ export const Avatars = [
 export const avatarColor = (icon: string): string =>
   (Avatars.find((a) => a.icon === icon) ?? Avatars[0]).color;
 
-export const Radius = { sm: 8, md: 12, lg: 16, xl: 20, xxl: 26, pill: 999 } as const;
+export const Radius = { sm: 6, md: 10, lg: 14, xl: 18, xxl: 22, pill: 999 } as const;
 
 /** Layout constants shared with the mobile app (mobile/docs/03-styles). */
 export const Layout = {

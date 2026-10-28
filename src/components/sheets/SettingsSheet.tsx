@@ -11,9 +11,12 @@
  * could change it; the alternative was a board permanently called whatever it
  * was called on the day it was made.
  *
+ * Four groups, each one card of rows: who you are, this board (with its
+ * destructive actions last), how the board looks, and help. The full shortcut
+ * list is its own sheet, one row away, instead of a wall of text here.
+ *
  * The mobile app's fourth switch, "Vibración al tocar", has no web counterpart
- * and is left out rather than shown as a dead control; the keyboard-shortcuts
- * row takes its place, since a keyboard is what this client has instead.
+ * and is left out rather than shown as a dead control.
  */
 import { useState } from 'react';
 
@@ -25,23 +28,20 @@ function useCoarsePointer() {
 }
 
 import { useT, useToggleLang } from '../../features/i18n';
+import type { Lang } from '../../features/strings';
 import { useSessionStore, type AppSettings } from '../../features/session';
 import { useBoardStore } from '../../features/board-store';
 import { renameBoard } from '../../lib/api';
 import { isLocalId, updateLocal } from '../../features/board-local';
 import { LIMITS } from '../../lib/contract';
-import { Css } from '../../lib/theme';
 
 import { AvatarPicker } from '../screens/NicknameScreen';
 import { Avatar } from '../ui/Avatar';
-import { Button } from '../ui/Button';
-import { Field } from '../ui/Field';
-import { GlassPanel } from '../ui/Glass';
 import { Icon } from '../ui/Icon';
-import { Sheet, SheetRow, SectionLabel } from '../ui/Sheet';
+import { Segmented } from '../ui/Segmented';
+import { Sheet, SheetGroup, SheetRow } from '../ui/Sheet';
 import { Toggle } from '../ui/Toggle';
 import { toast } from '../../lib/toast';
-import { ShortcutList } from './ShortcutsSheet';
 
 export function SettingsSheet({
   open,
@@ -49,16 +49,19 @@ export function SettingsSheet({
   onAskClear,
   onAskDelete,
   onOpenAccount,
+  onOpenShortcuts,
 }: {
   open: boolean;
   onClose: () => void;
   onAskClear: () => void;
   onAskDelete: () => void;
   onOpenAccount: () => void;
+  onOpenShortcuts: () => void;
 }) {
   const t = useT();
   const coarsePointer = useCoarsePointer();
   const toggleLang = useToggleLang();
+  const lang = useSessionStore((s) => s.lang);
   const settings = useSessionStore((s) => s.settings);
   const setSetting = useSessionStore((s) => s.setSetting);
   const theme = useSessionStore((s) => s.theme);
@@ -131,6 +134,10 @@ export function SettingsSheet({
     }
   }
 
+  const chevron = <Icon name="chevron" size={14} className="flex-none text-text-tertiary" />;
+  const inputRow =
+    'flex min-h-12 items-center gap-3 px-3 py-1.5 transition focus-within:shadow-[inset_0_0_0_2px_var(--color-accent)]';
+
   return (
     <Sheet
       open={open}
@@ -141,161 +148,150 @@ export function SettingsSheet({
       }}
       closeLabel={t.close}
     >
-      <div className="flex flex-col gap-2.5">
-        <SheetRow
-          title={account ? `@${account.username}` : t.accountGuest}
-          description={account ? t.sheetAccount : t.accountGuestDesc}
-          ariaLabel={t.sheetAccount}
-          onClick={() => {
-            commitNick();
-            onOpenAccount();
-          }}
-          right={account ? <Icon name="chevron" size={14} /> : <span className="flex-none text-[0.8125rem] font-extrabold text-accent">{t.signIn}</span>}
-        />
+      <div className="flex flex-col gap-4">
+        <SheetGroup title={t.setYou} line="blue">
+          <SheetRow
+            title={account ? `@${account.username}` : t.accountGuest}
+            description={account ? t.sheetAccount : t.accountGuestDesc}
+            ariaLabel={t.sheetAccount}
+            onClick={() => {
+              commitNick();
+              onOpenAccount();
+            }}
+            right={account ? chevron : <span className="flex-none text-[0.8125rem] font-bold text-accent-text">{t.signIn}</span>}
+          />
+          {/* Who you are on a board: the name beside your cursor and its icon. */}
+          <label className={inputRow}>
+            <Avatar name={nick || '?'} color={nickColor} avatar={avatar} size={32} />
+            <input
+              value={nick}
+              onChange={(e) => setNick(e.target.value.trimStart().slice(0, LIMITS.maxNicknameLength))}
+              onBlur={commitNick}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              placeholder={t.nickPlaceholder}
+              autoComplete="nickname"
+              aria-label={t.nickPlaceholder}
+              className="sb-bare min-w-0 flex-1 bg-transparent text-[0.9375rem] font-medium outline-none placeholder:text-text-secondary"
+            />
+            <Icon name="edit" size={15} className="flex-none text-text-tertiary" />
+          </label>
+          <div className="flex flex-col gap-2 px-3 py-2.5">
+            <div className="text-[0.75rem] font-semibold text-text-secondary">{t.yourIcon}</div>
+            <AvatarPicker name={nick} />
+          </div>
+        </SheetGroup>
 
-        {/* Who you are on a board: the name beside your cursor and its icon. */}
-        <SectionLabel>{t.nickPlaceholder}</SectionLabel>
-        <GlassPanel level="row" radius={18} border={null} className="sb-focus-row">
-          <div className="flex items-center gap-3 p-3">
-            <Avatar name={nick || '?'} color={nickColor} avatar={avatar} size={42} />
-            <div className="min-w-0 flex-1">
-              <Field
-                bare
-                value={nick}
-                onChange={(e) =>
-                  setNick(e.target.value.trimStart().slice(0, LIMITS.maxNicknameLength))
-                }
-                onBlur={commitNick}
+        {meta ? (
+          <SheetGroup title={t.menuThisBoard} line="green">
+            <label className={isCreator ? inputRow : `${inputRow} focus-within:shadow-none`}>
+              <span className="w-16 flex-none text-[0.8125rem] font-semibold text-text-secondary">{t.boardName}</span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => void commitName()}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') e.currentTarget.blur();
                 }}
-                placeholder={t.nickPlaceholder}
-                autoComplete="nickname"
-                aria-label={t.nickPlaceholder}
-                className="!text-[1rem]"
+                readOnly={!isCreator || renaming}
+                maxLength={LIMITS.maxBoardNameLength}
+                aria-label={t.rename}
+                className={`sb-bare min-w-0 flex-1 bg-transparent text-[0.9375rem] font-medium outline-none ${isCreator ? 'text-text' : 'text-text-secondary'}`}
               />
-            </div>
-          </div>
-        </GlassPanel>
-        <SectionLabel>{t.yourIcon}</SectionLabel>
-        <AvatarPicker name={nick} />
-
-        {meta ? (
-          <GlassPanel level="row" radius={15} border={null} className={isCreator ? 'sb-focus-row' : undefined}>
-            <div className="flex items-center gap-2.5 p-3.5">
-              <div className="min-w-0 flex-1">
-                <div className="text-[0.8125rem] leading-tight font-bold">{t.boardName}</div>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={() => void commitName()}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.currentTarget.blur();
-                  }}
-                  readOnly={!isCreator || renaming}
-                  maxLength={LIMITS.maxBoardNameLength}
-                  aria-label={t.rename}
-                  className="mt-0.5 w-full bg-transparent p-0 text-[0.8125rem] font-semibold outline-none"
-                  style={{ color: isCreator ? Css.text : Css.textSecondary }}
-                />
-              </div>
-              {isCreator ? (
-                <span className="text-text-tertiary">
-                  <Icon name="edit" size={16} />
-                </span>
-              ) : null}
-            </div>
-          </GlassPanel>
+              {isCreator ? <Icon name="edit" size={15} className="flex-none text-text-tertiary" /> : null}
+            </label>
+            {canEdit ? (
+              <SheetRow
+                title={t.clearBoard}
+                tone="danger"
+                onClick={onAskClear}
+                right={<Icon name="trash" size={16} className="flex-none text-danger" />}
+              />
+            ) : null}
+            {/* The offline board is never deleted, only cleared: the app always opens on it. */}
+            {isCreator && !isLocalId(meta.id) ? (
+              <SheetRow
+                title={t.deleteBoard}
+                tone="danger"
+                onClick={onAskDelete}
+                right={<Icon name="x-circle" size={16} className="flex-none text-danger" />}
+              />
+            ) : null}
+          </SheetGroup>
         ) : null}
 
-        {rows.map((row) => (
+        <SheetGroup title={t.setDisplay} line="violet">
+          {rows.map((row) => (
+            <SheetRow
+              key={row.key}
+              title={row.label}
+              description={row.desc}
+              right={<Toggle value={settings[row.key]} onChange={(next) => setSetting(row.key, next)} label={row.label} />}
+            />
+          ))}
           <SheetRow
-            key={row.key}
-            title={row.label}
-            description={row.desc}
-            right={
-              <Toggle
-                value={settings[row.key]}
-                onChange={(next) => setSetting(row.key, next)}
-                label={row.label}
+            title={t.settingTheme}
+            description={t.settingThemeDesc}
+            right={<Toggle value={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label={t.settingTheme} />}
+          />
+          <div className="flex min-h-12 items-center justify-between gap-3 px-3 py-2">
+            <div className="text-[0.875rem] font-semibold">{t.language}</div>
+            <div className="w-44">
+              <Segmented<Lang>
+                label={t.language}
+                value={lang}
+                onChange={(next) => {
+                  if (next !== lang) toggleLang();
+                }}
+                options={[
+                  { value: 'es', label: 'Español' },
+                  { value: 'en', label: 'English' },
+                ]}
               />
-            }
-          />
-        ))}
-
-        <SheetRow
-          title={t.tourReplay}
-          description={t.tourReplayDesc}
-          onClick={() => {
-            useSessionStore.getState().setTutorialDone(false);
-            onClose();
-          }}
-          right={<Icon name="chevron" size={14} />}
-        />
-
-        <SheetRow
-          title={t.settingTheme}
-          description={t.settingThemeDesc}
-          right={<Toggle value={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label={t.settingTheme} />}
-        />
-
-        <GlassPanel level="row" radius={15}>
-          <div className="flex items-center justify-between gap-2.5 p-3.5">
-            <div className="text-[0.8125rem] leading-tight font-bold">{t.language}</div>
-            <button
-              type="button"
-              aria-label={t.language}
-              onClick={toggleLang}
-              className="rounded-[11px] border border-line-strong bg-surface px-3 py-[7px] text-[0.75rem] font-extrabold transition hover:bg-surface-selected"
-            >
-              {t.langLabel}
-            </button>
-          </div>
-        </GlassPanel>
-
-        {coarsePointer ? (
-          <GlassPanel level="row" radius={15}>
-            <div className="flex items-start gap-2.5 p-3.5">
-              <span className="mt-0.5 text-text-secondary">
-                <Icon name="hand" size={18} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[0.8125rem] leading-tight font-bold">{t.gestures}</div>
-                <div className="mt-1 text-[0.75rem] leading-relaxed text-text-secondary">
-                  {t.gesturesDesc}
-                </div>
-              </div>
             </div>
-          </GlassPanel>
-        ) : (
-          <ShortcutList />
-        )}
+          </div>
+        </SheetGroup>
 
-        <div className="h-1" />
-
-        {canEdit ? (
-          <button
-            type="button"
-            aria-label={t.clearBoard}
-            onClick={onAskClear}
-            className="flex items-center justify-center gap-2 rounded-[15px] border py-3.5 text-[0.8125rem] font-extrabold text-danger transition hover:brightness-95"
-            style={{ borderColor: 'rgba(229,72,77,0.28)', background: Css.dangerSoft }}
-          >
-            <Icon name="trash" size={17} />
-            {t.clearBoard}
-          </button>
-        ) : null}
-
-        {/* The offline board is never deleted, only cleared: the app always opens on it. */}
-        {isCreator && !isLocalId(meta.id) ? (
-          <Button
-            label={t.deleteBoard}
-            icon="x-circle"
-            variant="danger"
-            onClick={onAskDelete}
-            fullWidth
+        <SheetGroup title={t.setHelp} line="orange">
+          <SheetRow
+            title={t.tourReplay}
+            description={t.tourReplayDesc}
+            onClick={() => {
+              useSessionStore.getState().setTutorialDone(false);
+              onClose();
+            }}
+            right={chevron}
           />
-        ) : null}
+          {coarsePointer ? (
+            <div className="flex flex-col gap-1.5 px-3 py-2.5">
+              <div className="text-[0.875rem] font-semibold">{t.gestures}</div>
+              {/* One gesture per line, not one run-on sentence. */}
+              <ul className="flex list-disc flex-col gap-1 pl-4 text-[0.8125rem] leading-snug text-text-secondary marker:text-text-tertiary">
+                {t.gesturesDesc.split(' · ').map((gesture) => (
+                  <li key={gesture}>{gesture.charAt(0).toUpperCase() + gesture.slice(1)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <SheetRow
+              title={t.shortcuts}
+              description={t.shortcutsDesc}
+              onClick={() => {
+                commitNick();
+                onOpenShortcuts();
+              }}
+              right={
+                <span className="flex flex-none items-center gap-2">
+                  <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-[6px] border-[1.5px] border-line-strong px-1.5 font-sans text-[0.75rem] font-semibold">
+                    ?
+                  </kbd>
+                  {chevron}
+                </span>
+              }
+            />
+          )}
+        </SheetGroup>
       </div>
     </Sheet>
   );

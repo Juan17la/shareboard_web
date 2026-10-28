@@ -107,7 +107,7 @@ export function ColorPickerSheet({
         ))}
 
         <div className="h-1.5" />
-        <div className="text-[0.75rem] font-extrabold tracking-[0.9px] text-text-secondary uppercase">
+        <div className="text-[0.8125rem] font-bold text-text">
           {t.custom}
         </div>
         <div className="flex gap-1.5">
