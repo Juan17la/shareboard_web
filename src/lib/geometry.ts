@@ -553,6 +553,8 @@ export function coveringFigure(
   at: Point,
   radius: number,
 ): BoardElement | null {
+  // A locked figure is out of reach: it never covers what is drawn inside or under it.
+  visible = visible.filter((el) => !el.locked);
   const hits = hitTest(visible, at, radius);
   if (!hits.length) return null;
   const chosen = new Set(selected.map((el) => el.id));
@@ -1100,7 +1102,7 @@ export function followLinks(
 export function shapeAt(elements: BoardElement[], at: Point, pad: number): ShapeElement | null {
   for (let i = elements.length - 1; i >= 0; i--) {
     const el = elements[i];
-    if (el.kind === 'shape' && shapeHit(el, at, pad)) return el;
+    if (el.kind === 'shape' && !el.locked && shapeHit(el, at, pad)) return el;
   }
   return null;
 }

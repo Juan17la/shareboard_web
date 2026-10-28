@@ -49,7 +49,7 @@ import {
   type Bounds,
 } from '../../lib/geometry';
 import { FONT_FAMILIES, markerSize } from '../../lib/svg';
-import { Colors, GRID, inkFor } from '../../lib/theme';
+import { Colors, GRID, inkFor, isLightPaper } from '../../lib/theme';
 import type { Camera } from '../../features/board-store';
 import type { Participant } from '../../lib/contract';
 
@@ -319,8 +319,8 @@ let ground = '#FFFFFF';
  * the dark theme's text colour (`inkFor`). The element itself is untouched.
  */
 export function inked(el: BoardElement): BoardElement {
-  // A sticky note is light paper on either board: its dark ink stays dark.
-  if (el.kind === 'shape' && el.sticky) return el;
+  // A sticky note, or a figure filled with light paper, keeps its dark ink on either board.
+  if (el.kind === 'shape' && (el.sticky || isLightPaper(el.fill))) return el;
   switch (el.kind) {
     case 'stroke':
     case 'text':
