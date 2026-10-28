@@ -46,7 +46,7 @@ export function NicknameScreen({
 
   return (
     <main className="relative h-full overflow-hidden">
-      <Backdrop variant="nickname" />
+      <Backdrop />
       <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-4 py-6">
         <GlassPanel
           level="panel"

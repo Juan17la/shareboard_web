@@ -10,6 +10,7 @@ import { useRef } from 'react';
 
 import { useDialogFocus } from '../../hooks/use-dialog-focus';
 import { useEscape } from '../../hooks/use-escape';
+import { Button } from './Button';
 import { GlassPanel } from './Glass';
 import { Icon } from './Icon';
 
@@ -61,48 +62,30 @@ export function ConfirmDialog({
       <div
         aria-hidden="true"
         onClick={onCancel}
-        className="sb-scrim absolute inset-0 bg-[rgba(21,26,45,0.34)]"
+        className="sb-scrim absolute inset-0 bg-[rgba(15,27,45,0.34)]"
       />
 
+      {/* Left-aligned like the sheets: what happens, why it matters, then the
+          two answers, the safe one first and the consequence on the right. */}
       <GlassPanel
         level="panel"
-        radius={24}
-        border="var(--color-glass-highlight)"
-        className="sb-dialog relative w-full max-w-[320px]"
-        style={{ boxShadow: '0 22px 60px rgba(21,26,45,0.28)' }}
+        radius={16}
+        border={null}
+        className="sb-dialog relative w-full max-w-[380px]"
+        style={{ boxShadow: '0 18px 48px rgba(15,27,45,0.26)' }}
       >
-        <div className="flex flex-col items-center gap-2.5 px-5 py-[22px] text-center">
-          <div
-            className="grid h-11 w-11 place-items-center rounded-[15px]"
-            style={{
-              background: isDanger ? 'var(--color-danger-soft)' : 'var(--color-warn-soft)',
-              color: accent,
-            }}
-          >
-            <Icon name="warning" size={24} />
+        <div className="flex flex-col gap-3 p-[18px]">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 flex-none place-items-center rounded-full" style={{ background: isDanger ? 'var(--color-danger-soft)' : 'var(--color-warn-soft)', color: accent }}>
+              <Icon name="warning" size={18} />
+            </span>
+            <h2 className="text-[1.0625rem] leading-tight font-bold tracking-[-0.2px]">{title}</h2>
           </div>
-
-          <h2 className="text-[1.0625rem] leading-tight font-extrabold tracking-[-0.2px]">{title}</h2>
-          <p className="text-[0.7812rem] leading-relaxed text-text-secondary">{body}</p>
-
-          <div className="mt-1 flex w-full gap-2.5">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onCancel}
-              className="flex-1 rounded-[14px] border border-line-strong bg-glass-solid py-[13px] text-[0.8125rem] font-extrabold transition hover:bg-surface-selected disabled:opacity-60"
-            >
-              {cancelLabel}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onConfirm}
-              style={{ background: accent }}
-              className="flex-1 rounded-[14px] py-[13px] text-[0.8125rem] font-extrabold text-white transition hover:brightness-110 disabled:opacity-60"
-            >
-              {confirmLabel}
-            </button>
+          <p className="text-[0.875rem] leading-snug text-text-secondary">{body}</p>
+          <div className="mt-1 flex justify-end gap-2">
+            <Button label={cancelLabel} variant="secondary" compact disabled={busy} onClick={onCancel} />
+            {/* Both uses (clear, delete) destroy work: the answer is always red. */}
+            <Button label={confirmLabel} variant="danger" compact loading={busy} onClick={onConfirm} />
           </div>
         </div>
       </GlassPanel>

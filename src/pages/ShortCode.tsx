@@ -36,7 +36,7 @@ export default function ShortCodePage() {
 
   return (
     <main className="relative h-full">
-      <Backdrop variant="home" />
+      <Backdrop />
       <div className="relative flex h-full flex-col items-center justify-center gap-3.5 p-7 text-center">
         {failed ? (
           <>

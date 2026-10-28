@@ -1,12 +1,14 @@
 /**
  * "Account": who is signed in and the way out — or, for a guest, the form to
- * sign in. Sharing opens it too, with `reason` saying why it is asking.
+ * sign in. Sharing opens it too, after its own sheet has said why.
  */
 import { fill, useT } from '../../features/i18n';
 import { useSessionStore } from '../../features/session';
 import { toast } from '../../lib/toast';
 
-import { AuthForm } from '../account/AuthForm';
+import { useState } from 'react';
+
+import { AuthForm, type AuthMode } from '../account/AuthForm';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { GlassPanel } from '../ui/Glass';
@@ -15,13 +17,10 @@ import { Sheet } from '../ui/Sheet';
 export function AccountSheet({
   open,
   onClose,
-  reason,
   onSignedIn,
 }: {
   open: boolean;
   onClose: () => void;
-  /** Shown above the form: why an account is needed right now. */
-  reason?: string;
   /** Called after signing in; closes the sheet by default. */
   onSignedIn?: () => void;
 }) {
@@ -30,12 +29,20 @@ export function AccountSheet({
   const nickname = useSessionStore((s) => s.nickname);
   const nickColor = useSessionStore((s) => s.nickColor);
   const avatar = useSessionStore((s) => s.avatar);
+  // Sign in first: most people opening this already have an account somewhere.
+  const [mode, setMode] = useState<AuthMode>('login');
 
   return (
-    <Sheet open={open} title={account ? t.sheetAccount : (reason ? t.signInToShare : t.signIn)} onClose={onClose} closeLabel={t.close}>
+    <Sheet
+      open={open}
+      title={account ? t.sheetAccount : mode === 'register' ? t.signUp : t.signIn}
+      large={!account}
+      onClose={onClose}
+      closeLabel={t.close}
+    >
       {account ? (
         <div className="flex flex-col gap-3">
-          <GlassPanel level="row" radius={18}>
+          <GlassPanel level="row" radius={14} border="var(--color-line-strong)">
             <div className="flex items-center gap-3 p-3.5">
               <Avatar name={nickname} color={nickColor} avatar={avatar} size={44} />
               <div className="min-w-0 flex-1">
@@ -58,9 +65,8 @@ export function AccountSheet({
           />
         </div>
       ) : (
-        <div className="flex flex-col gap-4 pb-1">
-          <p className="text-[0.8125rem] leading-relaxed text-text-secondary">{reason ?? t.accountSub}</p>
-          <AuthForm initialMode="login" onDone={onSignedIn ?? onClose} />
+        <div className="pb-1">
+          <AuthForm mode={mode} onModeChange={setMode} onDone={onSignedIn ?? onClose} />
         </div>
       )}
     </Sheet>

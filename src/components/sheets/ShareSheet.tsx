@@ -73,11 +73,11 @@ export function ShareSheet({
               type="button"
               aria-label={`${t.code} ${code}`}
               onClick={() => copy(code, t.toastCopied)}
-              className="flex items-center justify-between gap-2 rounded-[13px] border border-line-strong bg-surface px-3.5 py-3 transition hover:bg-surface-selected"
+              className="flex h-12 items-center gap-2.5 self-start rounded-full bg-accent pr-4 pl-2 text-white shadow-accent transition hover:bg-accent-deep"
             >
-              <span className="text-[1.25rem] font-extrabold tracking-[1.6px]">
-                {formatShortCode(code)}
-              </span>
+              {/* The code as a line badge: a station ring, then the code to read out. */}
+              <span aria-hidden="true" className="h-5 w-5 flex-none rounded-full border-[4px] border-white" />
+              <span className="font-mono text-[1.25rem] font-bold tracking-[1.5px]">{formatShortCode(code)}</span>
               <Icon name="copy" size={16} />
             </button>
           </div>
@@ -151,19 +151,21 @@ function LocalShare({
 
   return (
     <Sheet open={open} title={t.sheetShare} onClose={onClose} closeLabel={t.close}>
-      <div className="flex flex-col gap-3">
-        <p className="text-[0.8125rem] leading-relaxed text-text-secondary">
-          {signedIn ? t.shareLocalBody : t.signInToShareBody}
-        </p>
-        {signedIn ? (
+      {signedIn ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-[0.875rem] leading-snug text-text-secondary">{t.shareLocalBody}</p>
           <Button label={t.shareLocalCta} icon="share" loading={busy} fullWidth onClick={() => void promote()} />
-        ) : (
+          {sharedAs ? (
+            <Button label={t.openShared} icon="link" variant="secondary" fullWidth onClick={() => navigate(`/board/${sharedAs}`)} />
+          ) : null}
+        </div>
+      ) : (
+        // Sharing needs an account, so a guest gets the one way forward and nothing else.
+        <div className="flex flex-col gap-3">
+          <p className="text-[0.875rem] leading-snug text-text-secondary">{t.signInToShareBody}</p>
           <Button label={t.signInToShare} icon="user" fullWidth onClick={onNeedAccount} />
-        )}
-        {sharedAs ? (
-          <Button label={t.openShared} icon="link" variant="secondary" fullWidth onClick={() => navigate(`/board/${sharedAs}`)} />
-        ) : null}
-      </div>
+        </div>
+      )}
     </Sheet>
   );
 }

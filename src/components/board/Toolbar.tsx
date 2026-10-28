@@ -754,7 +754,7 @@ function AlignIcon({ align, valign }: { align?: (typeof H_ALIGNS)[number]; valig
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-1.5">
-      <span className="text-[0.625rem] leading-none font-extrabold tracking-[0.8px] text-text-secondary uppercase">
+      <span className="text-[0.6875rem] leading-none font-bold text-text-secondary">
         {title}
       </span>
       <div className="flex flex-wrap items-center gap-1.5">{children}</div>
@@ -834,23 +834,15 @@ function ToolButton({
       style={{
         width: size,
         height: size,
-        borderRadius: size < 40 ? 12 : 14,
-        borderColor: active ? 'transparent' : 'transparent',
+        borderRadius: size / 2,
         backgroundColor: active ? Css.accent : 'transparent',
         color: active ? '#FFFFFF' : Css.text,
       }}
-      className={`relative flex flex-none items-center justify-center border transition ${
+      className={`relative flex flex-none items-center justify-center transition ${
         active ? 'shadow-accent' : 'hover:bg-surface-selected'
       }`}
     >
       <Icon name={icon} size={21} />
-      {/* The key, as small as Excalidraw's; a touch screen has no keyboard to use it. */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute right-[3px] bottom-[1px] text-[0.5625rem] leading-none font-bold uppercase opacity-55 [@media(hover:none)]:hidden"
-      >
-        {shortcut}
-      </span>
     </button>
   );
 }
