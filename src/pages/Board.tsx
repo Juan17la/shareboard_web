@@ -20,32 +20,32 @@
 import { Suspense, lazy, useCallback, useEffect, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { BoardCanvas } from '../components/board/BoardCanvas';
-import { ConnectionBanner } from '../components/board/ConnectionBanner';
-import { BottomControls } from '../components/board/BottomControls';
-import { ReactionStream, TimerPill } from '../components/board/ClassControls';
-import { Toolbar } from '../components/board/Toolbar';
-import { Tutorial } from '../components/board/Tutorial';
-import { BoardHeader } from '../components/header/BoardHeader';
-import { NicknameScreen } from '../components/screens/NicknameScreen';
-import { PinScreen } from '../components/screens/PinScreen';
-import { BoardsSheet } from '../components/sheets/BoardsSheet';
-import { JoinSheet } from '../components/sheets/JoinSheet';
-import { MenuSheet } from '../components/sheets/MenuSheet';
-import { PeopleSheet } from '../components/sheets/PeopleSheet';
-import { PrivacySheet } from '../components/sheets/PrivacySheet';
-import { SettingsSheet } from '../components/sheets/SettingsSheet';
-import { ShortcutsSheet } from '../components/sheets/ShortcutsSheet';
-import { TemplatesSheet } from '../components/sheets/TemplatesSheet';
-import { Backdrop } from '../components/ui/Backdrop';
-import { Button } from '../components/ui/Button';
-import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { SheetBack } from '../components/ui/sheet-back';
-import { ToastHost } from '../components/ui/Toast';
+import { BoardCanvas } from '../components/organisms/board/BoardCanvas';
+import { ConnectionBanner } from '../components/molecules/ConnectionBanner';
+import { BottomControls } from '../components/organisms/board/BottomControls';
+import { ReactionStream, TimerPill } from '../components/organisms/board/ClassControls';
+import { Toolbar } from '../components/organisms/board/Toolbar';
+import { Tutorial } from '../components/organisms/board/Tutorial';
+import { BoardHeader } from '../components/organisms/header/BoardHeader';
+import { NicknameScreen } from '../components/templates/NicknameScreen';
+import { PinScreen } from '../components/templates/PinScreen';
+import { BoardsSheet } from '../components/organisms/sheets/BoardsSheet';
+import { JoinSheet } from '../components/organisms/sheets/JoinSheet';
+import { MenuSheet } from '../components/organisms/sheets/MenuSheet';
+import { PeopleSheet } from '../components/organisms/sheets/PeopleSheet';
+import { PrivacySheet } from '../components/organisms/sheets/PrivacySheet';
+import { SettingsSheet } from '../components/organisms/sheets/SettingsSheet';
+import { ShortcutsSheet } from '../components/organisms/sheets/ShortcutsSheet';
+import { TemplatesSheet } from '../components/organisms/sheets/TemplatesSheet';
+import { Backdrop } from '../components/atoms/Backdrop';
+import { Button } from '../components/atoms/Button';
+import { ConfirmDialog } from '../components/molecules/ConfirmDialog';
+import { SheetBack } from '../components/molecules/sheet-back';
+import { ToastHost } from '../components/molecules/Toast';
 import { toast } from '../lib/toast';
 import { fill, useT } from '../features/i18n';
-import { GlassPanel } from '../components/ui/Glass';
-import { useSessionStore } from '../features/session';
+import { GlassPanel } from '../components/atoms/Glass';
+import { mayShare, useSessionStore } from '../features/session';
 import { hasContent, useBoardStore } from '../features/board-store';
 import { isLocalId } from '../features/board-local';
 import { useBoardSync } from '../hooks/use-board-sync';
@@ -89,11 +89,11 @@ function lazySheet<P extends { open: boolean }>(load: () => Promise<ComponentTyp
     ) : null;
   };
 }
-const AccountSheet = lazySheet(() => import('../components/sheets/AccountSheet').then((m) => m.AccountSheet));
-const AiSheet = lazySheet(() => import('../components/sheets/AiSheet').then((m) => m.AiSheet));
-const ExportSheet = lazySheet(() => import('../components/sheets/ExportSheet').then((m) => m.ExportSheet));
-const ImportSheet = lazySheet(() => import('../components/sheets/ImportSheet').then((m) => m.ImportSheet));
-const ShareSheet = lazySheet(() => import('../components/sheets/ShareSheet').then((m) => m.ShareSheet));
+const AccountSheet = lazySheet(() => import('../components/organisms/sheets/AccountSheet').then((m) => m.AccountSheet));
+const AiSheet = lazySheet(() => import('../components/organisms/sheets/AiSheet').then((m) => m.AiSheet));
+const ExportSheet = lazySheet(() => import('../components/organisms/sheets/ExportSheet').then((m) => m.ExportSheet));
+const ImportSheet = lazySheet(() => import('../components/organisms/sheets/ImportSheet').then((m) => m.ImportSheet));
+const ShareSheet = lazySheet(() => import('../components/organisms/sheets/ShareSheet').then((m) => m.ShareSheet));
 
 export default function BoardPage() {
   const { id = '' } = useParams();
@@ -112,6 +112,8 @@ export default function BoardPage() {
   const userId = useSessionStore((s) => s.userId);
   const onboarded = useSessionStore((s) => s.onboarded);
   const signedIn = useSessionStore((s) => s.account !== null);
+  // Sharing (a new live board, an import) needs a verified email; the account sheet asks for it.
+  const canShare = useSessionStore((s) => mayShare(s.account));
 
   const meta = useBoardStore((s) => s.meta);
   const clearBoard = useBoardStore((s) => s.clearBoard);
@@ -142,7 +144,7 @@ export default function BoardPage() {
 
   const handleImportSnapshot = useCallback(
     async (snapshot: BoardSnapshot) => {
-      if (!signedIn) {
+      if (!canShare) {
         askAccount('import');
         return;
       }
@@ -154,13 +156,13 @@ export default function BoardPage() {
       );
       navigate(`/board/${created.id}`, { replace: true });
     },
-    [navigate, t, userId, signedIn, askAccount],
+    [navigate, t, userId, canShare, askAccount],
   );
 
   const [creating, setCreating] = useState(false);
   /** A fresh, empty whiteboard — public, anyone with the code can draw; the access button changes that. */
   const createNew = useCallback(async (name = '') => {
-    if (!signedIn) {
+    if (!canShare) {
       askAccount('join');
       return;
     }
@@ -179,7 +181,7 @@ export default function BoardPage() {
     } finally {
       setCreating(false);
     }
-  }, [navigate, t, userId, signedIn, askAccount, setSheet]);
+  }, [navigate, t, userId, canShare, askAccount, setSheet]);
 
   // A board that is gone (deleted, or its server forgot it) is let go of; the
   // root then opens the next one, or a new one.
@@ -319,6 +321,8 @@ export default function BoardPage() {
         link={link}
         onOpenPrivacy={() => pushSheet('privacy')}
         onNeedAccount={() => askAccount('share')}
+        onCreateBlank={() => void createNew()}
+        creating={creating}
       />
       <PeopleSheet open={sheet === 'people'} onClose={() => setSheet(null)} />
       <AiSheet open={sheet === 'ai'} onClose={() => setSheet(null)} />

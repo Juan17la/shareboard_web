@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import './index.css';
 import BoardPage from './pages/Board';
+import LandingPage from './pages/Landing';
 import ShortCodePage from './pages/ShortCode';
 import StartPage from './pages/Start';
 
@@ -12,6 +13,8 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<StartPage />} />
+        {/* Public page about the app: what it does, and where to get it. */}
+        <Route path="/inicio" element={<LandingPage />} />
         {/* Shareable link form: /b/<code> resolves to the canonical board route. */}
         <Route path="/b/:code" element={<ShortCodePage />} />
         <Route path="/board/:id" element={<BoardPage />} />
