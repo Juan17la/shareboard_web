@@ -76,6 +76,12 @@ export interface AccountProfile {
   username: string;
   nickname: string;
   avatar?: string;
+  /** Null on accounts from before emails, until one is added. */
+  email: string | null;
+  /** Sharing a board needs it, when `verificationRequired`. */
+  emailVerified: boolean;
+  /** The server's REQUIRE_EMAIL_VERIFICATION: off, accounts share without verifying. */
+  verificationRequired: boolean;
 }
 
 export interface SignedIn {
@@ -192,14 +198,38 @@ export const importSnapshot = (snapshot: BoardSnapshot, creatorId: UserId) =>
 /** `deviceId`: the guest id used until now, whose boards the account takes over. */
 export const register = (body: {
   username: string;
+  email: string;
   password: string;
   nickname: string;
   avatar?: string;
   deviceId: UserId;
 }) => request<SignedIn>('/auth/register', { method: 'POST', body });
 
-export const login = (body: { username: string; password: string; deviceId: UserId }) =>
+/** `login`: the username or the email. */
+export const login = (body: { login: string; password: string; deviceId: UserId }) =>
   request<SignedIn>('/auth/login', { method: 'POST', body });
+
+export const getMe = () => request<AccountProfile>('/me');
+
+/** Adds or changes the account's email (with its password) and sends it a 6-digit code. */
+export const setEmail = (email: string, password: string) =>
+  request<AccountProfile>('/me/email', { method: 'POST', body: { email, password } });
+
+export const resendEmailCode = () => request<void>('/me/email/resend', { method: 'POST' });
+
+export const verifyEmail = (code: string) =>
+  request<AccountProfile>('/me/email/verify', { method: 'POST', body: { code } });
+
+/** A new token for this browser comes back: every other session ends. */
+export const changePassword = (password: string, newPassword: string) =>
+  request<SignedIn>('/me/password', { method: 'POST', body: { password, newPassword } });
+
+/** Emails a reset code if the address has an account; answers the same either way. */
+export const forgotPassword = (email: string) =>
+  request<void>('/auth/password/forgot', { method: 'POST', body: { email } });
+
+export const resetPassword = (body: { email: string; code: string; password: string }) =>
+  request<SignedIn>('/auth/password/reset', { method: 'POST', body });
 
 /** Every board the signed-in account made or has got into, newest first. */
 export const getMyBoards = async () => (await request<{ boards: MyBoard[] }>('/me/boards')).boards;

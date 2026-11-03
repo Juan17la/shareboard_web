@@ -11,8 +11,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Backdrop } from '../components/ui/Backdrop';
-import { Button } from '../components/ui/Button';
+import { Backdrop } from '../components/atoms/Backdrop';
+import { Button } from '../components/atoms/Button';
 import { useT } from '../features/i18n';
 import { useSessionStore } from '../features/session';
 import { createBoard } from '../lib/api';
