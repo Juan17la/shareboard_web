@@ -14,7 +14,7 @@
 import type { BoardElement, BoardSnapshot } from '../lib/contract';
 import { embedSnapshot } from '../lib/embed';
 import { contentBounds } from '../lib/geometry';
-import { paintBoard } from '../components/board/renderer';
+import { paintBoard } from '../components/organisms/board/renderer';
 
 export type ImageFormat = 'png' | 'jpg';
 

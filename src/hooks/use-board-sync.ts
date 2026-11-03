@@ -17,7 +17,7 @@ import { useSessionStore } from '../features/session';
 import { useBoardStore } from '../features/board-store';
 import { ApiError, getBoard, joinBoard } from '../lib/api';
 import { REALTIME } from '../lib/config';
-import { pushLaser } from '../components/board/laser';
+import { pushLaser } from '../components/molecules/laser';
 import type { BoardElement, Participant, Point, Preview, Reaction } from '../lib/contract';
 import { splitOps } from '../lib/ops';
 import { RealtimeClient, TAB_ID } from '../lib/socket';
