@@ -44,7 +44,7 @@ export function ToastHost({
         // `nonce` as the key restarts the animation for a second toast with the
         // same text, which is otherwise indistinguishable from the first.
         key={nonce}
-        className="rounded-full bg-[rgba(28,28,30,0.9)] px-[15px] py-[9px] text-[0.75rem] font-bold text-white shadow-panel"
+        className="rounded-full bg-[rgba(44,44,46,0.94)] px-3.5 py-2 text-[0.8125rem] font-medium text-white shadow-card"
         style={{ animation: 'sb-up 0.18s ease, sb-out 0.2s ease 1.5s forwards' }}
       >
         {message}

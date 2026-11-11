@@ -76,7 +76,7 @@ export function JoinSheet({
   return (
     <Sheet open={open} title={t.anotherWhiteboard} onClose={onClose} closeLabel={t.close}>
       <form
-        className="flex flex-col gap-2.5"
+        className="flex flex-col gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           onCreate(name.trim());
@@ -106,8 +106,8 @@ export function JoinSheet({
             <span
               key={i}
               aria-hidden="true"
-              className={`grid h-[52px] flex-1 place-items-center rounded-[14px] border-[1.5px] font-mono text-[1.25rem] font-bold transition ${
-                code.length === i ? 'border-accent bg-background' : 'border-field bg-glass-solid'
+              className={`grid h-11 flex-1 place-items-center rounded-[10px] bg-glass-row font-mono text-[1.125rem] font-bold transition-shadow ${
+                code.length === i ? 'shadow-[inset_0_0_0_1.5px_var(--color-accent),0_0_0_3px_var(--color-accent-soft)]' : ''
               }`}
             >
               {code[i] ?? ''}
@@ -127,10 +127,10 @@ export function JoinSheet({
             className="absolute inset-0 h-full w-full cursor-text opacity-0"
           />
         </div>
-        <p className="text-[0.75rem] leading-snug text-text-secondary">{t.joinCodeHint}</p>
+        <p className="px-3 text-[0.75rem] leading-snug text-text-secondary">{t.joinCodeHint}</p>
         <Button
           label={t.enter}
-          icon="arrow"
+          variant="secondary"
           loading={busy}
           disabled={code.length < SHORT_CODE_LENGTH}
           fullWidth

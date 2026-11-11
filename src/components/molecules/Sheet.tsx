@@ -1,8 +1,8 @@
 /**
  * The bottom sheet every secondary surface in the design lives in.
  *
- * The board stays visible under a scrim while a solid panel slides up over
- * it — you can still see the drawing you are granting someone access to. So
+ * The board stays visible under a scrim while a solid grouped-grey panel
+ * slides up over it — you can still see the drawing you are granting someone access to. So
  * sheets are components rendered by the screen that owns them, not routes.
  *
  * On a wide screen the same panel becomes a centred card: a sheet pinned to the
@@ -12,13 +12,12 @@
  */
 import { createContext, useContext, useId, useRef, type PointerEvent, type ReactNode } from 'react';
 
-import { LineColor, type Line } from '../../lib/theme';
 import { useT } from '../../features/i18n';
 import { SheetBack } from './sheet-back';
 import { useDialogFocus } from '../../hooks/use-dialog-focus';
 import { useEscape } from '../../hooks/use-escape';
 import { IconButton } from '../atoms/Button';
-import { GlassPanel } from '../atoms/Glass';
+import { Icon } from '../atoms/Icon';
 import { ToastHost } from './Toast';
 
 export function Sheet({
@@ -37,7 +36,7 @@ export function Sheet({
   closeLabel?: string;
   /** A wider card on desktop, for sheets with a preview (AI). */
   wide?: boolean;
-  /** The title set big, for a sheet that is one task (sign in). */
+  /** The title set big and to the left, for a sheet that is one task (sign in). */
   large?: boolean;
 }) {
   const titleId = useId();
@@ -91,15 +90,11 @@ export function Sheet({
       <div
         aria-hidden="true"
         onClick={onClose}
-        className="sb-scrim absolute inset-0 bg-[rgba(15,27,45,0.28)]"
+        className="sb-scrim absolute inset-0 bg-black/30"
       />
 
-      <GlassPanel
-        level="panel"
-        radius={16}
-        border={null}
-        className={`sb-sheet relative flex max-h-[82vh] w-full flex-col rounded-b-none ${wide ? 'sm:max-w-[680px]' : 'sm:max-w-[440px]'} sm:max-h-[min(720px,86vh)] sm:rounded-b-[16px]`}
-        style={{ boxShadow: '0 -10px 36px rgba(15,27,45,0.18)' }}
+      <div
+        className={`sb-sheet relative flex max-h-[86vh] w-full flex-col overflow-hidden rounded-t-[16px] bg-sheet shadow-[0_-8px_40px_rgba(0,0,0,0.18)] ${wide ? 'sm:max-w-[680px]' : 'sm:max-w-[420px]'} sm:max-h-[min(720px,86vh)] sm:rounded-[14px] sm:shadow-[0_20px_60px_rgba(0,0,0,0.24)]`}
       >
         {/* Grab zone: the handle and the title row follow a downward drag. */}
         <div
@@ -109,47 +104,48 @@ export function Sheet({
           onPointerCancel={onDragEnd}
           className="touch-none max-sm:cursor-grab"
         >
-          <div className="flex justify-center pt-1.5 sm:hidden">
-            <div className="h-1 w-9 rounded-full bg-text/15" />
+          <div className="flex justify-center pt-[5px] sm:hidden">
+            <div className="h-[5px] w-9 rounded-full bg-text/20" />
           </div>
 
-          <div className="flex items-center justify-between gap-2.5 border-b border-line px-4 pt-1 pb-2.5 sm:pt-3">
-            {onBack ? (
-              <IconButton
-                icon="back"
-                label={backLabel}
-                onClick={onBack}
-                size={32}
-                iconSize={15}
-                tipSide="bottom"
-                className="touch-44 -ml-1"
-              />
-            ) : null}
-            <h2
-              id={titleId}
-              className={`flex-1 truncate font-bold ${large ? 'text-[1.75rem] leading-tight tracking-[-0.6px]' : 'text-[1.125rem] tracking-[-0.3px]'}`}
-            >
+          {/* The title sits in the middle of three columns, so it stays centred
+              whether or not there is a back button on its left. A large title
+              gets a row of its own under the buttons. */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 pt-1.5 pb-2 sm:pt-3">
+            <div className="flex">
+              {onBack ? (
+                <IconButton icon="back" label={backLabel} onClick={onBack} size={30} iconSize={14} tipSide="bottom" />
+              ) : null}
+            </div>
+            {large ? (
+              <span />
+            ) : (
+              <h2
+                id={titleId}
+                className="max-w-[60vw] truncate text-center text-[1rem] font-semibold tracking-[-0.01em] sm:max-w-[280px]"
+              >
+                {title}
+              </h2>
+            )}
+            <div className="flex justify-end">
+              <IconButton icon="close" label={closeLabel} onClick={onClose} size={30} iconSize={13} />
+            </div>
+          </div>
+          {large ? (
+            <h2 id={titleId} className="px-7 pb-2 text-[1.5rem] leading-tight font-bold tracking-[-0.02em]">
               {title}
             </h2>
-            <IconButton
-              icon="close"
-              label={closeLabel}
-              onClick={onClose}
-              size={32}
-              iconSize={15}
-              className="touch-44"
-            />
-          </div>
+          ) : null}
         </div>
 
-        <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-4 pt-3.5 pb-5">
+        <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-4 pt-1.5 pb-5">
           {children}
         </div>
 
         {/* A toast raised from inside the sheet ("Code copied") has to clear the
             scrim, so the sheet hosts its own above the panel. */}
         <ToastHost top={24} />
-      </GlassPanel>
+      </div>
     </div>
   );
 }
@@ -158,16 +154,17 @@ export function Sheet({
 const InGroup = createContext(false);
 
 /**
- * A titled list of rows in one card, divided by hairlines — the settings
- * shape. Each group sits on its own line, like the menu's sections.
+ * A titled list of rows in one white card on the grouped ground, parted by
+ * inset hairlines: the settings shape.
  */
-export function SheetGroup({ title, line, children }: { title?: string; line?: Line; children: ReactNode }) {
+export function SheetGroup({ title, footer, children }: { title?: string; footer?: string; children: ReactNode }) {
   return (
     <section aria-label={title} className="flex flex-col gap-1.5">
-      {title ? <SectionLabel line={line}>{title}</SectionLabel> : null}
-      <div className="divide-y divide-line overflow-hidden rounded-[14px] border border-line-strong bg-background">
+      {title ? <SectionLabel>{title}</SectionLabel> : null}
+      <div className="sb-group overflow-hidden rounded-[12px] bg-glass-row">
         <InGroup.Provider value>{children}</InGroup.Provider>
       </div>
+      {footer ? <p className="px-3 text-[0.75rem] leading-snug text-text-secondary">{footer}</p> : null}
     </section>
   );
 }
@@ -176,24 +173,37 @@ export function SheetGroup({ title, line, children }: { title?: string; line?: L
 export function SheetRow({
   title,
   description,
+  left,
   right,
   onClick,
   ariaLabel,
   tone = 'default',
+  ...aria
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
+  /** An icon or avatar before the text. */
+  left?: ReactNode;
   right?: ReactNode;
   onClick?: () => void;
   ariaLabel?: string;
-  /** `danger` for the destructive rows at the end of a group. */
-  tone?: 'default' | 'danger';
+  /** `danger` for the destructive rows at the end of a group; `accent` for a row that is a link. */
+  tone?: 'default' | 'danger' | 'accent';
+  role?: 'radio';
+  'aria-checked'?: boolean;
+  'aria-current'?: 'true';
+  disabled?: boolean;
 }) {
   const grouped = useContext(InGroup);
   const body = (
     <>
+      {left}
       <div className="min-w-0 flex-1">
-        <div className={`text-[0.875rem] leading-tight font-semibold ${tone === 'danger' ? 'text-danger' : ''}`}>{title}</div>
+        <div
+          className={`truncate text-[0.9375rem] leading-tight ${tone === 'danger' ? 'text-danger' : tone === 'accent' ? 'text-accent-text' : ''}`}
+        >
+          {title}
+        </div>
         {description ? (
           <div className="mt-0.5 text-[0.75rem] leading-snug text-text-secondary">{description}</div>
         ) : null}
@@ -201,13 +211,14 @@ export function SheetRow({
       {right}
     </>
   );
-  const pad = 'flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2';
+  const pad = 'touch-44 flex min-h-10 w-full items-center justify-between gap-3 px-3 py-1.5';
   const content = onClick ? (
     <button
       type="button"
       aria-label={ariaLabel ?? title}
       onClick={onClick}
-      className={`${pad} text-left transition hover:bg-surface active:bg-surface-selected`}
+      className={`${pad} text-left transition-colors hover:bg-fill active:bg-fill-strong disabled:cursor-default disabled:hover:bg-transparent`}
+      {...aria}
     >
       {body}
     </button>
@@ -215,28 +226,15 @@ export function SheetRow({
     <div className={pad}>{body}</div>
   );
 
-  return grouped ? (
-    content
-  ) : (
-    <GlassPanel level="row" radius={12} border="var(--color-line-strong)">
-      {content}
-    </GlassPanel>
-  );
+  return grouped ? content : <div className="overflow-hidden rounded-[12px] bg-glass-row">{content}</div>;
 }
 
-/**
- * A section heading inside sheets and screens, set like a station on a line
- * map: a ringed stop in the section's line colour, then the name.
- */
-export function SectionLabel({ children, line = 'ink' }: { children: ReactNode; line?: Line }) {
-  return (
-    <div className="flex items-center gap-2 text-[0.8125rem] font-bold text-text">
-      <span
-        aria-hidden="true"
-        className="h-3 w-3 flex-none rounded-full border-[3px] bg-background"
-        style={{ borderColor: LineColor[line] }}
-      />
-      {children}
-    </div>
-  );
+/** The small grey heading over a group or a field, lined up with the text under it. */
+export function SectionLabel({ children }: { children: ReactNode }) {
+  return <div className="px-3 text-[0.8125rem] font-medium text-text-secondary">{children}</div>;
+}
+
+/** The chevron at the end of a row that leads somewhere. */
+export function RowChevron() {
+  return <Icon name="chevron" size={13} className="flex-none text-text-tertiary" />;
 }

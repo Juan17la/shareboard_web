@@ -62,12 +62,12 @@ export function BoardHeader({
       {!canEdit && meta ? (
         <>
           <span className="text-text-tertiary">·</span>
-          <span className="font-bold text-text-tertiary">{t.viewOnly}</span>
+          <span className="font-medium text-text-tertiary">{t.viewOnly}</span>
         </>
       ) : null}
     </>
   );
-  const statusClass = 'flex min-w-0 items-center gap-1.5 text-[0.75rem] font-semibold text-text-secondary';
+  const statusClass = 'flex min-w-0 items-center gap-1.5 text-[0.75rem] text-text-secondary';
 
   return (
     <header
@@ -78,7 +78,7 @@ export function BoardHeader({
         <div className="pointer-events-auto min-w-0 px-1 py-0.5">
           <h1
             title={meta?.name}
-            className="truncate text-[0.9375rem] leading-tight font-extrabold tracking-[-0.2px]"
+            className="truncate text-[0.9375rem] leading-tight font-semibold tracking-[-0.01em]"
           >
             {meta?.name ?? t.appName}
           </h1>
@@ -92,7 +92,7 @@ export function BoardHeader({
               data-tip={participants.map((p) => p.nickname).join(', ') || t.connectedPeople}
               data-tip-side="bottom"
               onClick={onOpenPeople}
-              className={`touch-44 -ml-1 mt-px rounded-[8px] px-1 py-0.5 transition hover:bg-surface-selected ${statusClass}`}
+              className={`sb-hit -ml-1 mt-px rounded-[8px] px-1 py-0.5 transition hover:bg-surface-selected ${statusClass}`}
             >
               {status}
             </button>
@@ -107,12 +107,13 @@ export function BoardHeader({
             data-tip={t.share}
             data-tip-side="bottom"
             onClick={onOpenShare}
-            className="touch-44 flex h-10 flex-none items-center justify-center gap-1.5 rounded-full bg-accent pr-4 pl-3 text-white shadow-accent transition hover:bg-accent-deep"
+            className="sb-hit flex h-9 flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent pr-3.5 pl-3 text-white shadow-accent transition-colors hover:bg-accent-deep"
           >
-            <Icon name="share" size={18} />
-            <span className="text-[0.875rem] font-bold">{t.share}</span>
+            <Icon name="share" size={16} />
+            <span className="text-[0.875rem] font-semibold">{t.share}</span>
           </button>
-          <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} size={40} className="touch-44" />
+          {/* Over the board a translucent fill would show the drawing through: a solid chip. */}
+          <IconButton icon="more" label={t.boardMenu} onClick={onOpenMenu} size={36} className="glass-chip" />
         </div>
       </div>
     </header>

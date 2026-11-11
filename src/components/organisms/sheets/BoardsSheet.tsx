@@ -20,9 +20,8 @@ import { formatShortCode } from '../../../lib/short-code';
 import { toast } from '../../../lib/toast';
 
 import { Avatar } from '../../atoms/Avatar';
-import { GlassPanel } from '../../atoms/Glass';
 import { Icon } from '../../atoms/Icon';
-import { Sheet } from '../../molecules/Sheet';
+import { Sheet, SheetGroup } from '../../molecules/Sheet';
 
 export function BoardsSheet({
   open,
@@ -77,8 +76,8 @@ export function BoardsSheet({
 
   return (
     <Sheet open={open} title={t.myWhiteboards} onClose={onClose} closeLabel={t.close}>
-      <div className="flex flex-col gap-2 pb-1">
-        <GlassPanel level="row" radius={16}>
+      <div className="flex flex-col gap-4 pb-1">
+        <SheetGroup>
           <button
             type="button"
             aria-label={t.localBoardName}
@@ -87,36 +86,36 @@ export function BoardsSheet({
               onClose();
               if (!isLocalId(currentId)) navigate('/');
             }}
-            className="flex w-full min-w-0 items-center gap-3 px-3.5 py-3 text-left transition hover:bg-surface-selected"
+            className="flex w-full min-w-0 items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-fill active:bg-fill-strong"
           >
-            <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-full bg-surface-selected">
-              <Icon name="pencil" size={18} />
+            <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-fill">
+              <Icon name="pencil" size={16} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[0.8438rem] leading-tight font-bold">{t.localBoardName}</span>
+              <span className="block truncate text-[0.9375rem] leading-tight">{t.localBoardName}</span>
               <span className="mt-0.5 block truncate text-[0.75rem] text-text-secondary">{t.localRow}</span>
             </span>
             {isLocalId(currentId) ? (
-              <span className="flex-none text-accent">
+              <span className="flex-none text-accent-text">
                 <Icon name="check" size={16} />
               </span>
             ) : null}
           </button>
-        </GlassPanel>
+        </SheetGroup>
         {!live || (signedIn && mineFailed && mine === null) ? (
-          <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">{t.liveHidden}</p>
+          <p className="py-6 text-center text-[0.8125rem] leading-snug text-text-secondary">{t.liveHidden}</p>
         ) : signedIn && mine === null ? (
           <div className="grid place-items-center py-6">
             <div className="sb-loading" role="status" aria-label={t.loading} />
           </div>
         ) : rows.length === 0 ? (
-          <p className="py-6 text-center text-[0.7812rem] leading-snug text-text-secondary">
+          <p className="py-6 text-center text-[0.8125rem] leading-snug text-text-secondary">
             {signedIn ? t.myBoardsEmpty : t.noRecent}
           </p>
         ) : (
-          rows.map((board) => (
-            <GlassPanel key={board.id} level="row" radius={16}>
-              <div className="flex items-center">
+          <SheetGroup>
+          {rows.map((board) => (
+              <div key={board.id} className="flex items-center">
                 <button
                   type="button"
                   aria-label={`${board.name}, ${board.shortCode}`}
@@ -125,11 +124,11 @@ export function BoardsSheet({
                     onClose();
                     if (board.id !== currentId) navigate(`/board/${board.id}`);
                   }}
-                  className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 text-left transition hover:bg-surface-selected"
+                  className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-fill active:bg-fill-strong"
                 >
-                  <Avatar name={board.name} color={nickColor} size={38} />
+                  <Avatar name={board.name} color={nickColor} size={32} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.8438rem] leading-tight font-bold">{board.name}</span>
+                    <span className="block truncate text-[0.9375rem] leading-tight">{board.name}</span>
                     <span className="mt-0.5 flex items-center gap-1 truncate text-[0.75rem] text-text-secondary">
                       {board.hasPin ? (
                         <span aria-label={t.privateBoard}>
@@ -142,7 +141,7 @@ export function BoardsSheet({
                     </span>
                   </span>
                   {board.id === currentId ? (
-                    <span className="flex-none text-accent">
+                    <span className="flex-none text-accent-text">
                       <Icon name="check" size={16} />
                     </span>
                   ) : null}
@@ -155,14 +154,14 @@ export function BoardsSheet({
                     data-tip={t.forget}
                     data-tip-side="left"
                     onClick={() => forget(board.id)}
-                    className="mr-2 grid h-9 w-9 flex-none place-items-center rounded-[11px] text-text-tertiary transition hover:bg-surface-selected hover:text-danger"
+                    className="touch-36 mr-1.5 grid h-8 w-8 flex-none place-items-center rounded-full text-text-tertiary transition-colors hover:bg-fill hover:text-danger"
                   >
                     <Icon name="close" size={14} />
                   </button>
                 )}
               </div>
-            </GlassPanel>
-          ))
+          ))}
+          </SheetGroup>
         )}
       </div>
     </Sheet>

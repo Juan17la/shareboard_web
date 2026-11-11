@@ -15,7 +15,6 @@ import { EmailSection, PasswordSection } from '../account/AccountSecurity';
 import { AuthForm, type AuthMode } from '../account/AuthForm';
 import { Avatar } from '../../atoms/Avatar';
 import { Button } from '../../atoms/Button';
-import { GlassPanel } from '../../atoms/Glass';
 import { Sheet } from '../../molecules/Sheet';
 
 export function AccountSheet({
@@ -68,22 +67,20 @@ export function AccountSheet({
     >
       {account ? (
         <div className="flex flex-col gap-3">
-          <GlassPanel level="row" radius={14} border="var(--color-line-strong)">
-            <div className="flex items-center gap-3 p-3.5">
-              <Avatar name={nickname} color={nickColor} avatar={avatar} size={44} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[0.9375rem] leading-tight font-bold">{nickname}</div>
-                <div className="mt-0.5 truncate text-[0.75rem] text-text-secondary">
-                  {fill(t.signedInAs, { USER: account.username })}
-                </div>
+          <div className="flex items-center gap-3 rounded-[12px] bg-glass-row px-3 py-2.5">
+            <Avatar name={nickname} color={nickColor} avatar={avatar} size={40} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[0.9375rem] leading-tight font-semibold">{nickname}</div>
+              <div className="mt-0.5 truncate text-[0.75rem] text-text-secondary">
+                {fill(t.signedInAs, { USER: account.username })}
               </div>
             </div>
-          </GlassPanel>
+          </div>
           <EmailSection onVerified={onSignedIn} />
           <PasswordSection />
           <Button
             label={t.signOut}
-            variant="secondary"
+            variant="danger"
             fullWidth
             onClick={() => {
               useSessionStore.getState().signOut();

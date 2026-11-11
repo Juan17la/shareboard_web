@@ -17,7 +17,6 @@ import { useT } from '../../features/i18n';
 import { Css } from '../../lib/theme';
 
 import { Backdrop } from '../atoms/Backdrop';
-import { GlassPanel } from '../atoms/Glass';
 import { Icon } from '../atoms/Icon';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'] as const;
@@ -83,22 +82,20 @@ export function PinScreen({
     <main className="relative h-full overflow-hidden">
       <Backdrop />
       <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-4 py-6">
-        <GlassPanel
-          level="panel"
-          radius={26}
-          className="sb-dialog w-full max-w-[360px] shadow-panel"
+        <div
+          className="sb-dialog w-full max-w-[320px] overflow-hidden rounded-[18px] bg-sheet shadow-panel"
           style={{ maxHeight: 'calc(100% - 16px)' }}
         >
-          <div className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col items-center gap-4 overflow-y-auto px-6 py-8">
-            <div className="grid h-[46px] w-[46px] place-items-center rounded-[15px] border border-line bg-glass-solid">
-              <Icon name="lock" size={22} />
+          <div className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col items-center gap-3 overflow-y-auto px-6 py-6">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-accent-soft text-accent-text">
+              <Icon name="lock" size={20} />
             </div>
 
             <div className="flex flex-col items-center gap-1.5 text-center">
-              <h1 className="text-[1.25rem] leading-tight font-extrabold tracking-[-0.4px]">
+              <h1 className="text-[1.125rem] leading-tight font-semibold tracking-[-0.01em]">
                 {t.pinTitle}
               </h1>
-              <p className="text-[0.8125rem] leading-snug text-[#565D6C]">
+              <p role={error ? 'alert' : undefined} className={`text-[0.8125rem] leading-snug ${error ? 'font-medium text-danger' : 'text-text-secondary'}`}>
                 {error ? t.pinWrong : t.pinSub}
               </p>
             </div>
@@ -113,17 +110,17 @@ export function PinScreen({
                 return (
                   <span
                     key={i}
-                    className="h-3.5 w-3.5 rounded-full transition"
+                    className="h-3 w-3 rounded-full transition"
                     style={{
                       background: filled ? Css.accent : 'transparent',
-                      border: filled ? 'none' : `2px solid ${Css.borderDashed}`,
+                      border: filled ? 'none' : `1.5px solid ${Css.borderDashed}`,
                     }}
                   />
                 );
               })}
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-x-4 gap-y-2.5">
               {KEYS.map((key, index) => (
                 <button
                   key={`${key}-${index}`}
@@ -134,8 +131,8 @@ export function PinScreen({
                   onClick={() => press(key)}
                   className={
                     key
-                      ? 'flex h-[60px] w-[74px] items-center justify-center rounded-[18px] border border-line bg-glass-solid text-[1.3125rem] font-bold shadow-card transition hover:bg-surface-selected active:bg-surface-selected'
-                      : 'h-[60px] w-[74px]'
+                      ? `flex h-[60px] w-[60px] items-center justify-center rounded-full text-[1.5rem] transition-colors active:bg-fill-strong ${key === 'back' ? 'text-text-secondary hover:bg-fill' : 'bg-glass-row hover:bg-fill'}`
+                      : 'h-[60px] w-[60px]'
                   }
                 >
                   {key === 'back' ? <Icon name="close" size={20} /> : key}
@@ -143,7 +140,7 @@ export function PinScreen({
               ))}
             </div>
           </div>
-        </GlassPanel>
+        </div>
       </div>
     </main>
   );

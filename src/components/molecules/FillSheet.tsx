@@ -83,7 +83,7 @@ export function FillSheet({
             type="button"
             aria-pressed={!custom}
             onClick={() => onColor(null)}
-            className={`h-8 rounded-lg border px-2.5 text-[0.75rem] font-bold transition hover:bg-surface-selected ${
+            className={`h-8 rounded-lg border px-2.5 text-[0.75rem] font-semibold transition-colors hover:bg-fill ${
               custom ? 'border-line-dashed text-text-secondary' : 'border-accent text-accent-text'
             }`}
           >
@@ -92,7 +92,7 @@ export function FillSheet({
         </div>
 
         <label className="flex flex-col gap-2">
-          <span className="flex justify-between text-[0.8125rem] font-bold text-text">
+          <span className="flex justify-between text-[0.8125rem] font-medium text-text-secondary">
             {t.opacity}
             <span className="font-mono text-text">{opacity}%</span>
           </span>
@@ -114,8 +114,8 @@ export function FillSheet({
               type="button"
               aria-pressed={opacity === p}
               onClick={() => onOpacity(p)}
-              className={`h-8 flex-1 rounded-lg text-[0.75rem] font-bold transition ${
-                opacity === p ? 'bg-accent text-white' : 'bg-surface hover:bg-surface-selected'
+              className={`h-8 flex-1 rounded-lg text-[0.8125rem] font-semibold transition ${
+                opacity === p ? 'bg-accent text-white' : 'bg-fill hover:bg-fill-strong'
               }`}
             >
               {p}%

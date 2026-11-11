@@ -16,12 +16,11 @@ import { useT } from '../../../features/i18n';
 import { generatePin, useBoardPermissions } from '../../../features/permissions';
 import { useBoardStore } from '../../../features/board-store';
 import type { BoardAccess, EditPolicy } from '../../../lib/contract';
-import { Css } from '../../../lib/theme';
 
-import { GlassPanel } from '../../atoms/Glass';
+import { Button } from '../../atoms/Button';
 import { Icon } from '../../atoms/Icon';
 import { Segmented } from '../../atoms/Segmented';
-import { SectionLabel, Sheet } from '../../molecules/Sheet';
+import { RowChevron, SectionLabel, Sheet, SheetGroup, SheetRow } from '../../molecules/Sheet';
 
 export function PrivacySheet({
   open,
@@ -61,7 +60,7 @@ export function PrivacySheet({
   return (
     <Sheet open={open} title={t.sheetPrivacy} onClose={onClose} closeLabel={t.close}>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <SectionLabel>{t.visibility}</SectionLabel>
           <Segmented
             label={t.visibility}
@@ -73,97 +72,48 @@ export function PrivacySheet({
               { value: 'private' as BoardAccess, label: t.privateLabel },
             ]}
           />
-          <p className="text-[0.75rem] leading-snug text-text-secondary">{t.visibilityHint}</p>
+          <p className="px-3 text-[0.75rem] leading-snug text-text-secondary">{t.visibilityHint}</p>
         </div>
 
         {isPrivate ? (
-          <GlassPanel level="row" radius={16}>
-            <div className="flex items-center gap-2.5 p-3.5">
-              <Icon name="lock" size={18} />
-              <div className="min-w-0 flex-1">
-                <div className="text-[0.8125rem] leading-tight font-bold">{t.pinLabel}</div>
-                {!knownPin ? (
-                  <div className="text-[0.75rem] leading-snug text-text-secondary">{t.pinHidden}</div>
-                ) : null}
-              </div>
-              <span className="font-mono text-[1rem] font-bold tracking-[3px]">
-                {knownPin ?? '••••'}
-              </span>
-              {isCreator ? (
-                <button
-                  type="button"
-                  aria-label={t.newPin}
-                  disabled={busy}
-                  onClick={() => void apply({ pin: generatePin() })}
-                  className="flex-none rounded-[11px] border border-line-strong bg-surface px-2.5 py-[7px] text-[0.75rem] font-extrabold text-text-secondary transition hover:bg-surface-selected disabled:opacity-50"
-                >
-                  {t.newPin}
-                </button>
+          <div className="flex min-h-11 items-center gap-3 rounded-[12px] bg-glass-row px-3 py-1.5">
+            <Icon name="lock" size={19} className="flex-none text-accent-text" />
+            <div className="min-w-0 flex-1">
+              <div className="text-[0.9375rem] leading-tight">{t.pinLabel}</div>
+              {!knownPin ? (
+                <div className="mt-0.5 text-[0.75rem] leading-snug text-text-secondary">{t.pinHidden}</div>
               ) : null}
             </div>
-          </GlassPanel>
+            <span className="font-mono text-[1rem] font-bold tracking-[3px]">{knownPin ?? '••••'}</span>
+            {isCreator ? (
+              <Button label={t.newPin} variant="secondary" compact disabled={busy} onClick={() => void apply({ pin: generatePin() })} />
+            ) : null}
+          </div>
         ) : null}
 
-        <div className="flex flex-col gap-2">
-          <SectionLabel>{t.whoEdits}</SectionLabel>
-          <div role="radiogroup" aria-label={t.whoEdits} className="flex flex-col gap-2">
+        {/* One list, one tick: the row that is on carries the checkmark. */}
+        <div role="radiogroup" aria-label={t.whoEdits}>
+          <SheetGroup title={t.whoEdits} footer={isCreator ? undefined : t.ownerOnlyHint}>
             {modes.map((mode) => {
               const active = meta.editPolicy === mode.id;
               return (
-                <button
+                <SheetRow
                   key={mode.id}
-                  type="button"
                   role="radio"
                   aria-checked={active}
-                  aria-label={`${mode.label}. ${mode.desc}`}
+                  ariaLabel={`${mode.label}. ${mode.desc}`}
+                  title={mode.label}
+                  description={mode.desc}
                   disabled={!isCreator || busy}
                   onClick={() => void apply({ editPolicy: mode.id })}
-                  className="flex items-center gap-3 rounded-[15px] border px-3.5 py-3 text-left transition disabled:cursor-default"
-                  style={{
-                    borderColor: active ? Css.accent : Css.border,
-                    background: active ? Css.accentSofter : 'var(--color-glass-solid)',
-                    opacity: isCreator ? 1 : 0.75,
-                  }}
-                >
-                  <span
-                    className="grid h-[18px] w-[18px] flex-none place-items-center rounded-full"
-                    style={{ border: `1.5px solid ${active ? Css.accent : Css.borderDashed}` }}
-                  >
-                    {active ? (
-                      <span className="h-2 w-2 rounded-full" style={{ background: Css.accent }} />
-                    ) : null}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[0.8438rem] leading-tight font-bold">
-                      {mode.label}
-                    </span>
-                    <span className="mt-0.5 block text-[0.75rem] leading-snug text-text-secondary">
-                      {mode.desc}
-                    </span>
-                  </span>
-                </button>
+                  right={active ? <Icon name="check" size={17} className="flex-none text-accent-text" /> : null}
+                />
               );
             })}
-          </div>
-
-          {meta.editPolicy === 'selected' ? (
-            <button
-              type="button"
-              aria-label={t.chooseEditors}
-              onClick={onOpenPeople}
-              className="flex items-center justify-between gap-2 rounded-[14px] border px-3.5 py-3 transition hover:brightness-95"
-              style={{ borderColor: Css.accent, background: Css.accentSofter }}
-            >
-              <span className="text-[0.7812rem] font-extrabold text-accent-text">{t.chooseEditors}</span>
-              <span className="text-accent-text">
-                <Icon name="chevron" size={15} />
-              </span>
-            </button>
-          ) : null}
-
-          {!isCreator ? (
-            <p className="text-[0.75rem] leading-snug text-text-secondary">{t.ownerOnlyHint}</p>
-          ) : null}
+            {meta.editPolicy === 'selected' ? (
+              <SheetRow title={t.chooseEditors} tone="accent" right={<RowChevron />} onClick={onOpenPeople} />
+            ) : null}
+          </SheetGroup>
         </div>
       </div>
     </Sheet>
