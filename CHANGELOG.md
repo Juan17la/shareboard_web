@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.10.0-beta] - 2026-11-11
+
 ### Added
 
 - A public page about Shareboard at `/inicio`: what it does in three steps, the features, a board to draw a stroke on without an account, and the links to open the web app or download the Android APK. In Spanish or English, following the app's language setting.
