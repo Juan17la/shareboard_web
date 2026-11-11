@@ -138,7 +138,7 @@ export function ContextMenu({ spot, onClose }: { spot: MenuSpot; onClose: () => 
                   row.run();
                   onClose();
                 }}
-                className={`flex w-full items-center gap-3 rounded-[10px] px-3 text-left text-[0.875rem] font-semibold transition hover:bg-surface-selected focus-visible:bg-surface-selected ${
+                className={`flex w-full items-center gap-3 rounded-[7px] px-2.5 text-left text-[0.875rem] transition-colors hover:bg-fill focus-visible:bg-fill ${
                   row.danger ? 'text-danger' : 'text-text'
                 }`}
                 style={{ height: ROW }}

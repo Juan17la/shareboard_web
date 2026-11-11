@@ -40,7 +40,7 @@ export default function ShortCodePage() {
       <div className="relative flex h-full flex-col items-center justify-center gap-3.5 p-7 text-center">
         {failed ? (
           <>
-            <h1 className="text-[1.25rem] leading-tight font-extrabold tracking-[-0.4px]">
+            <h1 className="text-[1.25rem] leading-tight font-bold tracking-[-0.4px]">
               {t.errNoBoard}
             </h1>
             <p className="font-mono text-[0.8125rem] text-text-secondary">

@@ -21,10 +21,9 @@ import { formatShortCode } from '../../../lib/short-code';
 
 import { Button } from '../../atoms/Button';
 
-import { GlassPanel } from '../../atoms/Glass';
 import { Icon, type IconName } from '../../atoms/Icon';
 import { QRCode } from '../../atoms/QRCode';
-import { SectionLabel, Sheet } from '../../molecules/Sheet';
+import { RowChevron, Sheet, SheetGroup, SheetRow } from '../../molecules/Sheet';
 import { toast } from '../../../lib/toast';
 
 export function ShareSheet({
@@ -81,40 +80,34 @@ export function ShareSheet({
           <p className="text-center text-[0.75rem] leading-snug text-text-secondary">{t.qrHint}</p>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="flex flex-col gap-2">
-            <SectionLabel>{t.code}</SectionLabel>
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
+          {/* The code is what gets read out loud: big, mono, one tap to copy. */}
+          <SheetGroup title={t.code}>
             <button
               type="button"
               aria-label={`${t.code} ${code}`}
               onClick={() => copy(code, t.toastCopied)}
-              className="flex h-12 items-center gap-2.5 self-start rounded-full bg-accent pr-4 pl-2 text-white shadow-accent transition hover:bg-accent-deep"
+              className="touch-44 flex min-h-12 w-full items-center justify-between gap-3 px-3 text-left transition-colors hover:bg-fill active:bg-fill-strong"
             >
-              {/* The code as a line badge: a station ring, then the code to read out. */}
-              <span aria-hidden="true" className="h-5 w-5 flex-none rounded-full border-[4px] border-white" />
-              <span className="font-mono text-[1.25rem] font-bold tracking-[1.5px]">{formatShortCode(code)}</span>
-              <Icon name="copy" size={16} />
+              <span className="font-mono text-[1.375rem] font-bold tracking-[2px]">{formatShortCode(code)}</span>
+              <Icon name="copy" size={17} className="flex-none text-accent-text" />
             </button>
-          </div>
+          </SheetGroup>
 
-          <GlassPanel level="row" radius={16}>
-            <button
-              type="button"
-              aria-label={t.copyLink}
+          <SheetGroup>
+            <SheetRow
+              title={t.copyLink}
+              description={<span className="block truncate font-mono">{link}</span>}
+              left={<Icon name="link" size={19} className="flex-none text-accent-text" />}
               onClick={() => copy(link, t.toastLink)}
-              className="flex w-full items-center gap-2.5 p-3.5 text-left transition hover:bg-surface-selected"
-            >
-              <Icon name="link" size={18} />
-              <div className="min-w-0 flex-1">
-                <div className="text-[0.8438rem] leading-tight font-bold">{t.copyLink}</div>
-                <div className="truncate font-mono text-[0.75rem] text-text-secondary">{link}</div>
-              </div>
-            </button>
-          </GlassPanel>
-
-          <div className="mt-auto flex">
-            <ShortcutTile icon="lock" label={t.permissions} onClick={onOpenPrivacy} />
-          </div>
+            />
+            <SheetRow
+              title={t.permissions}
+              left={<Icon name="lock" size={19} className="flex-none text-accent-text" />}
+              right={<RowChevron />}
+              onClick={onOpenPrivacy}
+            />
+          </SheetGroup>
         </div>
       </div>
     </Sheet>
@@ -234,26 +227,3 @@ function ShareChoice({
   );
 }
 
-function ShortcutTile({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: IconName;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <GlassPanel level="row" radius={16} className="flex-1">
-      <button
-        type="button"
-        aria-label={label}
-        onClick={onClick}
-        className="flex w-full flex-col items-center gap-1.5 px-2 py-3.5 transition hover:bg-surface-selected"
-      >
-        <Icon name={icon} size={20} />
-        <span className="text-[0.75rem] font-bold">{label}</span>
-      </button>
-    </GlassPanel>
-  );
-}

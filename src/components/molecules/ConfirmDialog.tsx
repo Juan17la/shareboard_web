@@ -1,24 +1,21 @@
 /**
- * The centred glass dialog the design uses for the two destructive actions.
+ * The centred alert the design uses for the two destructive actions.
  *
  * Deliberately not `window.confirm`: clearing or deleting a board is the moment
  * the app most needs to look like itself and to say exactly what will happen to
  * *everyone else* on the board, and the browser dialog offers neither the copy
- * layout nor the warning glyph the design specifies.
+ * layout nor the app's own buttons.
  */
 import { useRef } from 'react';
 
 import { useDialogFocus } from '../../hooks/use-dialog-focus';
 import { useEscape } from '../../hooks/use-escape';
 import { Button } from '../atoms/Button';
-import { GlassPanel } from '../atoms/Glass';
-import { Icon } from '../atoms/Icon';
 
 export type ConfirmTone = 'warn' | 'danger';
 
 export function ConfirmDialog({
   open,
-  tone = 'warn',
   title,
   body,
   confirmLabel,
@@ -44,8 +41,6 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  const isDanger = tone === 'danger';
-  const accent = isDanger ? 'var(--color-danger)' : 'var(--color-warn)';
 
   return (
     <div
@@ -62,33 +57,22 @@ export function ConfirmDialog({
       <div
         aria-hidden="true"
         onClick={onCancel}
-        className="sb-scrim absolute inset-0 bg-[rgba(15,27,45,0.34)]"
+        className="sb-scrim absolute inset-0 bg-black/35"
       />
 
-      {/* Left-aligned like the sheets: what happens, why it matters, then the
-          two answers, the safe one first and the consequence on the right. */}
-      <GlassPanel
-        level="panel"
-        radius={16}
-        border={null}
-        className="sb-dialog relative w-full max-w-[380px]"
-        style={{ boxShadow: '0 18px 48px rgba(15,27,45,0.26)' }}
-      >
-        <div className="flex flex-col gap-3 p-[18px]">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 flex-none place-items-center rounded-full" style={{ background: isDanger ? 'var(--color-danger-soft)' : 'var(--color-warn-soft)', color: accent }}>
-              <Icon name="warning" size={18} />
-            </span>
-            <h2 className="text-[1.0625rem] leading-tight font-bold tracking-[-0.2px]">{title}</h2>
-          </div>
-          <p className="text-[0.875rem] leading-snug text-text-secondary">{body}</p>
-          <div className="mt-1 flex justify-end gap-2">
-            <Button label={cancelLabel} variant="secondary" compact disabled={busy} onClick={onCancel} />
+      {/* An alert: what happens, why it matters, then the two answers side by
+          side, the safe one first. */}
+      <div className="sb-dialog relative w-full max-w-[300px] overflow-hidden rounded-[14px] bg-sheet shadow-[0_20px_60px_rgba(0,0,0,0.28)]">
+        <div className="flex flex-col gap-1.5 px-4 pt-5 pb-4 text-center">
+          <h2 className="text-[1.0625rem] leading-tight font-semibold tracking-[-0.01em] text-balance">{title}</h2>
+          <p className="text-[0.8125rem] leading-snug text-text-secondary text-pretty">{body}</p>
+          <div className="mt-2.5 flex gap-2">
+            <Button label={cancelLabel} variant="secondary" fullWidth disabled={busy} onClick={onCancel} />
             {/* Both uses (clear, delete) destroy work: the answer is always red. */}
-            <Button label={confirmLabel} variant="danger" compact loading={busy} onClick={onConfirm} />
+            <Button label={confirmLabel} variant="danger" fullWidth loading={busy} onClick={onConfirm} />
           </div>
         </div>
-      </GlassPanel>
+      </div>
     </div>
   );
 }

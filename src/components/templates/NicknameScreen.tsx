@@ -19,7 +19,6 @@ import { Avatar } from '../atoms/Avatar';
 import { Backdrop } from '../atoms/Backdrop';
 import { Button } from '../atoms/Button';
 import { Field } from '../atoms/Field';
-import { GlassPanel } from '../atoms/Glass';
 import { SectionLabel } from '../molecules/Sheet';
 
 export function NicknameScreen({
@@ -48,10 +47,8 @@ export function NicknameScreen({
     <main className="relative h-full overflow-hidden">
       <Backdrop />
       <div className="absolute inset-0 flex items-center justify-center overflow-y-auto px-4 py-6">
-        <GlassPanel
-          level="panel"
-          radius={26}
-          className="sb-dialog w-full max-w-[460px] shadow-panel"
+        <div
+          className="sb-dialog w-full max-w-[400px] overflow-hidden rounded-[18px] bg-sheet shadow-panel"
           style={{ maxHeight: 'calc(100% - 16px)' }}
         >
           <form
@@ -59,18 +56,18 @@ export function NicknameScreen({
               e.preventDefault();
               if (ready) onContinue(draft.trim());
             }}
-            className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col gap-6 overflow-y-auto px-5 pb-5 pt-6 sm:px-6"
+            className="no-scrollbar flex max-h-[calc(100vh-48px)] flex-col gap-4 overflow-y-auto px-4 pb-4 pt-5"
           >
-            <div className="flex flex-col gap-2">
-              <h1 className="text-[1.5rem] leading-[1.15] font-extrabold tracking-[-0.5px]">
+            <div className="flex flex-col gap-1 px-3">
+              <h1 className="text-[1.375rem] leading-[1.15] font-bold tracking-[-0.02em]">
                 {t.nickTitle}
               </h1>
-              <p className="text-[0.8438rem] leading-relaxed text-text-secondary">{t.nickSub}</p>
+              <p className="text-[0.875rem] leading-snug text-text-secondary">{t.nickSub}</p>
             </div>
 
-            <GlassPanel level="row" radius={20} border={null} className="sb-focus-row">
-              <div className="flex items-center gap-3 p-3.5">
-                <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={46} />
+            <div className="sb-focus-row rounded-[12px] bg-glass-row transition-shadow">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <Avatar name={draft || '?'} color={nickColor} avatar={avatar} size={36} />
                 <div className="min-w-0 flex-1">
                   <Field
                     bare
@@ -80,18 +77,20 @@ export function NicknameScreen({
                     autoFocus={blank || !storedNickname}
                     autoComplete="nickname"
                     aria-label={t.nickPlaceholder}
-                    className="!text-[1.0625rem]"
+                    className="!text-[1rem]"
                   />
                 </div>
               </div>
-            </GlassPanel>
+            </div>
 
-            {error ? <p className="text-[0.7812rem] font-semibold text-danger">{error}</p> : null}
+            {error ? <p role="alert" className="-mt-2 px-3 text-[0.8125rem] font-medium text-danger">{error}</p> : null}
 
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-1.5">
               {/* One choice, not two: every icon brings its own colour. */}
               <SectionLabel>{t.yourIcon}</SectionLabel>
-              <AvatarPicker name={draft} />
+              <div className="rounded-[12px] bg-glass-row p-2">
+                <AvatarPicker name={draft} />
+              </div>
             </div>
 
             <Button
@@ -102,10 +101,10 @@ export function NicknameScreen({
               onClick={() => ready && onContinue(draft.trim())}
             />
             {onCancel ? (
-              <Button label={t.cancel} variant="ghost" fullWidth compact onClick={onCancel} />
+              <Button label={t.cancel} variant="ghost" fullWidth onClick={onCancel} />
             ) : null}
           </form>
-        </GlassPanel>
+        </div>
       </div>
     </main>
   );
@@ -117,7 +116,7 @@ export function AvatarPicker({ name }: { name: string }) {
   const avatar = useSessionStore((s) => s.avatar);
   const setAvatar = useSessionStore((s) => s.setAvatar);
   return (
-    <div role="radiogroup" aria-label={t.yourIcon} className="-ml-1 flex flex-wrap gap-1">
+    <div role="radiogroup" aria-label={t.yourIcon} className="flex flex-wrap gap-0.5">
       {Avatars.map(({ icon, color }) => {
         const active = avatar === icon;
         return (
@@ -128,10 +127,10 @@ export function AvatarPicker({ name }: { name: string }) {
             aria-checked={active}
             aria-label={icon}
             onClick={() => setAvatar(icon)}
-            className="grid h-[46px] w-[46px] place-items-center rounded-full border-2 transition"
-            style={{ borderColor: active ? color : 'transparent' }}
+            className="grid h-11 w-11 place-items-center rounded-full transition-shadow"
+            style={{ boxShadow: active ? `inset 0 0 0 2px ${color}` : undefined }}
           >
-            <Avatar name={name || '?'} color={color} avatar={icon} size={36} />
+            <Avatar name={name || '?'} color={color} avatar={icon} size={34} />
           </button>
         );
       })}

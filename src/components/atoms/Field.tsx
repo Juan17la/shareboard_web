@@ -6,10 +6,15 @@ export interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string | null;
   /** Codes and PINs are typed in JetBrains Mono, spaced out. */
   mono?: boolean;
-  /** Drops the border and background: for a field sitting inside a glass row. */
+  /** Drops the well: for a field sitting inside a grouped row. */
   bare?: boolean;
 }
 
+/**
+ * A borderless well on the sheet: white on the grouped grey, 36px under a
+ * mouse and 44px under a finger. The label and the hint line up with the text
+ * inside it. Focus and error are drawn by `.sb-field` (index.css).
+ */
 export function Field({
   label,
   hint,
@@ -20,17 +25,14 @@ export function Field({
   ...rest
 }: FieldProps) {
   return (
-    <label className="flex flex-col gap-1.5">
-      {label ? <span className="text-[0.8125rem] font-semibold text-text">{label}</span> : null}
+    <label className="flex flex-col gap-1">
+      {label ? <span className="px-3 text-[0.8125rem] font-medium text-text-secondary">{label}</span> : null}
       <input
         aria-invalid={error ? true : undefined}
         className={[
-          'w-full min-w-0 text-text outline-none placeholder:text-text-secondary',
-          bare
-            ? 'sb-bare bg-transparent p-0'
-            : 'min-h-11 rounded-[10px] border-2 bg-background px-3 py-2 transition-shadow focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-soft)]',
-          bare ? '' : error ? 'border-danger-bright shadow-[0_0_0_3px_var(--color-danger-soft)]' : 'border-field',
-          mono ? 'font-mono text-[0.9375rem] font-bold tracking-[1.5px]' : 'text-[1rem] font-medium',
+          'w-full min-w-0 text-text outline-none placeholder:text-text-tertiary',
+          bare ? 'sb-bare bg-transparent p-0' : 'sb-field touch-44 min-h-9 rounded-[10px] bg-glass-row px-3 py-1.5',
+          mono ? 'font-mono text-[0.9375rem] font-bold tracking-[1.5px]' : 'text-[1rem]',
           className,
         ]
           .filter(Boolean)
@@ -38,9 +40,9 @@ export function Field({
         {...rest}
       />
       {error ? (
-        <span role="alert" className="text-[0.75rem] leading-snug font-semibold text-danger">{error}</span>
+        <span role="alert" className="px-3 text-[0.75rem] leading-snug font-medium text-danger">{error}</span>
       ) : hint ? (
-        <span className="text-[0.75rem] leading-snug text-text-secondary">{hint}</span>
+        <span className="px-3 text-[0.75rem] leading-snug text-text-secondary">{hint}</span>
       ) : null}
     </label>
   );

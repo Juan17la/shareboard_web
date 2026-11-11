@@ -1,25 +1,24 @@
 /**
- * Buttons, in the six variants the design uses.
+ * Buttons, in the five variants the design uses.
  *
- * Pills, like the line badges on a transit sign. `primary` (blue), `go`
- * (green: the step that finishes a flow) and `danger` are filled with a
- * darker base edge (`.shadow-*` in index.css); `secondary` is ink-outlined.
+ * Rounded rectangles, flat. `primary` is the one filled blue button a surface
+ * gets; `secondary` is a grey fill, `ghost` is plain tinted text, `danger` is
+ * a red tint for the answer that destroys something, `dashed` a drop target.
+ * 36px under a mouse, 44px under a finger (`touch-44`).
  */
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 import { Icon, type IconName } from './Icon';
 
-export type ButtonVariant = 'primary' | 'go' | 'secondary' | 'ghost' | 'danger' | 'dashed';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dashed';
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-white shadow-accent hover:bg-accent-deep',
-  go: 'bg-go text-white shadow-go hover:brightness-110',
-  danger: 'bg-danger text-white shadow-danger hover:brightness-110',
-  // Outlined in ink: clearly a button, never competing with a filled one.
-  secondary: 'border-2 border-text text-text hover:bg-surface active:bg-surface-selected',
-  ghost: 'text-text-secondary hover:bg-text/[0.06] hover:text-text active:bg-text/[0.1]',
+  secondary: 'bg-fill text-text hover:bg-fill-strong active:bg-fill-strong',
+  ghost: 'text-accent-text hover:bg-accent-softer active:bg-accent-soft',
+  danger: 'bg-danger-soft text-danger hover:brightness-95 active:brightness-90',
   dashed:
-    'border-2 border-dashed border-line-dashed text-text-secondary hover:bg-surface hover:text-text active:bg-surface-selected',
+    'border-[1.5px] border-dashed border-line-dashed text-text-secondary hover:bg-fill hover:text-text active:bg-fill-strong',
 };
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
@@ -56,12 +55,13 @@ export function Button({
       aria-busy={loading || undefined}
       disabled={off}
       className={[
-        'flex items-center justify-center gap-2 font-bold tracking-[-0.1px] transition',
-        stacked ? 'flex-col gap-2' : '',
-        variant === 'dashed' || stacked ? 'rounded-[14px]' : 'rounded-full',
-        compact ? 'min-h-10 px-4 py-2 text-[0.875rem]' : 'min-h-12 px-5 py-3 text-[0.9375rem]',
+        'flex items-center justify-center font-semibold transition-colors',
+        stacked ? 'flex-col gap-2' : 'gap-1.5',
+        compact
+          ? 'touch-36 min-h-8 rounded-[8px] px-3 py-1 text-[0.8125rem]'
+          : 'touch-44 min-h-9 rounded-[12px] px-4 py-1.5 text-[0.9375rem]',
         fullWidth ? 'w-full' : '',
-        off ? 'opacity-55' : 'active:scale-[0.985]',
+        off ? 'opacity-45' : '',
         VARIANT[variant],
         className,
       ]
@@ -73,7 +73,7 @@ export function Button({
         <Spinner />
       ) : (
         <>
-          {icon ? <Icon name={icon} size={compact ? 16 : 18} /> : null}
+          {icon ? <Icon name={icon} size={compact ? 15 : 17} /> : null}
           <span>{label}</span>
           {children}
         </>
@@ -82,12 +82,12 @@ export function Button({
   );
 }
 
-/** Round icon button ringed in ink, like a station marker — the header's back / menu affordances. */
+/** Round icon button on a grey fill: the sheet's close and back, the header's menu. */
 export function IconButton({
   icon,
   label,
   onClick,
-  size = 40,
+  size = 36,
   iconSize = 18,
   radius,
   disabled,
@@ -121,10 +121,8 @@ export function IconButton({
       onClick={onClick}
       style={{ width: size, height: size, borderRadius: radius ?? size / 2 }}
       className={[
-        'touch-44 flex flex-none items-center justify-center border-2 transition',
-        active
-          ? 'border-accent bg-accent text-white'
-          : 'border-text/85 bg-background text-text hover:bg-surface',
+        'sb-hit flex flex-none items-center justify-center transition-colors',
+        active ? 'bg-accent text-white' : 'bg-fill text-text hover:bg-fill-strong active:bg-fill-strong',
         disabled ? 'cursor-not-allowed opacity-40' : '',
         className,
       ]
@@ -155,7 +153,7 @@ export function StepperButton({
       data-tip={label}
       disabled={disabled}
       onClick={onClick}
-      className="touch-36 flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 border-text/85 bg-background text-text transition hover:bg-surface disabled:opacity-40"
+      className="touch-36 flex h-[26px] w-[26px] items-center justify-center rounded-full bg-fill text-text transition-colors hover:bg-fill-strong active:bg-fill-strong disabled:opacity-40"
     >
       <Icon name={icon} size={14} />
     </button>
@@ -169,7 +167,7 @@ export function Hairline({ className = '' }: { className?: string }) {
 
 function Spinner() {
   return (
-    <svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
+    <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
       <circle
         cx="12"
         cy="12"

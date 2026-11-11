@@ -39,7 +39,7 @@ import { AvatarPicker } from '../../templates/NicknameScreen';
 import { Avatar } from '../../atoms/Avatar';
 import { Icon } from '../../atoms/Icon';
 import { Segmented } from '../../atoms/Segmented';
-import { Sheet, SheetGroup, SheetRow } from '../../molecules/Sheet';
+import { Sheet, SheetGroup, SheetRow, RowChevron } from '../../molecules/Sheet';
 import { Toggle } from '../../atoms/Toggle';
 import { toast } from '../../../lib/toast';
 
@@ -134,9 +134,9 @@ export function SettingsSheet({
     }
   }
 
-  const chevron = <Icon name="chevron" size={14} className="flex-none text-text-tertiary" />;
+  const chevron = <RowChevron />;
   const inputRow =
-    'flex min-h-12 items-center gap-3 px-3 py-1.5 transition focus-within:shadow-[inset_0_0_0_2px_var(--color-accent)]';
+    'touch-44 flex min-h-10 items-center gap-3 px-3 py-1.5 transition-shadow focus-within:shadow-[inset_0_0_0_1.5px_var(--color-accent)]';
 
   return (
     <Sheet
@@ -149,7 +149,7 @@ export function SettingsSheet({
       closeLabel={t.close}
     >
       <div className="flex flex-col gap-4">
-        <SheetGroup title={t.setYou} line="blue">
+        <SheetGroup title={t.setYou}>
           <SheetRow
             title={account ? `@${account.username}` : t.accountGuest}
             description={account ? t.sheetAccount : t.accountGuestDesc}
@@ -158,7 +158,7 @@ export function SettingsSheet({
               commitNick();
               onOpenAccount();
             }}
-            right={account ? chevron : <span className="flex-none text-[0.8125rem] font-bold text-accent-text">{t.signIn}</span>}
+            right={account ? chevron : <span className="flex-none text-[0.9375rem] text-accent-text">{t.signIn}</span>}
           />
           {/* Who you are on a board: the name beside your cursor and its icon. */}
           <label className={inputRow}>
@@ -173,20 +173,20 @@ export function SettingsSheet({
               placeholder={t.nickPlaceholder}
               autoComplete="nickname"
               aria-label={t.nickPlaceholder}
-              className="sb-bare min-w-0 flex-1 bg-transparent text-[0.9375rem] font-medium outline-none placeholder:text-text-secondary"
+              className="sb-bare min-w-0 flex-1 bg-transparent text-[0.9375rem] outline-none placeholder:text-text-tertiary"
             />
             <Icon name="edit" size={15} className="flex-none text-text-tertiary" />
           </label>
           <div className="flex flex-col gap-2 px-3 py-2.5">
-            <div className="text-[0.75rem] font-semibold text-text-secondary">{t.yourIcon}</div>
+            <div className="text-[0.75rem] text-text-secondary">{t.yourIcon}</div>
             <AvatarPicker name={nick} />
           </div>
         </SheetGroup>
 
         {meta ? (
-          <SheetGroup title={t.menuThisBoard} line="green">
+          <SheetGroup title={t.menuThisBoard}>
             <label className={isCreator ? inputRow : `${inputRow} focus-within:shadow-none`}>
-              <span className="w-16 flex-none text-[0.8125rem] font-semibold text-text-secondary">{t.boardName}</span>
+              <span className="w-16 flex-none text-[0.9375rem]">{t.boardName}</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -197,7 +197,7 @@ export function SettingsSheet({
                 readOnly={!isCreator || renaming}
                 maxLength={LIMITS.maxBoardNameLength}
                 aria-label={t.rename}
-                className={`sb-bare min-w-0 flex-1 bg-transparent text-[0.9375rem] font-medium outline-none ${isCreator ? 'text-text' : 'text-text-secondary'}`}
+                className="sb-bare min-w-0 flex-1 bg-transparent text-right text-[0.9375rem] text-text-secondary outline-none focus:text-text"
               />
               {isCreator ? <Icon name="edit" size={15} className="flex-none text-text-tertiary" /> : null}
             </label>
@@ -221,7 +221,7 @@ export function SettingsSheet({
           </SheetGroup>
         ) : null}
 
-        <SheetGroup title={t.setDisplay} line="violet">
+        <SheetGroup title={t.setDisplay}>
           {rows.map((row) => (
             <SheetRow
               key={row.key}
@@ -235,8 +235,8 @@ export function SettingsSheet({
             description={t.settingThemeDesc}
             right={<Toggle value={theme === 'dark'} onChange={(on) => setTheme(on ? 'dark' : 'light')} label={t.settingTheme} />}
           />
-          <div className="flex min-h-12 items-center justify-between gap-3 px-3 py-2">
-            <div className="text-[0.875rem] font-semibold">{t.language}</div>
+          <div className="touch-44 flex min-h-10 items-center justify-between gap-3 px-3 py-1.5">
+            <div className="text-[0.9375rem]">{t.language}</div>
             <div className="w-44">
               <Segmented<Lang>
                 label={t.language}
@@ -253,7 +253,7 @@ export function SettingsSheet({
           </div>
         </SheetGroup>
 
-        <SheetGroup title={t.setHelp} line="orange">
+        <SheetGroup title={t.setHelp}>
           <SheetRow
             title={t.tourReplay}
             description={t.tourReplayDesc}
@@ -265,7 +265,7 @@ export function SettingsSheet({
           />
           {coarsePointer ? (
             <div className="flex flex-col gap-1.5 px-3 py-2.5">
-              <div className="text-[0.875rem] font-semibold">{t.gestures}</div>
+              <div className="text-[0.9375rem]">{t.gestures}</div>
               {/* One gesture per line, not one run-on sentence. */}
               <ul className="flex list-disc flex-col gap-1 pl-4 text-[0.8125rem] leading-snug text-text-secondary marker:text-text-tertiary">
                 {t.gesturesDesc.split(' · ').map((gesture) => (
@@ -283,7 +283,7 @@ export function SettingsSheet({
               }}
               right={
                 <span className="flex flex-none items-center gap-2">
-                  <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-[6px] border-[1.5px] border-line-strong px-1.5 font-sans text-[0.75rem] font-semibold">
+                  <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-[6px] bg-fill px-1.5 font-sans text-[0.75rem] font-medium text-text-secondary">
                     ?
                   </kbd>
                   {chevron}
