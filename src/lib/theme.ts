@@ -9,29 +9,29 @@ export type Theme = 'light' | 'dark';
 /** The light palette, as literals: the fallback when there is no DOM (node checks). */
 const Light = {
   background: '#FFFFFF',
-  surface: '#EEF1F5',
-  surfaceSelected: '#E1E6ED',
-  text: '#0F1B2D',
-  textSecondary: '#4A566B',
-  textTertiary: '#6B7689',
+  surface: '#F2F2F7',
+  surfaceSelected: '#E5E5EA',
+  text: '#1D1D1F',
+  textSecondary: '#636366',
+  textTertiary: '#76767B',
 
-  /** The blue line: active tool, primary CTA, selected state. */
-  accent: '#0072CE',
-  accentDeep: '#005AA3',
-  accentSoft: 'rgba(0,114,206,0.11)',
-  accentSofter: 'rgba(0,114,206,0.06)',
+  /** The tint: active tool, primary CTA, selected state. */
+  accent: '#0071E3',
+  accentDeep: '#0062C4',
+  accentSoft: 'rgba(0,113,227,0.12)',
+  accentSofter: 'rgba(0,113,227,0.06)',
 
-  danger: '#C8102E',
-  dangerBright: '#E5283C',
-  dangerSoft: 'rgba(229,40,60,0.08)',
+  danger: '#D70015',
+  dangerBright: '#FF3B30',
+  dangerSoft: 'rgba(255,59,48,0.12)',
   warn: '#B45300',
-  warnSoft: 'rgba(224,111,0,0.12)',
+  warnSoft: 'rgba(255,149,0,0.14)',
 
   glass: 'rgba(255,255,255,0.96)',
   glassSolid: '#FFFFFF',
-  border: 'rgba(15,27,45,0.10)',
-  borderStrong: 'rgba(15,27,45,0.16)',
-  borderDashed: 'rgba(15,27,45,0.28)',
+  border: 'rgba(60,60,67,0.12)',
+  borderStrong: 'rgba(60,60,67,0.20)',
+  borderDashed: 'rgba(60,60,67,0.32)',
 };
 
 /** The CSS variable behind each token; the key itself, kebab-cased, unless named here. */
@@ -104,21 +104,11 @@ export function isLightPaper(fill: string | null | undefined): boolean {
   return 0.299 * r + 0.587 * g + 0.114 * b > 150;
 }
 
-/** The lines a section can sit on: each group of a menu owns one, on web and mobile alike. */
-export type Line = 'blue' | 'green' | 'orange' | 'violet' | 'ink';
-export const LineColor: Record<Line, string> = {
-  blue: 'var(--color-accent)',
-  green: 'var(--color-go)',
-  orange: 'var(--color-line-orange)',
-  violet: 'var(--color-line-violet)',
-  ink: 'var(--color-text)',
-};
-
 /** Connection status badge colors (theme-independent). */
 export const StatusColors = {
-  online: '#00843D',
-  connecting: '#E06F00',
-  offline: '#8A94A4',
+  online: '#34C759',
+  connecting: '#FF9500',
+  offline: '#8E8E93',
 } as const;
 
 /**
@@ -179,7 +169,7 @@ export const Avatars = [
 export const avatarColor = (icon: string): string =>
   (Avatars.find((a) => a.icon === icon) ?? Avatars[0]).color;
 
-export const Radius = { sm: 6, md: 10, lg: 14, xl: 18, xxl: 22, pill: 999 } as const;
+export const Radius = { sm: 6, md: 10, lg: 12, xl: 16, xxl: 20, pill: 999 } as const;
 
 /** Layout constants shared with the mobile app (mobile/docs/03-styles). */
 export const Layout = {

@@ -179,12 +179,9 @@ export function AuthForm({
 
       <Button
         type="submit"
-        variant="go"
-        icon="go"
         label={registering ? t.signUp : t.signIn}
         loading={busy}
         fullWidth
-        className="flex-row-reverse"
       />
 
       <p className="text-center text-[0.875rem] text-text-secondary">
@@ -192,7 +189,7 @@ export function AuthForm({
         <button
           type="button"
           onClick={() => switchMode(registering ? 'login' : 'register')}
-          className="font-bold text-accent-text underline-offset-2 hover:underline"
+          className="font-medium text-accent-text underline-offset-2 hover:underline"
         >
           {registering ? t.signIn : t.signUp}
         </button>
@@ -201,7 +198,7 @@ export function AuthForm({
         <button
           type="button"
           onClick={() => switchMode('reset')}
-          className="self-center text-[0.8125rem] text-text-secondary underline underline-offset-2 hover:text-text"
+          className="self-center text-[0.8125rem] text-accent-text underline-offset-2 hover:underline"
         >
           {t.forgotPassword}
         </button>
@@ -271,7 +268,7 @@ function ResetForm({ onBack, onDone }: { onBack: () => void; onDone: (res: Signe
         submit();
       }}
     >
-      <p role="status" className="text-[0.875rem] leading-snug text-text-secondary">
+      <p role="status" className="px-3 text-[0.875rem] leading-snug text-text-secondary">
         {sent ? t.resetSent : t.forgotIntro}
       </p>
       <Field
@@ -307,12 +304,9 @@ function ResetForm({ onBack, onDone }: { onBack: () => void; onDone: (res: Signe
 
       <Button
         type="submit"
-        variant="go"
-        icon="go"
         label={sent ? t.changePassword : t.sendCode}
         loading={busy}
         fullWidth
-        className="flex-row-reverse"
       />
       {sent ? (
         <button
@@ -322,7 +316,7 @@ function ResetForm({ onBack, onDone }: { onBack: () => void; onDone: (res: Signe
             await forgotPassword(mail);
             toast(t.toastCodeSent);
           })}
-          className="self-center text-[0.8125rem] font-bold text-accent-text underline-offset-2 hover:underline"
+          className="self-center text-[0.8125rem] font-medium text-accent-text underline-offset-2 hover:underline"
         >
           {t.resendCode}
         </button>
@@ -330,7 +324,7 @@ function ResetForm({ onBack, onDone }: { onBack: () => void; onDone: (res: Signe
       <button
         type="button"
         onClick={onBack}
-        className="self-center text-[0.8125rem] text-text-secondary underline underline-offset-2 hover:text-text"
+        className="self-center text-[0.8125rem] text-accent-text underline-offset-2 hover:underline"
       >
         {t.backToSignIn}
       </button>
@@ -392,15 +386,15 @@ export function PasswordField({
         name={autoComplete === 'new-password' ? 'new-password' : 'password'}
         error={error}
         hint={hint}
-        className="!pr-12"
+        className="!pr-10"
       />
-      {/* Sits on the input row: the label above it is 7px + one line. */}
+      {/* Sits on the input row, under the label line (see `.sb-eye`). */}
       <button
         type="button"
         aria-label={reveal ? t.hidePassword : t.showPassword}
         aria-pressed={reveal}
         onClick={() => setReveal((on) => !on)}
-        className="absolute right-1 top-[27.5px] grid h-10 w-10 place-items-center rounded-full text-text-secondary transition hover:bg-surface hover:text-text"
+        className="sb-eye absolute right-0.5 grid w-9 place-items-center rounded-[8px] text-text-secondary transition-colors hover:text-text"
       >
         <Icon name={reveal ? 'eye-slash' : 'eye'} size={18} />
       </button>
@@ -410,7 +404,7 @@ export function PasswordField({
 
 export function FormError({ error }: { error: string | null }) {
   return error ? (
-    <p role="alert" className="text-[0.7812rem] leading-snug font-semibold text-danger">
+    <p role="alert" className="px-3 text-[0.8125rem] leading-snug font-medium text-danger">
       {error}
     </p>
   ) : null;
@@ -419,7 +413,7 @@ export function FormError({ error }: { error: string | null }) {
 /** A rule under a field that ticks itself off as it is met. */
 export function Rule({ met, children }: { met: boolean; children: string }) {
   return (
-    <span className={`flex items-center gap-1.5 ${met ? 'font-semibold text-go' : ''}`}>
+    <span className={`flex items-center gap-1.5 ${met ? 'text-go' : ''}`}>
       <span
         className={`grid h-3.5 w-3.5 flex-none place-items-center rounded-full ${met ? 'bg-go text-white' : 'border-[1.5px] border-text-tertiary'}`}
       >

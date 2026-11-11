@@ -10,7 +10,6 @@ import { Fragment } from 'react';
 
 import { useT } from '../../../features/i18n';
 import type { Strings } from '../../../features/strings';
-import { type Line } from '../../../lib/theme';
 
 import { SectionLabel, Sheet } from '../../molecules/Sheet';
 
@@ -19,7 +18,7 @@ const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator
 /** Keys pressed together; an entry lists one or more alternatives. */
 type Combo = string[];
 type Entry = { label: string; combos: Combo[] };
-type Group = { title: string; line: Line; entries: Entry[] };
+type Group = { title: string; entries: Entry[] };
 
 function groups(t: Strings): Group[] {
   const mod = MAC ? '⌘' : 'Ctrl';
@@ -28,7 +27,6 @@ function groups(t: Strings): Group[] {
   return [
     {
       title: t.shortcutsTools,
-      line: 'blue',
       entries: [
         { label: t.select, combos: key('V') },
         { label: t.hand, combos: key('H') },
@@ -48,7 +46,6 @@ function groups(t: Strings): Group[] {
     },
     {
       title: t.shortcutsEdit,
-      line: 'green',
       entries: [
         { label: t.undo, combos: [[mod, 'Z']] },
         { label: t.redo, combos: [[mod, 'Y'], [mod, shift, 'Z']] },
@@ -64,7 +61,6 @@ function groups(t: Strings): Group[] {
     },
     {
       title: t.shortcutsView,
-      line: 'violet',
       entries: [
         { label: t.zoomIn, combos: [[mod, '+']] },
         { label: t.zoomOut, combos: [[mod, '−']] },
@@ -79,7 +75,7 @@ function groups(t: Strings): Group[] {
 
 function Keycap({ children }: { children: string }) {
   return (
-    <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-[6px] border-[1.5px] border-line-strong bg-background px-1.5 font-sans text-[0.75rem] leading-none font-semibold text-text">
+    <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-[6px] bg-fill px-1.5 font-sans text-[0.75rem] leading-none font-medium text-text">
       {children}
     </kbd>
   );
@@ -91,12 +87,12 @@ export function ShortcutList() {
     <div className="gap-x-8 sm:columns-2">
       {groups(t).map((group) => (
         <section key={group.title} aria-label={group.title} className="mb-4 break-inside-avoid">
-          <SectionLabel line={group.line}>{group.title}</SectionLabel>
-          <dl className="mt-1.5">
+          <SectionLabel>{group.title}</SectionLabel>
+          <dl className="sb-group mt-1.5 overflow-hidden rounded-[12px] bg-glass-row">
             {group.entries.map((entry) => (
               <div
                 key={entry.label}
-                className="flex min-h-9 items-center justify-between gap-3 border-b border-line py-1 last:border-b-0"
+                className="flex min-h-9 items-center justify-between gap-3 px-3 py-1"
               >
                 <dt className="min-w-0 text-[0.875rem] text-text">{entry.label}</dt>
                 <dd className="flex flex-none flex-wrap items-center justify-end gap-1">

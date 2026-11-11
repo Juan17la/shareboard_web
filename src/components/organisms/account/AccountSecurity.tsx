@@ -18,7 +18,6 @@ import { toast } from '../../../lib/toast';
 
 import { Button } from '../../atoms/Button';
 import { Field } from '../../atoms/Field';
-import { GlassPanel } from '../../atoms/Glass';
 import { Icon } from '../../atoms/Icon';
 import { applySignedIn, authMessage, EMAIL, focusInvalid, passwordError } from './auth';
 import { CodeField, FormError, PasswordField, Rule } from './AuthForm';
@@ -50,16 +49,18 @@ export function EmailSection({ onVerified }: { onVerified?: () => void }) {
   if (!account.emailVerified && required) return <VerifyForm email={email} onChange={() => setEditing(true)} onVerified={onVerified} />;
 
   return (
-    <GlassPanel level="row" radius={14}>
-      <div className="flex items-center gap-3 p-3.5">
-        {account.emailVerified ? <Icon name="check" size={18} /> : null}
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[0.875rem] font-bold">{email}</div>
-          {account.emailVerified ? <div className="text-[0.75rem] font-semibold text-go">{t.emailVerified}</div> : null}
-        </div>
-        <Button label={t.changeEmail} variant="secondary" compact onClick={() => setEditing(true)} />
+    <div className="flex min-h-11 items-center gap-3 rounded-[12px] bg-glass-row px-3 py-1.5">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[0.9375rem] leading-tight">{email}</div>
+        {account.emailVerified ? (
+          <div className="mt-0.5 flex items-center gap-1 text-[0.75rem] font-medium text-go">
+            <Icon name="check" size={12} />
+            {t.emailVerified}
+          </div>
+        ) : null}
       </div>
-    </GlassPanel>
+      <Button label={t.changeEmail} variant="secondary" compact onClick={() => setEditing(true)} />
+    </div>
   );
 }
 
@@ -119,8 +120,8 @@ function EmailForm({
     >
       {current ? null : (
         <div>
-          <h3 className="text-[0.9375rem] font-bold">{t.addEmailTitle}</h3>
-          <p className="mt-1 text-[0.8125rem] leading-snug text-text-secondary">{required ? t.addEmailBody : t.addEmailBodyReset}</p>
+          <h3 className="px-3 text-[0.9375rem] font-semibold">{t.addEmailTitle}</h3>
+          <p className="mt-1 px-3 text-[0.8125rem] leading-snug text-text-secondary">{required ? t.addEmailBody : t.addEmailBodyReset}</p>
         </div>
       )}
       <Field
@@ -185,12 +186,12 @@ function VerifyForm({ email, onChange, onVerified }: { email: string; onChange: 
       }}
     >
       <div>
-        <h3 className="text-[0.9375rem] font-bold">{t.verifyTitle}</h3>
-        <p className="mt-1 text-[0.8125rem] leading-snug text-text-secondary">{fill(t.verifyBody, { EMAIL: email })}</p>
+        <h3 className="px-3 text-[0.9375rem] font-semibold">{t.verifyTitle}</h3>
+        <p className="mt-1 px-3 text-[0.8125rem] leading-snug text-text-secondary">{fill(t.verifyBody, { EMAIL: email })}</p>
       </div>
       <CodeField value={code} onChange={setCode} error={null} />
       <FormError error={error} />
-      <Button type="submit" variant="go" label={t.verifyCta} loading={busy} fullWidth />
+      <Button type="submit" label={t.verifyCta} loading={busy} fullWidth />
       <div className="flex justify-center gap-4 text-[0.8125rem]">
         <button
           type="button"
@@ -198,11 +199,11 @@ function VerifyForm({ email, onChange, onVerified }: { email: string; onChange: 
             await resendEmailCode();
             toast(t.toastCodeSent);
           })}
-          className="font-bold text-accent-text underline-offset-2 hover:underline"
+          className="font-medium text-accent-text underline-offset-2 hover:underline"
         >
           {t.resendCode}
         </button>
-        <button type="button" onClick={onChange} className="text-text-secondary underline underline-offset-2 hover:text-text">
+        <button type="button" onClick={onChange} className="text-accent-text underline-offset-2 hover:underline">
           {t.changeEmail}
         </button>
       </div>
@@ -258,7 +259,7 @@ export function PasswordSection() {
         void submit();
       }}
     >
-      <h3 className="text-[0.9375rem] font-bold">{t.changePassword}</h3>
+      <h3 className="px-3 text-[0.9375rem] font-semibold">{t.changePassword}</h3>
       <PasswordField
         label={t.currentPassword}
         value={current}

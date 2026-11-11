@@ -37,21 +37,21 @@ export function TemplatesSheet({ open, onClose }: { open: boolean; onClose: () =
   );
   return (
     <Sheet open={open} title={t.templates} onClose={onClose} closeLabel={t.close} wide>
-      <p className="mb-3 text-[0.875rem] leading-snug text-text-secondary">{t.templatesHint}</p>
+      <p className="mb-3 px-3 text-[0.8125rem] leading-snug text-text-secondary">{t.templatesHint}</p>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         {TEMPLATES.map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => add(key)}
-            className="group flex flex-col self-start overflow-hidden rounded-[12px] border border-line-strong text-left transition hover:border-accent focus-visible:border-accent"
+            className="group flex flex-col self-start overflow-hidden rounded-[12px] bg-glass-row text-left transition-shadow hover:shadow-[inset_0_0_0_1.5px_var(--color-accent)]"
           >
             <span className="relative block aspect-[4/3] w-full overflow-hidden border-b border-line bg-white">
               {previews[key] ? (
                 <img src={previews[key]} alt="" className="absolute inset-0 h-full w-full object-contain p-2" draggable={false} />
               ) : null}
             </span>
-            <span className="px-3 py-2 text-[0.875rem] font-semibold group-hover:text-accent-text">{t[label]}</span>
+            <span className="px-3 py-2 text-[0.875rem] font-medium group-hover:text-accent-text">{t[label]}</span>
           </button>
         ))}
       </div>

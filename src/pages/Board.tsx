@@ -256,7 +256,7 @@ export default function BoardPage() {
       <main className="relative h-full">
         <Backdrop />
         <div className="relative flex h-full flex-col items-center justify-center gap-3.5 p-7 text-center">
-          <h1 className="text-[1.25rem] leading-tight font-extrabold tracking-[-0.4px]">
+          <h1 className="text-[1.25rem] leading-tight font-bold tracking-[-0.4px]">
             {t.errOpen}
           </h1>
           {sync.error ? (
@@ -415,11 +415,11 @@ function FirstRunHint({ top }: { top: number }) {
     <div className="pointer-events-none absolute inset-x-0 z-20 flex justify-center px-4" style={{ top }}>
       <GlassPanel level="chip" radius={16} overflow="visible" className="pointer-events-auto max-w-[340px] shadow-panel">
         <div className="flex items-center gap-3 py-2.5 pr-2.5 pl-4">
-          <p className="text-[0.8125rem] leading-snug font-semibold text-balance">{t.firstRunHint}</p>
+          <p className="text-[0.8125rem] leading-snug font-medium text-balance">{t.firstRunHint}</p>
           <button
             type="button"
             onClick={dismiss}
-            className="flex-none rounded-full bg-accent px-3.5 py-1.5 text-[0.8125rem] font-bold text-white shadow-accent transition hover:bg-accent-deep"
+            className="touch-36 flex-none rounded-[8px] bg-accent px-3 py-1.5 text-[0.8125rem] font-semibold text-white shadow-accent transition-colors hover:bg-accent-deep"
           >
             {t.gotIt}
           </button>

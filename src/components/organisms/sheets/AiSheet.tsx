@@ -95,7 +95,7 @@ export function AiSheet({ open, onClose }: { open: boolean; onClose: () => void 
                     ? 'self-end bg-accent text-white'
                     : m.from === 'error'
                       ? 'self-start bg-danger-soft text-danger'
-                      : 'self-start bg-surface-selected',
+                      : 'self-start bg-glass-row',
                 ].join(' ')}
               >
                 {m.text ? <p>{m.text}</p> : null}

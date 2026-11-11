@@ -7,6 +7,16 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A public page about Shareboard at `/inicio`: what it does in three steps, the features, a board to draw a stroke on without an account, and the links to open the web app or download the Android APK. In Spanish or English, following the app's language setting.
+
+### Changed
+
+- New look: quiet system chrome around the board. Near-black ink on white, grouped grey sheets holding white cards, and a single blue that acts and selects; green only says "done" or "on" (the switch, success text), never a button. The interface font is Inter, replacing Onest.
+- Sheets are rebuilt on that look: a centred title with back and close on its sides, rows in rounded groups with a chevron where they lead somewhere, and a tick on the chosen option in Privacy instead of radio boxes. Share, People, Boards, Menu, Settings and the account sheets follow.
+- Buttons, fields, switches, segmented controls, dialogs and toasts share the same grey fills.
+
 ## [1.9.0-beta] - 2026-11-03
 
 ### Added

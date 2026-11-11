@@ -21,10 +21,10 @@ export function ConnectionBanner({ top, onRetry }: { top: number; onRetry: () =>
   return (
     <div
       role="status"
-      className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 items-center gap-2.5 rounded-full border px-3.5 py-2 text-[0.7812rem] font-bold shadow-panel backdrop-blur-md"
+      className="pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 items-center gap-2.5 rounded-full border py-1.5 pr-1.5 pl-3 text-[0.8125rem] font-medium shadow-card"
       style={{
         top,
-        borderColor: offline ? 'rgba(196,53,58,0.25)' : Css.border,
+        borderColor: offline ? 'var(--color-danger-soft)' : Css.border,
         background: 'var(--color-glass-row)',
         color: offline ? Css.danger : Css.textSecondary,
       }}
@@ -35,7 +35,7 @@ export function ConnectionBanner({ top, onRetry }: { top: number; onRetry: () =>
         <button
           type="button"
           onClick={onRetry}
-          className="pointer-events-auto rounded-full bg-danger px-3 py-1 text-[0.75rem] font-extrabold text-white transition hover:brightness-110"
+          className="touch-36 pointer-events-auto rounded-full bg-danger-soft px-3 py-1 text-[0.8125rem] font-semibold text-danger transition hover:brightness-95"
         >
           {t.retry}
         </button>

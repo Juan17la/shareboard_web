@@ -107,7 +107,7 @@ export function ColorPickerSheet({
         ))}
 
         <div className="h-1.5" />
-        <div className="text-[0.8125rem] font-bold text-text">
+        <div className="text-[0.8125rem] font-medium text-text-secondary">
           {t.custom}
         </div>
         <div className="flex gap-1.5">
@@ -118,7 +118,7 @@ export function ColorPickerSheet({
           ))}
         </div>
 
-        <label className="mt-3 flex cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed border-line-dashed py-3 text-[0.75rem] font-bold text-text/70 transition hover:bg-surface-selected">
+        <label className="mt-3 flex cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed border-line-dashed py-3 text-[0.75rem] font-bold text-text/70 transition hover:bg-fill">
           <input
             type="color"
             value={value.slice(0, 7)}

@@ -11,11 +11,9 @@ import { useT } from '../../../features/i18n';
 import { useBoardPermissions } from '../../../features/permissions';
 import { useSessionStore } from '../../../features/session';
 import { useBoardStore } from '../../../features/board-store';
-import { Css } from '../../../lib/theme';
 
 import { Avatar } from '../../atoms/Avatar';
-import { GlassPanel } from '../../atoms/Glass';
-import { Sheet } from '../../molecules/Sheet';
+import { Sheet, SheetGroup, SheetRow } from '../../molecules/Sheet';
 
 export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
@@ -36,57 +34,42 @@ export function PeopleSheet({ open, onClose }: { open: boolean; onClose: () => v
 
   return (
     <Sheet open={open} title={t.sheetPeople} onClose={onClose} closeLabel={t.close}>
-      <div className="flex flex-col gap-2">
-        {participants.length === 0 ? (
-          <p className="text-[0.7812rem] leading-snug text-text-secondary">{t.aloneHere}</p>
-        ) : null}
+      {participants.length === 0 ? (
+        <p className="px-3 py-4 text-center text-[0.8125rem] leading-snug text-text-secondary">{t.aloneHere}</p>
+      ) : (
+        <SheetGroup footer={isCreator ? t.peopleHint : t.ownerOnlyHint}>
+          {participants.map((p) => {
+            const isOwner = p.userId === meta?.creatorId;
+            const isYou = p.userId === userId;
+            const canEdit = p.role !== 'viewer';
+            const listed = meta?.editors.includes(p.userId) ?? false;
+            const pill = isOwner ? t.pillOwner : canEdit ? t.pillCan : t.pillCannot;
 
-        {participants.map((p) => {
-          const isOwner = p.userId === meta?.creatorId;
-          const isYou = p.userId === userId;
-          const canEdit = p.role !== 'viewer';
-          const listed = meta?.editors.includes(p.userId) ?? false;
-          const pill = isOwner ? t.pillOwner : canEdit ? t.pillCan : t.pillCannot;
-
-          return (
-            <GlassPanel key={p.userId} level="row" radius={16}>
-              <div className="flex items-center gap-3 px-3.5 py-3">
-                <Avatar name={p.nickname} color={p.color} avatar={p.avatar} size={36} />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[0.8438rem] leading-tight font-bold">
-                    {p.nickname}
-                    {isYou && !isOwner ? ` · ${t.roleYou}` : ''}
-                  </div>
-                  <div className="text-[0.75rem] font-semibold text-text-secondary">
-                    {isOwner ? (isYou ? t.roleOwner : t.roleOwnerOther) : t.roleGuest}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  aria-label={`${p.nickname}: ${pill}`}
-                  aria-pressed={canEdit}
-                  disabled={isOwner || !isCreator || busy}
-                  onClick={() => toggleEditor(p.userId, listed)}
-                  className="flex-none rounded-full border px-2.5 py-[7px] text-[0.75rem] font-extrabold transition disabled:cursor-default"
-                  style={{
-                    borderColor: canEdit ? 'transparent' : Css.borderStrong,
-                    background: canEdit ? Css.accentSoft : Css.surface,
-                    color: canEdit ? Css.accent : Css.textSecondary,
-                    opacity: isCreator || isOwner ? 1 : 0.7,
-                  }}
-                >
-                  {pill}
-                </button>
-              </div>
-            </GlassPanel>
-          );
-        })}
-
-        <p className="px-0.5 py-1 text-[0.75rem] leading-snug text-text-secondary">
-          {isCreator ? t.peopleHint : t.ownerOnlyHint}
-        </p>
-      </div>
+            return (
+              <SheetRow
+                key={p.userId}
+                title={`${p.nickname}${isYou && !isOwner ? ` · ${t.roleYou}` : ''}`}
+                description={isOwner ? (isYou ? t.roleOwner : t.roleOwnerOther) : t.roleGuest}
+                left={<Avatar name={p.nickname} color={p.color} avatar={p.avatar} size={32} />}
+                right={
+                  <button
+                    type="button"
+                    aria-label={`${p.nickname}: ${pill}`}
+                    aria-pressed={canEdit}
+                    disabled={isOwner || !isCreator || busy}
+                    onClick={() => toggleEditor(p.userId, listed)}
+                    className={`touch-36 min-h-7 flex-none rounded-full px-3 text-[0.8125rem] font-semibold transition-colors disabled:cursor-default ${
+                      canEdit ? 'bg-accent-soft text-accent-text' : 'bg-fill text-text-secondary'
+                    } ${isCreator || isOwner ? '' : 'opacity-70'}`}
+                  >
+                    {pill}
+                  </button>
+                }
+              />
+            );
+          })}
+        </SheetGroup>
+      )}
     </Sheet>
   );
 }
