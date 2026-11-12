@@ -14,7 +14,7 @@ All notable changes to the Shareboard web client. The format follows
 
 ### Changed
 
-- New logo: a whiteboard with its marker tray and two markers, replacing the S with the cursor. The favicon and the iOS home-screen icon follow.
+- New logo: three stacked boards and a cursor on a dark tile, replacing the S with the cursor. The favicon and the iOS home-screen icon follow.
 - The public page lives at `/about`; the links that still pointed to `/inicio` now follow it.
 
 ## [1.10.0-beta] - 2026-11-11
