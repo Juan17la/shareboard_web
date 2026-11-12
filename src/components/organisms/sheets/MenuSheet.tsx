@@ -9,6 +9,8 @@
  * and this is where the others are reached from. Each thing has exactly one
  * entry here; the header carries only Share.
  */
+import { useNavigate } from 'react-router-dom';
+
 import { useT } from '../../../features/i18n';
 import { useBoardStore } from '../../../features/board-store';
 
@@ -45,6 +47,7 @@ export function MenuSheet({
   onOpenShortcuts: () => void;
 }) {
   const t = useT();
+  const navigate = useNavigate();
   const canEdit = useBoardStore((s) => s.canEditNow());
   const name = useBoardStore((s) => s.meta?.name);
   const local = useBoardStore((s) => s.connection === 'local');
@@ -85,6 +88,8 @@ export function MenuSheet({
         ...(matchMedia('(any-pointer: fine)').matches
           ? [{ icon: 'keyboard' as const, label: t.shortcuts, onClick: onOpenShortcuts }]
           : []),
+        // The public page: what Shareboard is, its source, the terms.
+        { icon: 'link', label: t.aboutShareboard, onClick: () => navigate('/about') },
       ],
     },
   ];
