@@ -7,6 +7,16 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A light theme for the public page (`/about` and `/terminos`). It follows the system theme by default, and a button in the nav cycles system, light and dark; the choice is remembered on this device.
+- A link to the public page from the menu ("About Shareboard").
+
+### Changed
+
+- New logo: a whiteboard with its marker tray and two markers, replacing the S with the cursor. The favicon and the iOS home-screen icon follow.
+- The public page lives at `/about`; the links that still pointed to `/inicio` now follow it.
+
 ## [1.10.0-beta] - 2026-11-11
 
 ### Added
