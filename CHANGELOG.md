@@ -7,6 +7,8 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.11.0-beta] - 2026-11-13
+
 ### Added
 
 - A light theme for the public page (`/about` and `/terminos`). It follows the system theme by default, and a button in the nav cycles system, light and dark; the choice is remembered on this device.
