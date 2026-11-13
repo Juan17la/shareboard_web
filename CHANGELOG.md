@@ -7,6 +7,22 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+## [1.11.0-beta] - 2026-11-13
+
+### Added
+
+- A light theme for the public page (`/about` and `/terminos`). It follows the system theme by default, and a button in the nav cycles system, light and dark; the choice is remembered on this device.
+- A link to the public page from the menu ("About Shareboard").
+
+### Changed
+
+- New logo: three stacked boards and a cursor on a dark tile, replacing the S with the cursor. The favicon and the iOS home-screen icon follow.
+- The public page lives at `/about`; the links that still pointed to `/inicio` now follow it.
+
+### Fixed
+
+- A solid figure no longer turns dashed (and stuck that way) when it is painted after a dashed line or arrow that has a label; copying, pasting or deleting used to move the glitch from figure to figure.
+
 ## [1.10.0-beta] - 2026-11-11
 
 ### Added

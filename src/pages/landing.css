@@ -1,0 +1,261 @@
+/*
+ * The public pages (/about, /terminos) have their own world, apart from the
+ * app's Metro chrome: a product page whose only texture is the board's dot
+ * grid, and whose only colours are the four people drawing on it. Dark is the
+ * base; `data-lp="light"` (set from the system theme or the nav switcher)
+ * swaps the tokens below, and nothing else on the page knows which is on.
+ */
+.lp {
+  --lp-bg: #08090c;
+  --lp-panel: #0e1016;
+  --lp-raise: #151821;
+  --lp-raise-2: #1c2030;
+  --lp-ink: #f3f5f9;
+  --lp-ink-2: #a7afbe;
+  --lp-ink-3: #737b8c;
+  --lp-line: rgba(255, 255, 255, 0.08);
+  --lp-line-2: rgba(255, 255, 255, 0.14);
+  --lp-blue: #4c9bff;
+  --lp-green: #2bd47d;
+  --lp-orange: #ff8a3d;
+  --lp-violet: #a585ff;
+  --lp-sticky: #ffe27a;
+  --lp-raise-3: #262b3d;
+  --lp-ink-hover: #fff;
+  --lp-on-line: #08090c;
+  --lp-wash: rgba(255, 255, 255, 0.05);
+  --lp-wash-2: rgba(255, 255, 255, 0.12);
+  --lp-stroke: rgba(255, 255, 255, 0.2);
+  --lp-stroke-2: rgba(255, 255, 255, 0.4);
+  --lp-well: rgba(0, 0, 0, 0.4);
+  --lp-shadow: rgba(0, 0, 0, 0.9);
+  --lp-dots: rgba(255, 255, 255, 0.11);
+  --lp-select: rgba(76, 155, 255, 0.35);
+  --lp-danger: #ff6b6b;
+  --lp-display: 'Mona Sans', 'Onest', system-ui, sans-serif;
+  --lp-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  background: var(--lp-bg);
+  color: var(--lp-ink);
+  font-family: var(--lp-display);
+  color-scheme: dark;
+  scrollbar-color: #2a2f3d var(--lp-bg);
+}
+/* Light: the app's signage palette (white ground, ink, the four Metro lines). */
+.lp[data-lp='light'] {
+  --lp-bg: #f7f8fb;
+  --lp-panel: #ffffff;
+  --lp-raise: #eef1f5;
+  --lp-raise-2: #e1e6ed;
+  --lp-raise-3: #d3dae4;
+  --lp-ink: #0f1b2d;
+  --lp-ink-2: #4a566b;
+  --lp-ink-3: #66718a;
+  --lp-line: rgba(15, 27, 45, 0.1);
+  --lp-line-2: rgba(15, 27, 45, 0.18);
+  --lp-blue: #0072ce;
+  --lp-green: #00843d;
+  --lp-orange: #c85f00;
+  --lp-violet: #6e4bd8;
+  --lp-danger: #c8102e;
+  --lp-ink-hover: #26364f;
+  --lp-on-line: #ffffff;
+  --lp-wash: rgba(15, 27, 45, 0.05);
+  --lp-wash-2: rgba(15, 27, 45, 0.1);
+  --lp-stroke: rgba(15, 27, 45, 0.22);
+  --lp-stroke-2: rgba(15, 27, 45, 0.45);
+  --lp-well: rgba(15, 27, 45, 0.05);
+  --lp-shadow: rgba(15, 27, 45, 0.28);
+  --lp-dots: rgba(15, 27, 45, 0.14);
+  --lp-select: rgba(0, 114, 206, 0.25);
+  color-scheme: light;
+  scrollbar-color: #c3cbd8 var(--lp-bg);
+}
+.lp ::selection {
+  background: var(--lp-select);
+  color: var(--lp-ink);
+}
+.lp :focus-visible {
+  outline: 2px solid var(--lp-blue);
+  outline-offset: 3px;
+}
+.lp input {
+  caret-color: var(--lp-blue);
+}
+
+.lp-display {
+  font-family: var(--lp-display);
+  font-stretch: 112%;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+/* The board's own dot grid, fading out at the edges of whatever holds it. */
+.lp-grid {
+  background-image: radial-gradient(circle, var(--lp-dots) 1.2px, transparent 1.4px);
+  background-size: 24px 24px;
+}
+.lp-grid-fade {
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+}
+
+.lp-panel {
+  background: var(--lp-panel);
+  border: 1px solid var(--lp-line);
+  border-radius: 20px;
+}
+
+/* Strokes that draw themselves in once they scroll into view. Visible by
+   default: browsers without scroll timelines, and reduced motion, see them
+   already drawn. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .lp-draw {
+      stroke-dasharray: 1;
+      animation: lp-draw linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 45%;
+    }
+  }
+}
+@keyframes lp-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The underline under the headline's key word, drawn once on load. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-underline {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: lp-draw-once 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.5s forwards;
+  }
+}
+@keyframes lp-draw-once {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Loops for the feature demos. Each runs on its own clock; reduced motion
+   shows the finished frame. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-loop-scribble {
+    stroke-dasharray: 1;
+    animation: lp-scribble 5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+  .lp-loop-clean {
+    animation: lp-clean 5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .lp-loop-hold {
+    animation: lp-hold 5s ease-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .lp-cursor-a {
+    animation: lp-wander-a 9s ease-in-out infinite;
+  }
+  .lp-cursor-b {
+    animation: lp-wander-b 11s ease-in-out infinite;
+  }
+  .lp-cursor-c {
+    animation: lp-wander-c 10s ease-in-out infinite;
+  }
+  .lp-caret {
+    animation: lp-blink 1s steps(1) infinite;
+  }
+  .lp-ai-shape {
+    animation: lp-ai 6s cubic-bezier(0.16, 1, 0.3, 1) infinite both;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .lp-ai-type {
+    animation: lp-type 6s steps(28) infinite both;
+  }
+  .lp-pulse {
+    animation: lp-pulse 2.2s ease-out infinite;
+  }
+}
+@keyframes lp-scribble {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  38% { stroke-dashoffset: 0; opacity: 1; }
+  58% { stroke-dashoffset: 0; opacity: 1; }
+  64%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes lp-clean {
+  0%, 58% { opacity: 0; transform: scale(0.92); }
+  66%, 92% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes lp-hold {
+  0%, 38% { opacity: 0; transform: scale(0.4); }
+  44% { opacity: 1; }
+  58% { opacity: 0; transform: scale(1.8); }
+  100% { opacity: 0; }
+}
+@keyframes lp-wander-a {
+  0%, 100% { transform: translate(14%, 22%); }
+  30% { transform: translate(46%, 30%); }
+  60% { transform: translate(30%, 62%); }
+}
+@keyframes lp-wander-b {
+  0%, 100% { transform: translate(64%, 58%); }
+  35% { transform: translate(40%, 46%); }
+  70% { transform: translate(64%, 24%); }
+}
+@keyframes lp-wander-c {
+  0%, 100% { transform: translate(52%, 70%); }
+  40% { transform: translate(62%, 62%); }
+  75% { transform: translate(24%, 52%); }
+}
+@keyframes lp-blink {
+  50% { opacity: 0; }
+}
+@keyframes lp-type {
+  0% { clip-path: inset(0 100% 0 0); }
+  40%, 100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes lp-ai {
+  0%, 45% { opacity: 0; transform: translateY(8px) scale(0.96); }
+  55%, 92% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+@keyframes lp-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(43, 212, 125, 0.55); }
+  100% { box-shadow: 0 0 0 10px rgba(43, 212, 125, 0); }
+}
+
+/* Resting spots for the feature-tile cursors when nothing animates. */
+.lp-cursor-a { transform: translate(14%, 22%); }
+.lp-cursor-b { transform: translate(64%, 58%); }
+.lp-cursor-c { transform: translate(52%, 70%); }
+
+/* FAQ disclosure marker. */
+.lp details > summary {
+  list-style: none;
+}
+.lp details > summary::-webkit-details-marker {
+  display: none;
+}
+.lp details[open] .lp-plus {
+  transform: rotate(45deg);
+}
+
+/* At phone size the wide, tight display setting closes word spaces up, and
+   the hero board's cursor tags shrink below reading size. */
+@media (max-width: 639px) {
+  .lp-display {
+    letter-spacing: -0.025em;
+    word-spacing: 0.08em;
+  }
+  .lp-actor {
+    transform: scale(1.8);
+  }
+}

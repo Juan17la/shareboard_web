@@ -204,8 +204,9 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   ctx.lineJoin = 'round';
 
   // Closed shapes dash their outline; the line below does it for its own route.
+  // Always set: a solid figure must not inherit the last element's dash.
   const outline = dashIntervals(el.dash, el.strokeWidth);
-  if (outline) ctx.setLineDash(outline);
+  ctx.setLineDash(outline ?? []);
 
   if (el.shape === 'rectangle' && el.sticky) {
     // A sticky note: paper with a soft drop shadow and no outline.
@@ -286,8 +287,10 @@ function paintShapeGeometry(ctx: CanvasRenderingContext2D, el: ShapeElement): vo
   }
   if (dash) ctx.setLineDash(dash);
   ctx.stroke(once(outlines, el, () => new Path2D(routePath(el))));
-  ctx.setLineDash([]);
+  // After the restore: the save above happened while the dash was on, and
+  // restoring it would leak the dash onto the markers and the next element.
   if (gap) ctx.restore();
+  ctx.setLineDash([]);
 
   // Sharp tips, not the line's soft join: a crow's foot or a chevron rounded
   // off at the point reads as a blob rather than an arrowhead.

@@ -7,6 +7,7 @@ import BoardPage from './pages/Board';
 import LandingPage from './pages/Landing';
 import ShortCodePage from './pages/ShortCode';
 import StartPage from './pages/Start';
+import TermsPage from './pages/Terms';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -14,7 +15,8 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<StartPage />} />
         {/* Public page about the app: what it does, and where to get it. */}
-        <Route path="/inicio" element={<LandingPage />} />
+        <Route path="/about" element={<LandingPage />} />
+        <Route path="/terminos" element={<TermsPage />} />
         {/* Shareable link form: /b/<code> resolves to the canonical board route. */}
         <Route path="/b/:code" element={<ShortCodePage />} />
         <Route path="/board/:id" element={<BoardPage />} />
