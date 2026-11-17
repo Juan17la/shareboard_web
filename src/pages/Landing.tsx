@@ -637,8 +637,8 @@ function Hero({ c }: { c: Copy }) {
         </div>
         {isAndroid ? null : (
           <p className="mt-4 text-center">
-            <a href={LINKS.apk} className="inline-flex items-center gap-1.5 text-[0.9375rem] font-medium text-(--lp-ink-2) underline decoration-(--lp-stroke) underline-offset-4 hover:text-(--lp-ink)">
-              <AndroidLogoIcon size={17} weight="fill" />
+            <a href={LINKS.apk} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#3ddc84] px-5 text-[0.9375rem] font-semibold text-[#06281a] transition hover:bg-[#5ee79b] active:scale-[0.98]">
+              <AndroidLogoIcon size={22} weight="fill" />
               {c.apk}
             </a>
           </p>

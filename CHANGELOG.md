@@ -7,6 +7,10 @@ All notable changes to the Shareboard web client. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Landing page: the hero's "Download the Android APK" link is now a green button with the Android logo instead of plain underlined text.
+
 ## [1.11.1-beta] - 2026-11-15
 
 ### Changed
